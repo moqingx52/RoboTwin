@@ -145,7 +145,6 @@ def extract_visual_feat(self, image, cam_id=0):
 
 这样 `ACTPolicy` 在训练时可以调 `self.model.extract_visual_feat(image, cam_id=0)`。当前 DETR-VAE 结构里，backbone 和 `input_proj` 都已经在模型内部了
 
-而不是继续用默认 6000。默认 6000 对 250 条数据会训练得太久。
 
 
 参考：https://github.com/RoboTwin-Platform/RoboTwin
