@@ -42,6 +42,11 @@ class EpisodicDataset(torch.utils.data.Dataset):
             image_dict = dict()
             for cam_name in self.camera_names:
                 image_dict[cam_name] = root[f"/observations/images/{cam_name}"][start_ts]
+            # RoboAug: 取 start_ts 对应的 region mask（仅 cam_high）
+            has_masks = "observations" in root and "masks" in root["observations"] and "cam_high" in root["observations"]["masks"]
+            if has_masks:
+                region_mask = root["/observations/masks/cam_high"][start_ts]  # [K, H, W]
+                region_label = root["/observations/region_labels"][()]  # [K]
             # get all actions after and including start_ts
             if is_sim:
                 action = root["/action"][start_ts:]
@@ -76,7 +81,16 @@ class EpisodicDataset(torch.utils.data.Dataset):
         action_data = (action_data - self.norm_stats["action_mean"]) / self.norm_stats["action_std"]
         qpos_data = (qpos_data - self.norm_stats["qpos_mean"]) / self.norm_stats["qpos_std"]
 
-        return image_data, qpos_data, action_data, is_pad
+        # RoboAug: 无 mask 时返回零张量，policy 内可据此跳过 RCL
+        if has_masks:
+            region_mask = torch.from_numpy(np.asarray(region_mask)).float()
+            region_label = torch.from_numpy(np.asarray(region_label)).long()
+        else:
+            K, H, W = 4, 480, 640
+            region_mask = torch.zeros(K, H, W, dtype=torch.float32)
+            region_label = torch.arange(K, dtype=torch.long)
+
+        return image_data, qpos_data, action_data, is_pad, region_mask, region_label
 
 
 def get_norm_stats(dataset_dir, num_episodes):
@@ -150,21 +164,22 @@ def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_s
     # construct dataset and dataloader
     train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats, max_action_len)
     val_dataset = EpisodicDataset(val_indices, dataset_dir, camera_names, norm_stats, max_action_len)
+    # num_workers=0 避免 Docker/容器内 shm 不足导致 DataLoader worker Bus error
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size_train,
         shuffle=True,
         pin_memory=True,
-        num_workers=1,
-        prefetch_factor=1,
+        num_workers=0,
+        prefetch_factor=None,
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=batch_size_val,
         shuffle=True,
         pin_memory=True,
-        num_workers=1,
-        prefetch_factor=1,
+        num_workers=0,
+        prefetch_factor=None,
     )
 
     return train_dataloader, val_dataloader, norm_stats, train_dataset.is_sim

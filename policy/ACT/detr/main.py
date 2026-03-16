@@ -115,6 +115,10 @@ def get_args_parser():
     parser.add_argument("--temporal_agg", action="store_true")
     parser.add_argument("--state_dim", action="store", type=int, help="state dim", required=True)
     parser.add_argument("--save_freq", action="store", type=int, help="save ckpt frequency", required=False, default=6000)
+    # RoboAug RCL（仅 imitate_episodes 使用，此处声明以免 parse_args 报错）
+    parser.add_argument("--rcl_weight", type=float, default=0.0)
+    parser.add_argument("--rcl_temperature", type=float, default=0.07)
+    parser.add_argument("--rcl_cam_id", type=int, default=0)
     # parser.add_argument('--num_queries',type=int, required=True)
     # parser.add_argument('--actionsByQuery',type=int, required=True)
 

@@ -10,11 +10,14 @@ save_ckpt=True
 
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 
+# RoboAug: 使用 RCL 时建议 num_epochs=2000（约 50k steps @ 250 episodes, batch 8），save_freq=500
 python3 imitate_episodes.py \
     --task_name sim-${task_name}-${task_config}-${expert_data_num} \
     --ckpt_dir ./act_ckpt/act-${task_name}/${task_config}-${expert_data_num} \
     --policy_class ACT \
     --kl_weight 10 \
+    --rcl_weight 0.1 \
+    --rcl_temperature 0.07 \
     --chunk_size 50 \
     --hidden_dim 512 \
     --batch_size 8 \

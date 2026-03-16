@@ -374,38 +374,37 @@ class Camera:
         return _get_rgb(self.observer_camera)
 
     # Get Camera Segmentation
+    # 同时保存原始 label id（用于 RCL/task mask）和彩色可视化图
     def get_segmentation(self, level="mesh") -> dict:
 
         def _get_segmentation(camera, level="mesh"):
-            # visual_id is the unique id of each visual shape
             seg_labels = camera.get_picture("Segmentation")  # [H, W, 4]
+            if level == "mesh":
+                label_id = seg_labels[..., 0].astype(np.uint16)
+            elif level == "actor":
+                label_id = seg_labels[..., 1].astype(np.uint16)
+            else:
+                label_id = seg_labels[..., 0].astype(np.uint16)
             colormap = sorted(set(ImageColor.colormap.values()))
             color_palette = np.array([ImageColor.getrgb(color) for color in colormap], dtype=np.uint8)
-            if level == "mesh":
-                label0_image = seg_labels[..., 0].astype(np.uint8)  # mesh-level
-            elif level == "actor":
-                label0_image = seg_labels[..., 1].astype(np.uint8)  # actor-level
-            return color_palette[label0_image]
+            label_vis = color_palette[label_id % len(color_palette)]
+            return {
+                f"{level}_segmentation_id": label_id,
+                f"{level}_segmentation_vis": label_vis,
+            }
 
-        res = {
-            # 'left_camera':{},
-            # 'right_camera':{}
-        }
+        res = {}
 
         if self.collect_wrist_camera:
-            res["left_camera"] = {}
-            res["right_camera"] = {}
-            res["left_camera"][f"{level}_segmentation"] = _get_segmentation(self.left_camera, level=level)
-            res["right_camera"][f"{level}_segmentation"] = _get_segmentation(self.right_camera, level=level)
+            res["left_camera"] = _get_segmentation(self.left_camera, level=level)
+            res["right_camera"] = _get_segmentation(self.right_camera, level=level)
 
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
             if camera_name == "head_camera":
                 if self.collect_head_camera:
-                    res[camera_name] = {}
-                    res[camera_name][f"{level}_segmentation"] = _get_segmentation(camera, level=level)
+                    res[camera_name] = _get_segmentation(camera, level=level)
             else:
-                res[camera_name] = {}
-                res[camera_name][f"{level}_segmentation"] = _get_segmentation(camera, level=level)
+                res[camera_name] = _get_segmentation(camera, level=level)
         return res
 
     # Get Camera Depth

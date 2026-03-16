@@ -15,6 +15,11 @@ dim_feedforward: 3200
 temporal_agg: false 
 device: cuda:0
 
+# RoboAug RCL（eval 时不计算 loss，此处仅保证 policy 构造参数完整）
+rcl_weight: 0.0
+rcl_temperature: 0.07
+rcl_cam_id: 0
+
 # DETR parser args
 ckpt_dir: null
 policy_class: ACT

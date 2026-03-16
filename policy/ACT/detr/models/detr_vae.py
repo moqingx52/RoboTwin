@@ -145,6 +145,15 @@ class DETRVAE(nn.Module):
         is_pad_hat = self.is_pad_head(hs)
         return a_hat, is_pad_hat, [mu, logvar]
 
+    def extract_visual_feat(self, image, cam_id=0):
+        """RoboAug: 取出指定相机的 backbone 空间特征图，用于 RCL 的 masked average pooling。"""
+        if self.backbones is None:
+            return None
+        features, pos = self.backbones[0](image[:, cam_id])
+        features = features[0]
+        feat = self.input_proj(features)
+        return feat
+
 
 class CNNMLP(nn.Module):
 

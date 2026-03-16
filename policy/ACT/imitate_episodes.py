@@ -67,10 +67,15 @@ def main(args):
         enc_layers = 4
         dec_layers = 7
         nheads = 8
+        rcl_weight = args.get("rcl_weight", 0.0)
         policy_config = {
             "lr": args["lr"],
             "num_queries": args["chunk_size"],
             "kl_weight": args["kl_weight"],
+            "rcl_weight": rcl_weight,
+            "rcl_temperature": args.get("rcl_temperature", 0.07),
+            "use_rcl": rcl_weight > 0,
+            "rcl_cam_id": args.get("rcl_cam_id", 0),
             "hidden_dim": args["hidden_dim"],
             "dim_feedforward": args["dim_feedforward"],
             "lr_backbone": lr_backbone,
@@ -344,14 +349,16 @@ def eval_bc(config, ckpt_name, save_episode=True):
 
 
 def forward_pass(data, policy):
-    image_data, qpos_data, action_data, is_pad = data
+    image_data, qpos_data, action_data, is_pad, region_mask, region_label = data
     image_data, qpos_data, action_data, is_pad = (
         image_data.cuda(),
         qpos_data.cuda(),
         action_data.cuda(),
         is_pad.cuda(),
     )
-    return policy(qpos_data, image_data, action_data, is_pad)  # TODO remove None
+    region_mask = region_mask.cuda()
+    region_label = region_label.cuda()
+    return policy(qpos_data, image_data, action_data, is_pad, region_mask, region_label)
 
 
 def train_bc(train_dataloader, val_dataloader, config):
@@ -487,5 +494,8 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument("--temporal_agg", action="store_true")
+    parser.add_argument("--rcl_weight", type=float, default=0.0, help="RoboAug region contrastive loss weight")
+    parser.add_argument("--rcl_temperature", type=float, default=0.07, help="RoboAug RCL temperature")
+    parser.add_argument("--rcl_cam_id", type=int, default=0, help="RoboAug RCL camera id (0=cam_high)")
 
     main(vars(parser.parse_args()))

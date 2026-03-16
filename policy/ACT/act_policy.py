@@ -21,6 +21,20 @@ import IPython
 e = IPython.embed
 
 
+def _supervised_contrastive_loss(features, labels, temperature=0.07):
+    """RoboAug RCL: 同语义类为正样本，不同类为负样本。features/labels 已过滤掉无效 region。"""
+    if features.size(0) < 2:
+        return features.new_zeros(1)
+    features = F.normalize(features, dim=-1)
+    logits = torch.mm(features, features.t()) / temperature
+    mask_same = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+    mask_same = mask_same * (1 - torch.eye(features.size(0), device=features.device))
+    exp_logits = torch.exp(logits) * (1 - torch.eye(features.size(0), device=features.device))
+    log_prob = logits - torch.log(exp_logits.sum(dim=1, keepdim=True) + 1e-8)
+    per_sample = (mask_same * log_prob).sum(1) / (mask_same.sum(1) + 1e-8)
+    return -per_sample.mean()
+
+
 class ACTPolicy(nn.Module):
 
     def __init__(self, args_override, RoboTwin_Config=None):
@@ -29,28 +43,64 @@ class ACTPolicy(nn.Module):
         self.model = model  # CVAE decoder
         self.optimizer = optimizer
         self.kl_weight = args_override["kl_weight"]
-        print(f"KL Weight {self.kl_weight}")
+        self.rcl_weight = args_override.get("rcl_weight", 0.0)
+        self.rcl_temperature = args_override.get("rcl_temperature", 0.07)
+        print(f"KL Weight {self.kl_weight}, RCL Weight {self.rcl_weight}")
 
-    def __call__(self, qpos, image, actions=None, is_pad=None):
+    def __call__(self, qpos, image, actions=None, is_pad=None, region_mask=None, region_label=None):
         env_state = None
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         image = normalize(image)
-        if actions is not None:  # training time
-            actions = actions[:, :self.model.num_queries]
-            is_pad = is_pad[:, :self.model.num_queries]
 
-            a_hat, is_pad_hat, (mu, logvar) = self.model(qpos, image, env_state, actions, is_pad)
-            total_kld, dim_wise_kld, mean_kld = kl_divergence(mu, logvar)
-            loss_dict = dict()
-            all_l1 = F.l1_loss(actions, a_hat, reduction="none")
-            l1 = (all_l1 * ~is_pad.unsqueeze(-1)).mean()
-            loss_dict["l1"] = l1
-            loss_dict["kl"] = total_kld[0]
-            loss_dict["loss"] = loss_dict["l1"] + loss_dict["kl"] * self.kl_weight
-            return loss_dict
-        else:  # inference time
-            a_hat, _, (_, _) = self.model(qpos, image, env_state)  # no action, sample from prior
+        # eval / inference：不传 actions 时只返回 action，不要求 region_mask（接法 A：mask 仅训练期 RCL）
+        if actions is None:
+            a_hat, _, (_, _) = self.model(qpos, image, env_state)
             return a_hat
+
+        # train
+        actions = actions[:, :self.model.num_queries]
+        is_pad = is_pad[:, :self.model.num_queries]
+        a_hat, is_pad_hat, (mu, logvar) = self.model(qpos, image, env_state, actions, is_pad)
+        total_kld, dim_wise_kld, mean_kld = kl_divergence(mu, logvar)
+        loss_dict = dict()
+        all_l1 = F.l1_loss(actions, a_hat, reduction="none")
+        l1 = (all_l1 * ~is_pad.unsqueeze(-1)).mean()
+        loss_dict["l1"] = l1
+        loss_dict["kl"] = total_kld[0]
+        rcl = self._compute_rcl(image, region_mask, region_label)
+        loss_dict["rcl"] = rcl
+        loss_dict["loss"] = loss_dict["l1"] + self.kl_weight * loss_dict["kl"] + self.rcl_weight * loss_dict["rcl"]
+        return loss_dict
+
+    def _compute_rcl(self, image, region_mask, region_label):
+        """仅对 cam_high (cam_id=0) 做 region contrastive loss。"""
+        if self.rcl_weight == 0 or region_mask is None or region_label is None:
+            return image.new_zeros(1)
+        feat = self.model.extract_visual_feat(image, cam_id=0)
+        if feat is None:
+            return image.new_zeros(1)
+        B, C, Hf, Wf = feat.shape
+        # region_mask 已是 (B, K, H, W)，直接 interpolate 到特征图尺度
+        mask = F.interpolate(region_mask, size=(Hf, Wf), mode="nearest")
+        region_feat = (feat.unsqueeze(1) * mask.unsqueeze(2)).sum(dim=[-1, -2]) / (
+            mask.sum(dim=[-1, -2]).unsqueeze(-1).clamp(min=1e-6)
+        )
+        region_feat = F.normalize(region_feat, dim=-1)
+        min_pixels = 10
+        valid = (mask.sum(dim=[-1, -2]) >= min_pixels).float()
+        feats_list = []
+        labels_list = []
+        for b in range(region_feat.size(0)):
+            for k in range(region_feat.size(1)):
+                if valid[b, k] > 0.5:
+                    feats_list.append(region_feat[b, k])
+                    lab = region_label[b, k] if region_label.dim() > 1 else region_label[k]
+                    labels_list.append(lab.item())
+        if len(feats_list) < 2:
+            return image.new_zeros(1)
+        feats = torch.stack(feats_list, dim=0)
+        labels = torch.tensor(labels_list, dtype=torch.long, device=feats.device)
+        return _supervised_contrastive_loss(feats, labels, temperature=self.rcl_temperature)
 
     def configure_optimizers(self):
         return self.optimizer

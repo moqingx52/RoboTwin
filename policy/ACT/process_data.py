@@ -30,7 +30,13 @@ def load_hdf5(dataset_path):
         for cam_name in root[f"/observation/"].keys():
             image_dict[cam_name] = root[f"/observation/{cam_name}/rgb"][()]
 
-    return left_gripper, left_arm, right_gripper, right_arm, image_dict
+        # RoboAug: 可选加载 head_camera 的 actor_segmentation_id 用于 RCL mask
+        actor_seg_id_head = None
+        obs_group = root.get("/observation")
+        if obs_group is not None and "head_camera" in obs_group and "actor_segmentation_id" in obs_group["head_camera"]:
+            actor_seg_id_head = root["/observation/head_camera/actor_segmentation_id"][()]
+
+    return left_gripper, left_arm, right_gripper, right_arm, image_dict, actor_seg_id_head
 
 
 def images_encoding(imgs):
@@ -48,6 +54,35 @@ def images_encoding(imgs):
     return encode_data, max_len
 
 
+# RoboAug: 语义 mask 类别数（0=背景, 1~3=前三个非零 actor）
+NUM_MASK_CLASSES = 4
+
+
+def _build_region_masks(actor_seg_id, target_h=480, target_w=640):
+    """将 actor_segmentation_id [T,H,W] 转为 [T, K, H, W] 的 one-hot 风格 mask，K=NUM_MASK_CLASSES。"""
+    if actor_seg_id is None:
+        return None
+    seg = np.asarray(actor_seg_id)
+    if seg.ndim == 2:
+        seg = seg[np.newaxis, ...]
+    t, h, w = seg.shape
+    unique_ids = sorted(set(np.unique(seg).tolist()) - {0})
+    id_to_class = {aid: (i + 1) for i, aid in enumerate(unique_ids[: NUM_MASK_CLASSES - 1])}
+    masks = np.zeros((t, NUM_MASK_CLASSES, h, w), dtype=np.uint8)
+    masks[:, 0, :, :] = (seg == 0).astype(np.uint8)
+    for aid, k in id_to_class.items():
+        masks[:, k, :, :] = (seg == aid).astype(np.uint8)
+    if (h, w) != (target_h, target_w):
+        masks_resized = np.zeros((t, NUM_MASK_CLASSES, target_h, target_w), dtype=np.uint8)
+        for ti in range(t):
+            for k in range(NUM_MASK_CLASSES):
+                masks_resized[ti, k] = cv2.resize(
+                    masks[ti, k], (target_w, target_h), interpolation=cv2.INTER_NEAREST
+                )
+        masks = masks_resized
+    return masks
+
+
 def data_transform(path, episode_num, save_path):
     begin = 0
     floders = os.listdir(path)
@@ -57,8 +92,8 @@ def data_transform(path, episode_num, save_path):
         os.makedirs(save_path)
 
     for i in range(episode_num):
-        left_gripper_all, left_arm_all, right_gripper_all, right_arm_all, image_dict = (load_hdf5(
-            os.path.join(path, f"episode{i}.hdf5")))
+        left_gripper_all, left_arm_all, right_gripper_all, right_arm_all, image_dict, actor_seg_id_head = load_hdf5(
+            os.path.join(path, f"episode{i}.hdf5"))
         qpos = []
         actions = []
         cam_high = []
@@ -113,12 +148,16 @@ def data_transform(path, episode_num, save_path):
             obs.create_dataset("left_arm_dim", data=np.array(left_arm_dim))
             obs.create_dataset("right_arm_dim", data=np.array(right_arm_dim))
             image = obs.create_group("images")
-            # cam_high_enc, len_high = images_encoding(cam_high)
-            # cam_right_wrist_enc, len_right = images_encoding(cam_right_wrist)
-            # cam_left_wrist_enc, len_left = images_encoding(cam_left_wrist)
             image.create_dataset("cam_high", data=np.stack(cam_high), dtype=np.uint8)
             image.create_dataset("cam_right_wrist", data=np.stack(cam_right_wrist), dtype=np.uint8)
             image.create_dataset("cam_left_wrist", data=np.stack(cam_left_wrist), dtype=np.uint8)
+
+            # RoboAug: 只对 cam_high 输出 RCL 用 mask
+            region_masks = _build_region_masks(actor_seg_id_head, target_h=480, target_w=640)
+            if region_masks is not None:
+                mask_group = obs.create_group("masks")
+                mask_group.create_dataset("cam_high", data=region_masks, dtype=np.uint8)
+                obs.create_dataset("region_labels", data=np.arange(NUM_MASK_CLASSES, dtype=np.int32))
 
         begin += 1
         print(f"proccess {i} success!")
