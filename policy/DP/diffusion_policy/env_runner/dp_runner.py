@@ -75,7 +75,12 @@ class DPRunner:
 
         return result
 
-    def get_action(self, policy: BaseImagePolicy, observaton=None):
+    def get_action(
+        self,
+        policy: BaseImagePolicy,
+        observaton=None,
+        init_noise=None,
+    ):
         device, dtype = policy.device, policy.dtype
         if observaton is not None:
             self.obs.append(observaton)  # update
@@ -87,14 +92,14 @@ class DPRunner:
         obs_dict = dict_apply(np_obs_dict, lambda x: torch.from_numpy(x).to(device=device))
         # run policy
         with torch.no_grad():
-            obs_dict_input = {}  # flush unused keys
-            obs_dict_input["head_cam"] = obs_dict["head_cam"].unsqueeze(0)
-            # obs_dict_input['front_cam'] = obs_dict['front_cam'].unsqueeze(0)
-            obs_dict_input["left_cam"] = obs_dict["left_cam"].unsqueeze(0)
-            obs_dict_input["right_cam"] = obs_dict["right_cam"].unsqueeze(0)
-            obs_dict_input["agent_pos"] = obs_dict["agent_pos"].unsqueeze(0)
+            obs_dict_input = {
+                "head_cam": obs_dict["head_cam"].unsqueeze(0),
+                "agent_pos": obs_dict["agent_pos"].unsqueeze(0),
+            }
 
-            action_dict = policy.predict_action(obs_dict_input)
+            action_dict = policy.predict_action(
+                obs_dict_input, init_noise=init_noise
+            )
 
         # device_transfer
         np_action_dict = dict_apply(action_dict, lambda x: x.detach().to("cpu").numpy())

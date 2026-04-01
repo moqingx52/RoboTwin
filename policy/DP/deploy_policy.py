@@ -1,18 +1,7 @@
-import numpy as np
-from .dp_model import DP
 import yaml
 
-def encode_obs(observation):
-    head_cam = (np.moveaxis(observation["observation"]["head_camera"]["rgb"], -1, 0) / 255)
-    left_cam = (np.moveaxis(observation["observation"]["left_camera"]["rgb"], -1, 0) / 255)
-    right_cam = (np.moveaxis(observation["observation"]["right_camera"]["rgb"], -1, 0) / 255)
-    obs = dict(
-        head_cam=head_cam,
-        left_cam=left_cam,
-        right_cam=right_cam,
-    )
-    obs["agent_pos"] = observation["joint_action"]["vector"]
-    return obs
+from .dp_model import DP
+from .rlinf_adapter import encode_observation_dict as encode_obs
 
 
 def get_model(usr_args):

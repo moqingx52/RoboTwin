@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -91,18 +91,28 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         local_cond=None,
         global_cond=None,
         generator=None,
+        init_noise: Optional[torch.Tensor] = None,
         # keyword arguments to scheduler.step
         **kwargs,
     ):
         model = self.model
         scheduler = self.noise_scheduler
 
-        trajectory = torch.randn(
-            size=condition_data.shape,
-            dtype=condition_data.dtype,
-            device=condition_data.device,
-            generator=generator,
-        )
+        if init_noise is not None:
+            trajectory = init_noise.to(
+                device=condition_data.device, dtype=condition_data.dtype
+            )
+            if trajectory.shape != condition_data.shape:
+                raise ValueError(
+                    f"init_noise shape {trajectory.shape} != condition_data shape {condition_data.shape}"
+                )
+        else:
+            trajectory = torch.randn(
+                size=condition_data.shape,
+                dtype=condition_data.dtype,
+                device=condition_data.device,
+                generator=generator,
+            )
 
         # set step values
         scheduler.set_timesteps(self.num_inference_steps)
@@ -122,7 +132,11 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
 
         return trajectory
 
-    def predict_action(self, obs_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def predict_action(
+        self,
+        obs_dict: Dict[str, torch.Tensor],
+        init_noise: Optional[torch.Tensor] = None,
+    ) -> Dict[str, torch.Tensor]:
         """
         obs_dict: must include "obs" key
         result: must include "action" key
@@ -170,6 +184,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
             cond_mask,
             local_cond=local_cond,
             global_cond=global_cond,
+            init_noise=init_noise,
             **self.kwargs,
         )
 
