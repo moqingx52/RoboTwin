@@ -8,13 +8,18 @@ import re
 import json
 from pathlib import Path
 
+# RoboTwin repo root (envs/utils/this_file.py -> three parents), not CWD-dependent
+_ROBOTWIN_ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 def get_all_cluttered_objects():
     cluttered_objects_info = {}
     cluttered_objects_name = []
 
     # load from cluttered_objects
-    cluttered_objects_config = json.load(open(Path("./assets/objects/objaverse/list.json"), "r", encoding="utf-8"))
+    cluttered_objects_config = json.load(
+        open(_ROBOTWIN_ROOT / "assets/objects/objaverse/list.json", "r", encoding="utf-8")
+    )
     cluttered_objects_name += cluttered_objects_config["item_names"]
     for model_name, model_ids in cluttered_objects_config["list_of_items"].items():
         cluttered_objects_info[model_name] = {
@@ -33,7 +38,7 @@ def get_all_cluttered_objects():
         cluttered_objects_info[model_name]["params"] = params
 
     # load from objects
-    objects_dir = Path("./assets/objects")
+    objects_dir = _ROBOTWIN_ROOT / "assets/objects"
     for model_dir in objects_dir.iterdir():
         if not model_dir.is_dir():
             continue
@@ -81,7 +86,7 @@ def get_all_cluttered_objects():
             "params": params,
         }
 
-    same_obj = json.load(open(Path("./assets/objects/same.json"), "r", encoding="utf-8"))
+    same_obj = json.load(open(_ROBOTWIN_ROOT / "assets/objects/same.json", "r", encoding="utf-8"))
     cluttered_objects_name = list(cluttered_objects_name)
     cluttered_objects_name.sort()
     return cluttered_objects_info, cluttered_objects_name, same_obj
