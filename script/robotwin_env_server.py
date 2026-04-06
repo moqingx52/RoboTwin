@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import socket
@@ -58,7 +59,7 @@ def _recv_frame(conn: socket.socket) -> tuple[dict[str, Any], bytes]:
 
 
 def _send_frame(conn: socket.socket, meta: dict[str, Any], blob: bytes = b"") -> None:
-    body = json.dumps(meta, separators=(",", ":")).encode("utf-8")
+    body = json.dumps(meta, separators=(",", ":"), default=str).encode("utf-8")
     conn.sendall(struct.pack(">I", len(body)) + body + struct.pack(">I", len(blob)) + blob)
 
 
@@ -132,12 +133,16 @@ def _build_obs_schema(
     keys = ["full_image", "state", "instruction"]
     if cam.get("collect_wrist_camera", False):
         keys = ["full_image", "left_wrist_image", "right_wrist_image", "state", "instruction"]
+    dr = task_config.get("domain_randomization")
     schema: dict[str, Any] = {
         "obs_keys": keys,
         "image_layout": "HWC",
         "task_name": task_config.get("task_name"),
         "embodiment": task_config.get("embodiment"),
         "step_lim": task_config.get("step_lim"),
+        "planner_backend": task_config.get("planner_backend"),
+        "language_num": task_config.get("language_num"),
+        "domain_randomization": _sanitize(dr) if dr is not None else None,
         "collect_head_camera": cam.get("collect_head_camera", True),
         "collect_wrist_camera": cam.get("collect_wrist_camera", False),
     }
@@ -155,7 +160,7 @@ def load_task_config(config_path: Path) -> tuple[dict, Optional[str]]:
     assets = cfg.get("assets_path") or cfg.get("ASSETS_PATH")
     task_config = cfg.get("task_config")
     if task_config is None:
-        raise ValueError(f"{config_path} must contain a task_config mapping")
+        task_config = {}
     return task_config, assets
 
 
@@ -203,7 +208,7 @@ def _ok_reply(
 def handle_client_connection(
     conn: socket.socket,
     addr: Any,
-    task_config: dict[str, Any],
+    default_task_config: dict[str, Any],
     idle_timeout: float,
 ) -> None:
     from robotwin.envs.vector_env import VectorEnv
@@ -277,8 +282,19 @@ def handle_client_connection(
                         env_seeds = req.get("env_seeds")
                         if env_seeds is not None:
                             env_seeds = [int(s) for s in env_seeds]
+                        client_tc = req.get("task_config")
+                        if client_tc is not None:
+                            if not isinstance(client_tc, dict):
+                                raise TypeError("task_config must be a JSON object / dict")
+                            tc_use = copy.deepcopy(client_tc)
+                        else:
+                            if not default_task_config:
+                                raise ValueError(
+                                    "server yaml has empty task_config; client must send task_config in init"
+                                )
+                            tc_use = copy.deepcopy(default_task_config)
                         venv = VectorEnv(
-                            task_config=task_config,
+                            task_config=tc_use,
                             n_envs=n_envs,
                             env_seeds=env_seeds,
                         )
@@ -288,7 +304,7 @@ def handle_client_connection(
                                 sample = venv.get_obs()[0]
                             except Exception:
                                 sample = None
-                        obs_schema = _build_obs_schema(task_config, sample)
+                        obs_schema = _build_obs_schema(tc_use, sample)
                         _ok_reply(conn, req, {"obs_schema": obs_schema})
                     finally:
                         processing[0] = False
@@ -409,7 +425,7 @@ def main() -> None:
         "--config",
         type=Path,
         required=True,
-        help="RLinf-style env yaml with task_config and assets_path",
+        help="YAML with assets_path; task_config optional fallback if client omits init.task_config",
     )
     p.add_argument(
         "--assets-path",
@@ -425,12 +441,18 @@ def main() -> None:
     )
     args = p.parse_args()
 
-    task_config, assets_from_yaml = load_task_config(args.config)
+    default_task_config, assets_from_yaml = load_task_config(args.config)
 
     assets = args.assets_path or assets_from_yaml or os.environ.get("ASSETS_PATH")
     if not assets:
         raise SystemExit("Set assets_path in yaml, use --assets-path, or export ASSETS_PATH")
     os.environ["ASSETS_PATH"] = assets
+
+    if not default_task_config:
+        print(
+            "[robotwin_env_server] warning: yaml task_config empty; first init must include client task_config",
+            flush=True,
+        )
 
     listen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listen.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -446,7 +468,9 @@ def main() -> None:
         conn, addr = listen.accept()
         print(f"[robotwin_env_server] client connected from {addr}", flush=True)
         conn.settimeout(None)
-        handle_client_connection(conn, addr, task_config, idle_timeout=args.idle_timeout)
+        handle_client_connection(
+            conn, addr, default_task_config, idle_timeout=args.idle_timeout
+        )
 
 
 if __name__ == "__main__":
