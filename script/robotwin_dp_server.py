@@ -211,6 +211,8 @@ def handle_client(
                     continue
 
                 if op == "dp_reset_history":
+                    # 当前实现：整连接上的 batch 历史一并清空。多 env 异步 done 时需 selective reset
+                    #（按 env_idx 或 mask）；首版训练请保持 RLinf group_size=1、同步 episode，见 run.md。
                     hist_head, hist_state = None, None
                     _ok_reply(conn, req)
                     continue
