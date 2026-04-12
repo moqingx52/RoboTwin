@@ -152,6 +152,8 @@ def handle_client(
     addr: Any,
     default_ckpt: Optional[str],
     map_location: str,
+    *,
+    log_ops: bool = True,
 ) -> None:
     from policy.DP.rlinf_adapter import rlinf_main_state_to_dp_timestep
 
@@ -161,6 +163,7 @@ def handle_client(
     hist_ready: Optional[torch.Tensor] = None
     expected_batch_size: Optional[int] = None
     dev = _resolve_torch_device(map_location)
+    dp_predict_count = 0
 
     try:
         while True:
@@ -209,8 +212,10 @@ def handle_client(
                         "ckpt_path": ckpt,
                     }
                     _ok_reply(conn, req, {"dp_meta": meta_out})
+                    rid = req.get("request_id", "")
+                    rid_s = f" request_id={rid!r}" if rid else ""
                     print(
-                        f"[robotwin_dp_server] loaded DP ckpt={ckpt} device={dev} meta={meta_out}",
+                        f"[robotwin_dp_server] op=init ok{rid_s} ckpt={ckpt} device={dev} meta={meta_out}",
                         flush=True,
                     )
                     continue
@@ -244,6 +249,13 @@ def handle_client(
                             req,
                             {"ack_batch_size": None, "selective": False},
                         )
+                        if log_ops:
+                            rid = req.get("request_id", "")
+                            rid_s = f" request_id={rid!r}" if rid else ""
+                            print(
+                                f"[robotwin_dp_server] op=dp_reset_history ok{rid_s} full_reset=True",
+                                flush=True,
+                            )
                         continue
                     if hist_ready is None or expected_batch_size is None:
                         raise ValueError(
@@ -275,18 +287,35 @@ def handle_client(
                                 "cleared_slots": 0,
                             },
                         )
+                        if log_ops:
+                            rid = req.get("request_id", "")
+                            rid_s = f" request_id={rid!r}" if rid else ""
+                            print(
+                                f"[robotwin_dp_server] op=dp_reset_history ok{rid_s} "
+                                f"selective=True cleared_slots=0 B={B}",
+                                flush=True,
+                            )
                         continue
                     hist_ready = hist_ready.clone()
                     hist_ready[mask] = False
+                    cleared = int(mask.sum().item())
                     _ok_reply(
                         conn,
                         req,
                         {
                             "ack_batch_size": B,
                             "selective": True,
-                            "cleared_slots": int(mask.sum().item()),
+                            "cleared_slots": cleared,
                         },
                     )
+                    if log_ops:
+                        rid = req.get("request_id", "")
+                        rid_s = f" request_id={rid!r}" if rid else ""
+                        print(
+                            f"[robotwin_dp_server] op=dp_reset_history ok{rid_s} "
+                            f"selective=True cleared_slots={cleared} B={B}",
+                            flush=True,
+                        )
                     continue
 
                 if op == "dp_predict":
@@ -362,6 +391,16 @@ def handle_client(
                         },
                         raw,
                     )
+                    dp_predict_count += 1
+                    if log_ops:
+                        rid = req.get("request_id", "")
+                        rid_s = f" request_id={rid!r}" if rid else ""
+                        print(
+                            f"[robotwin_dp_server] op=dp_predict ok{rid_s} i={dp_predict_count} B={B} "
+                            f"main_shape={main_shape} state_shape={state_shape} "
+                            f"has_init_noise={has_noise} action_shape={list(act.shape)}",
+                            flush=True,
+                        )
                     continue
 
                 if op == "close":
@@ -369,6 +408,10 @@ def handle_client(
                     hist_head, hist_state, hist_ready = None, None, None
                     expected_batch_size = None
                     _ok_reply(conn, req)
+                    if log_ops:
+                        rid = req.get("request_id", "")
+                        rid_s = f" request_id={rid!r}" if rid else ""
+                        print(f"[robotwin_dp_server] op=close ok{rid_s}", flush=True)
                     continue
 
                 _send_frame(
@@ -411,6 +454,11 @@ def main() -> None:
         default="cuda:0",
         help="map_location for DP weights (cuda:0 or cpu)",
     )
+    p.add_argument(
+        "--no-log-ops",
+        action="store_true",
+        help="Disable per-op success logs (init/dp_predict/dp_reset_history/close)",
+    )
     args = p.parse_args()
 
     listen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -427,7 +475,7 @@ def main() -> None:
         conn, addr = listen.accept()
         print(f"[robotwin_dp_server] client connected from {addr}", flush=True)
         conn.settimeout(None)
-        handle_client(conn, addr, args.ckpt, args.device)
+        handle_client(conn, addr, args.ckpt, args.device, log_ops=not args.no_log_ops)
 
 
 if __name__ == "__main__":

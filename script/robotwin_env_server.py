@@ -210,6 +210,8 @@ def handle_client_connection(
     addr: Any,
     default_task_config: dict[str, Any],
     idle_timeout: float,
+    *,
+    log_ops: bool = True,
 ) -> None:
     from robotwin.envs.vector_env import VectorEnv
 
@@ -306,6 +308,18 @@ def handle_client_connection(
                                 sample = None
                         obs_schema = _build_obs_schema(tc_use, sample)
                         _ok_reply(conn, req, {"obs_schema": obs_schema})
+                        if log_ops:
+                            tn = tc_use.get("task_name", "?")
+                            sd = env_seeds
+                            if sd is not None and len(sd) > 8:
+                                sd = f"{sd[:8]}...(+{len(env_seeds) - 8})"
+                            rid = req.get("request_id", "")
+                            rid_s = f" request_id={rid!r}" if rid else ""
+                            print(
+                                f"[robotwin_env_server] op=init ok{rid_s} n_envs={n_envs} "
+                                f"task_name={tn!r} env_seeds={sd} state_dim={obs_schema.get('state_dim')}",
+                                flush=True,
+                            )
                     finally:
                         processing[0] = False
                         touch()
@@ -334,6 +348,17 @@ def handle_client_connection(
                             env_seeds = [int(s) for s in env_seeds]
                         venv.reset(env_idx=env_idx, env_seeds=env_seeds)
                         _ok_reply(conn, req)
+                        if log_ops:
+                            es = env_seeds
+                            if es is not None and len(es) > 8:
+                                es = f"{es[:8]}...(+{len(env_seeds) - 8})"
+                            rid = req.get("request_id", "")
+                            rid_s = f" request_id={rid!r}" if rid else ""
+                            print(
+                                f"[robotwin_env_server] op=reset ok{rid_s} env_idx={env_idx!r} "
+                                f"env_seeds={es}",
+                                flush=True,
+                            )
                     finally:
                         processing[0] = False
                         touch()
@@ -342,6 +367,14 @@ def handle_client_connection(
                     obs_list = venv.get_obs()
                     obs_meta, blob = _serialize_obs_list(obs_list)
                     _ok_reply(conn, req, {"obs_meta": obs_meta}, blob)
+                    if log_ops:
+                        rid = req.get("request_id", "")
+                        rid_s = f" request_id={rid!r}" if rid else ""
+                        print(
+                            f"[robotwin_env_server] op=get_obs ok{rid_s} n_envs={len(obs_list)} "
+                            f"blob_bytes={len(blob)}",
+                            flush=True,
+                        )
                     touch()
 
                 elif op == "step":
@@ -362,6 +395,23 @@ def handle_client_connection(
                             },
                             blob,
                         )
+                        if log_ops:
+                            rw = np.asarray(rewards)
+                            term = np.asarray(terminated) if terminated is not None else None
+                            trunc = np.asarray(truncated) if truncated is not None else None
+                            rid = req.get("request_id", "")
+                            rid_s = f" request_id={rid!r}" if rid else ""
+                            term_s = (
+                                f" any_term={bool(term.any())}" if term is not None and term.size else ""
+                            )
+                            trunc_s = (
+                                f" any_trunc={bool(trunc.any())}" if trunc is not None and trunc.size else ""
+                            )
+                            print(
+                                f"[robotwin_env_server] op=step ok{rid_s} actions_shape={tuple(actions.shape)} "
+                                f"reward_mean={float(rw.mean()) if rw.size else 0.0}{term_s}{trunc_s}",
+                                flush=True,
+                            )
                     finally:
                         processing[0] = False
                         touch()
@@ -370,6 +420,13 @@ def handle_client_connection(
                     seeds = [int(s) for s in req["seeds"]]
                     results = venv.check_seeds(seeds)
                     _ok_reply(conn, req, {"results": _sanitize(results)})
+                    if log_ops:
+                        rid = req.get("request_id", "")
+                        rid_s = f" request_id={rid!r}" if rid else ""
+                        print(
+                            f"[robotwin_env_server] op=check_seeds ok{rid_s} n_seeds={len(seeds)}",
+                            flush=True,
+                        )
                     touch()
 
                 elif op == "close":
@@ -378,6 +435,10 @@ def handle_client_connection(
                         venv.close(clear_cache=clear_cache)
                         venv = None
                     _ok_reply(conn, req)
+                    if log_ops:
+                        rid = req.get("request_id", "")
+                        rid_s = f" request_id={rid!r}" if rid else ""
+                        print(f"[robotwin_env_server] op=close ok{rid_s} clear_cache={clear_cache}", flush=True)
                     touch()
 
                 else:
@@ -439,6 +500,11 @@ def main() -> None:
         default=600.0,
         help="Seconds with no requests (heartbeats count) while not in step/reset/init before disconnect + env cleanup",
     )
+    p.add_argument(
+        "--no-log-ops",
+        action="store_true",
+        help="Disable per-op success logs (init/reset/get_obs/step/check_seeds/close)",
+    )
     args = p.parse_args()
 
     default_task_config, assets_from_yaml = load_task_config(args.config)
@@ -469,7 +535,11 @@ def main() -> None:
         print(f"[robotwin_env_server] client connected from {addr}", flush=True)
         conn.settimeout(None)
         handle_client_connection(
-            conn, addr, default_task_config, idle_timeout=args.idle_timeout
+            conn,
+            addr,
+            default_task_config,
+            idle_timeout=args.idle_timeout,
+            log_ops=not args.no_log_ops,
         )
 
 
