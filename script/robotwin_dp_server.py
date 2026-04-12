@@ -110,23 +110,41 @@ def _ok_reply(
 def _update_dp_history(
     hist_head: Optional[torch.Tensor],
     hist_state: Optional[torch.Tensor],
+    hist_ready: Optional[torch.Tensor],
     head_bchw: torch.Tensor,
     state_bd: torch.Tensor,
     n_obs_steps: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Per-slot rolling window; ``hist_ready[b]==False`` means slot ``b`` needs repeat-fill warmup."""
     B, dev, dt = head_bchw.shape[0], head_bchw.device, head_bchw.dtype
     T = n_obs_steps
     if hist_head is None or hist_head.shape[0] != B:
         hist_head = head_bchw.unsqueeze(1).expand(B, T, -1, -1, -1).clone()
         hist_state = state_bd.unsqueeze(1).expand(B, T, -1).clone()
-    else:
-        hist_head = torch.roll(hist_head, shifts=-1, dims=1)
-        hist_state = torch.roll(hist_state, shifts=-1, dims=1)
-        hist_head = hist_head.to(device=dev, dtype=dt)
-        hist_state = hist_state.to(device=dev, dtype=state_bd.dtype)
-        hist_head[:, -1] = head_bchw
-        hist_state[:, -1] = state_bd
-    return hist_head, hist_state
+        hist_ready = torch.ones(B, dtype=torch.bool, device=dev)
+        return hist_head, hist_state, hist_ready
+
+    hist_head = hist_head.to(device=dev, dtype=dt)
+    hist_state = hist_state.to(device=dev, dtype=state_bd.dtype)
+    assert hist_ready is not None and hist_ready.shape[0] == B
+    old_ready = hist_ready
+    need_init = ~old_ready
+    rolling = old_ready
+    if need_init.any():
+        hist_head = hist_head.clone()
+        hist_state = hist_state.clone()
+        hist_ready = old_ready.clone()
+        hist_head[need_init] = (
+            head_bchw[need_init].unsqueeze(1).expand(-1, T, -1, -1, -1).clone()
+        )
+        hist_state[need_init] = state_bd[need_init].unsqueeze(1).expand(-1, T, -1).clone()
+        hist_ready[need_init] = True
+    if rolling.any():
+        hist_head[rolling] = torch.roll(hist_head[rolling], shifts=-1, dims=1)
+        hist_state[rolling] = torch.roll(hist_state[rolling], shifts=-1, dims=1)
+        hist_head[rolling, -1] = head_bchw[rolling]
+        hist_state[rolling, -1] = state_bd[rolling]
+    return hist_head, hist_state, hist_ready
 
 
 def handle_client(
@@ -140,6 +158,8 @@ def handle_client(
     policy: Optional[torch.nn.Module] = None
     hist_head: Optional[torch.Tensor] = None
     hist_state: Optional[torch.Tensor] = None
+    hist_ready: Optional[torch.Tensor] = None
+    expected_batch_size: Optional[int] = None
     dev = _resolve_torch_device(map_location)
 
     try:
@@ -178,7 +198,8 @@ def handle_client(
                     if not ckpt:
                         raise ValueError("ckpt_path required in init or set --ckpt on server")
                     policy = _get_cached_policy(ckpt, dev)
-                    hist_head, hist_state = None, None
+                    hist_head, hist_state, hist_ready = None, None, None
+                    expected_batch_size = None
                     n_action_steps = int(getattr(policy, "n_action_steps", 0))
                     meta_out = {
                         "n_obs_steps": int(getattr(policy, "n_obs_steps", 0)),
@@ -211,10 +232,61 @@ def handle_client(
                     continue
 
                 if op == "dp_reset_history":
-                    # 当前实现：整连接上的 batch 历史一并清空。多 env 异步 done 时需 selective reset
-                    #（按 env_idx 或 mask）；首版训练请保持 RLinf group_size=1、同步 episode，见 run.md。
-                    hist_head, hist_state = None, None
-                    _ok_reply(conn, req)
+                    # 无参数：整连接 batch 历史全清（兼容旧客户端）。
+                    # env_idx / env_mask：只重置对应本地 slot（与当前连接的 batch 维一致）。
+                    env_idx = req.get("env_idx")
+                    env_mask = req.get("env_mask")
+                    if env_idx is None and env_mask is None:
+                        hist_head, hist_state, hist_ready = None, None, None
+                        expected_batch_size = None
+                        _ok_reply(
+                            conn,
+                            req,
+                            {"ack_batch_size": None, "selective": False},
+                        )
+                        continue
+                    if hist_ready is None or expected_batch_size is None:
+                        raise ValueError(
+                            "selective dp_reset_history requires at least one dp_predict "
+                            "to establish batch size"
+                        )
+                    B = int(expected_batch_size)
+                    mask = torch.zeros(B, dtype=torch.bool, device=dev)
+                    if env_mask is not None:
+                        m = torch.as_tensor(env_mask, dtype=torch.bool, device=dev)
+                        if m.numel() != B:
+                            raise ValueError(
+                                f"env_mask length {m.numel()} != ack_batch_size {B}"
+                            )
+                        mask = m.clone()
+                    if env_idx is not None:
+                        for i in env_idx:
+                            ii = int(i)
+                            if ii < 0 or ii >= B:
+                                raise ValueError(f"env_idx out of range: {ii} (B={B})")
+                            mask[ii] = True
+                    if not mask.any():
+                        _ok_reply(
+                            conn,
+                            req,
+                            {
+                                "ack_batch_size": B,
+                                "selective": True,
+                                "cleared_slots": 0,
+                            },
+                        )
+                        continue
+                    hist_ready = hist_ready.clone()
+                    hist_ready[mask] = False
+                    _ok_reply(
+                        conn,
+                        req,
+                        {
+                            "ack_batch_size": B,
+                            "selective": True,
+                            "cleared_slots": int(mask.sum().item()),
+                        },
+                    )
                     continue
 
                 if op == "dp_predict":
@@ -241,11 +313,19 @@ def handle_client(
                     step = rlinf_main_state_to_dp_timestep(main_t, state_t)
                     head_bchw = step["head_cam"].to(dtype=torch.float32)
                     st_bd = step["agent_pos"].to(dtype=torch.float32)
+                    B = int(head_bchw.shape[0])
+                    if expected_batch_size is None:
+                        expected_batch_size = B
+                    elif B != int(expected_batch_size):
+                        raise ValueError(
+                            f"dp_predict batch size {B} != locked {expected_batch_size} "
+                            "(per-connection local batch must stay fixed; reconnect to change B)"
+                        )
 
                     exp_dtype = next(policy.parameters()).dtype
                     n_obs = int(getattr(policy, "n_obs_steps", 0))
-                    hist_head, hist_state = _update_dp_history(
-                        hist_head, hist_state, head_bchw, st_bd, n_obs
+                    hist_head, hist_state, hist_ready = _update_dp_history(
+                        hist_head, hist_state, hist_ready, head_bchw, st_bd, n_obs
                     )
 
                     obs_dict = {
@@ -286,7 +366,8 @@ def handle_client(
 
                 if op == "close":
                     policy = None
-                    hist_head, hist_state = None, None
+                    hist_head, hist_state, hist_ready = None, None, None
+                    expected_batch_size = None
                     _ok_reply(conn, req)
                     continue
 
