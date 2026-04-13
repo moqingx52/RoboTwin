@@ -475,7 +475,14 @@ def main() -> None:
         conn, addr = listen.accept()
         print(f"[robotwin_dp_server] client connected from {addr}", flush=True)
         conn.settimeout(None)
-        handle_client(conn, addr, args.ckpt, args.device, log_ops=not args.no_log_ops)
+        # RLinf SAC/FSDP 会同时建两条远程 DP 连接（online + target），必须并发处理；
+        # 若单线程阻塞在 handle_client，第二条连接无法被 accept/读帧，会在 init 处卡死。
+        threading.Thread(
+            target=handle_client,
+            args=(conn, addr, args.ckpt, args.device),
+            kwargs={"log_ops": not args.no_log_ops},
+            daemon=True,
+        ).start()
 
 
 if __name__ == "__main__":
