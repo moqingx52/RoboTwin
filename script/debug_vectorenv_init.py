@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 import time
 import traceback
 from pathlib import Path
@@ -13,20 +12,8 @@ import yaml
 
 
 def _import_vector_env():
-    # 兼容两种 RoboTwin 布局：
-    # 1) 已安装/可导入 robotwin 包
-    # 2) 仅仓库源码模式（常见于 /workspace/RoboTwin），需从 envs 导入
-    try:
-        from robotwin.envs.vector_env import VectorEnv  # type: ignore
-        return VectorEnv
-    except ModuleNotFoundError:
-        pass
-
-    repo_root = Path(__file__).resolve().parents[1]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-    from envs.vector_env import VectorEnv  # type: ignore
-
+    from robotwin.envs.vector_env import VectorEnv  # type: ignore
+    print("[dbg] import VectorEnv from robotwin.envs.vector_env", flush=True)
     return VectorEnv
 
 
