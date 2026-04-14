@@ -33,6 +33,12 @@ logging.basicConfig(
 )
 logging.getLogger("concurrent.futures").setLevel(logging.WARNING)
 logging.getLogger("curobo").setLevel(logging.ERROR)
+INIT_DEBUG = os.getenv("VECTOR_ENV_INIT_DEBUG", "0") == "1"
+
+
+def _init_dbg(msg: str):
+    if INIT_DEBUG:
+        print(f"[vecdbg] {msg}", flush=True)
 
 
 def class_decorator(task_name):
@@ -73,6 +79,7 @@ class SubEnv:
         instruction_type = "seen",
         global_lock=None,
     ):
+        _init_dbg(f"SubEnv[{env_id}] __init__ start task_name={task_name}")
         self.env_id = env_id
         self.task_name = task_name
         self.args = args
@@ -81,11 +88,14 @@ class SubEnv:
             self.env_seed = self.env_id
         self.instruction = None
         self.task = class_decorator(self.task_name)
+        _init_dbg(f"SubEnv[{env_id}] task class loaded")
         self.instruction_type = instruction_type
         self.global_lock = global_lock
         self.lock = threading.Lock()
+        _init_dbg(f"SubEnv[{env_id}] __init__ done seed={self.env_seed}")
 
     def setup_task(self):
+        _init_dbg(f"SubEnv[{self.env_id}] setup_task start")
         self.close()
         self.task = class_decorator(self.task_name)
 
@@ -95,6 +105,9 @@ class SubEnv:
                 is_valid = False
                 while not is_valid:
                     try:
+                        _init_dbg(
+                            f"SubEnv[{self.env_id}] setup_demo try seed={trial_seed}"
+                        )
                         task = class_decorator(self.task_name)
                         task.setup_demo(
                             now_ep_num=trial_seed,
@@ -104,13 +117,20 @@ class SubEnv:
                         )
                         episode_info = task.get_info()
                         is_valid = True
+                        _init_dbg(
+                            f"SubEnv[{self.env_id}] setup_demo success seed={trial_seed}"
+                        )
                     except Exception as e:
+                        _init_dbg(
+                            f"SubEnv[{self.env_id}] setup_demo failed seed={trial_seed} err={type(e).__name__}: {e}"
+                        )
                         task.close_env()
                         trial_seed += 1
                         continue
                     task.close_env()
 
                 self.episode_info_list = [episode_info]
+        _init_dbg(f"SubEnv[{self.env_id}] setup_task done")
 
     def create_instruction(self):
         task_descriptions = generate_episode_descriptions(
@@ -228,9 +248,11 @@ class VectorEnv(gym.Env):
         env_seeds=None,
         instruction_type="seen",
     ):
+        _init_dbg(f"VectorEnv.__init__ enter n_envs={n_envs}")
         self.env_seeds = env_seeds
         if self.env_seeds is not None:
             assert len(self.env_seeds) == n_envs
+        _init_dbg("VectorEnv.__init__ seeds checked")
         assets_path = os.getenv("ASSETS_PATH")
         self.task_name = task_config.get("task_name")
 
@@ -239,15 +261,20 @@ class VectorEnv(gym.Env):
         args = task_config
 
         args["planner_backend"] = args.get("planner_backend", "curobo") # Choices: [curobo, mplib]
+        _init_dbg(
+            f"VectorEnv.__init__ task={self.task_name} planner_backend={args['planner_backend']}"
+        )
 
         embodiment_type = args.get("embodiment")
         embodiment_config_path = os.path.join(CONFIGS_PATH, "_embodiment_config.yml")
 
         with open(embodiment_config_path, "r", encoding="utf-8") as f:
             _embodiment_types = yaml.load(f.read(), Loader=yaml.FullLoader)
+        _init_dbg("VectorEnv.__init__ loaded embodiment config")
 
         with open(CONFIGS_PATH + "_camera_config.yml", "r", encoding="utf-8") as f:
             _camera_config = yaml.load(f.read(), Loader=yaml.FullLoader)
+        _init_dbg("VectorEnv.__init__ loaded camera config")
 
         args["head_camera_h"] = _camera_config[head_camera_type]["h"]
         args["head_camera_w"] = _camera_config[head_camera_type]["w"]
@@ -283,6 +310,7 @@ class VectorEnv(gym.Env):
             args["dual_arm_embodied"] = False
         else:
             raise "embodiment items should be 1 or 3"
+        _init_dbg("VectorEnv.__init__ embodiment files resolved")
 
         args["left_embodiment_config"] = get_embodiment_config(args["left_robot_file"])
         args["right_embodiment_config"] = get_embodiment_config(
@@ -315,11 +343,15 @@ class VectorEnv(gym.Env):
         self.global_lock = threading.Lock()
 
         self.env_thread_pool = ThreadPoolExecutor(max_workers=n_envs)
+        _init_dbg("VectorEnv.__init__ thread pool created")
 
         self._init_envs()
+        _init_dbg("VectorEnv.__init__ done")
 
     def _init_envs(self):
+        _init_dbg("VectorEnv._init_envs start")
         for i in range(self.n_envs):
+            _init_dbg(f"VectorEnv._init_envs building SubEnv[{i}]")
             sub_env = SubEnv(
                 env_id=i,
                 task_name=self.task_name,
@@ -330,6 +362,8 @@ class VectorEnv(gym.Env):
             )
             sub_env.setup_task()
             self.envs.append(sub_env)
+            _init_dbg(f"VectorEnv._init_envs SubEnv[{i}] ready")
+        _init_dbg("VectorEnv._init_envs done")
 
     def transform(self, results):
         res_dict = defaultdict(list)

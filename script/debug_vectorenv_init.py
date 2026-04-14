@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import os
 import sys
 import time
@@ -51,6 +52,17 @@ def main() -> None:
     parser.add_argument("--n-envs", type=int, default=1)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument(
+        "--debug-mode",
+        action="store_true",
+        help="Enable verbose VectorEnv init debug logs",
+    )
+    parser.add_argument(
+        "--dump-traceback-seconds",
+        type=int,
+        default=0,
+        help="If >0, periodically dump Python traceback every N seconds",
+    )
+    parser.add_argument(
         "--skip-get-obs",
         action="store_true",
         help="Only test VectorEnv(...) constructor",
@@ -67,9 +79,20 @@ def main() -> None:
     if not assets:
         raise SystemExit("ASSETS_PATH not set: pass --assets-path or set it in env/config")
     os.environ["ASSETS_PATH"] = str(assets)
+    if args.debug_mode:
+        os.environ["VECTOR_ENV_INIT_DEBUG"] = "1"
 
     print(f"[dbg] ASSETS_PATH={os.environ['ASSETS_PATH']}", flush=True)
     print(f"[dbg] config={args.config}", flush=True)
+    if args.debug_mode:
+        print("[dbg] VECTOR_ENV_INIT_DEBUG=1", flush=True)
+    if args.dump_traceback_seconds > 0:
+        faulthandler.enable()
+        faulthandler.dump_traceback_later(args.dump_traceback_seconds, repeat=True)
+        print(
+            f"[dbg] faulthandler dump every {args.dump_traceback_seconds}s",
+            flush=True,
+        )
 
     task_config = _load_task_config(args.config)
     print(
@@ -115,6 +138,8 @@ def main() -> None:
         traceback.print_exc()
         raise
     finally:
+        if args.dump_traceback_seconds > 0:
+            faulthandler.cancel_dump_traceback_later()
         if venv is not None:
             try:
                 venv.close()
