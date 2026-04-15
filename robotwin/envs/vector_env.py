@@ -87,8 +87,8 @@ class SubEnv:
         if self.env_seed is None:
             self.env_seed = self.env_id
         self.instruction = None
-        self.task = class_decorator(self.task_name)
-        _init_dbg(f"SubEnv[{env_id}] task class loaded")
+        self.task = None
+        _init_dbg(f"SubEnv[{env_id}] task slot ready (initialized in setup_task)")
         self.instruction_type = instruction_type
         self.global_lock = global_lock
         self.lock = threading.Lock()
@@ -97,13 +97,15 @@ class SubEnv:
     def setup_task(self):
         _init_dbg(f"SubEnv[{self.env_id}] setup_task start")
         self.close()
-        self.task = class_decorator(self.task_name)
+        self.task = None
 
         with self.global_lock:
             with self.lock:
                 trial_seed = self.env_seed
                 is_valid = False
+                episode_info = {}
                 while not is_valid:
+                    task = None
                     try:
                         _init_dbg(
                             f"SubEnv[{self.env_id}] setup_demo try seed={trial_seed}"
@@ -118,6 +120,7 @@ class SubEnv:
                         get_info = getattr(task, "get_info", None)
                         episode_info = get_info() if callable(get_info) else {}
                         is_valid = True
+                        self.task = task
                         _init_dbg(
                             f"SubEnv[{self.env_id}] setup_demo success seed={trial_seed}"
                         )
@@ -125,10 +128,10 @@ class SubEnv:
                         _init_dbg(
                             f"SubEnv[{self.env_id}] setup_demo failed seed={trial_seed} err={type(e).__name__}: {e}"
                         )
-                        task.close_env()
+                        if task is not None:
+                            task.close_env()
                         trial_seed += 1
                         continue
-                    task.close_env()
 
                 self.episode_info_list = [episode_info]
         _init_dbg(f"SubEnv[{self.env_id}] setup_task done")

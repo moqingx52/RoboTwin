@@ -36,7 +36,16 @@ parent_directory = os.path.dirname(current_file_path)
 class Base_Task(gym.Env):
 
     def __init__(self):
-        pass
+        super().__init__()
+        self.random_background = False
+        self.cluttered_table = False
+        self.clean_background_rate = 1
+        self.random_head_camera_dis = 0
+        self.random_table_height = 0
+        self.random_light = False
+        self.crazy_random_light_rate = 0
+        self.crazy_random_light = False
+        self.random_embodiment = False
 
     # =========================================================== Init Task Env ===========================================================
     def _init_task_env_(self, table_xy_bias=[0, 0], table_height_bias=0, **kwags):
@@ -53,7 +62,6 @@ class Base_Task(gym.Env):
         - `self.right_arm_joint_id`: [7,15,19,23,27,31].
         - `self.render_fre`: Render frequency.
         """
-        super().__init__()
         ta.setup_logging("CRITICAL")  # hide logging
         np.random.seed(kwags.get("seed", 0))
         torch.manual_seed(kwags.get("seed", 0))
@@ -72,7 +80,7 @@ class Base_Task(gym.Env):
         self.need_topp = True  # TODO
 
         # Random
-        random_setting = kwags.get("domain_randomization")
+        random_setting = kwags.get("domain_randomization") or {}
         self.random_background = random_setting.get("random_background", False)
         self.cluttered_table = random_setting.get("cluttered_table", False)
         self.clean_background_rate = random_setting.get("clean_background_rate", 1)
@@ -80,7 +88,9 @@ class Base_Task(gym.Env):
         self.random_table_height = random_setting.get("random_table_height", 0)
         self.random_light = random_setting.get("random_light", False)
         self.crazy_random_light_rate = random_setting.get("crazy_random_light_rate", 0)
-        self.crazy_random_light = (0 if not self.random_light else np.random.rand() < self.crazy_random_light_rate)
+        self.crazy_random_light = (
+            False if not self.random_light else np.random.rand() < self.crazy_random_light_rate
+        )
         self.random_embodiment = random_setting.get("random_embodiment", False)  # TODO
 
         self.file_path = []
@@ -421,7 +431,7 @@ class Base_Task(gym.Env):
         Update rendering to refresh the camera's RGBD information
         (rendering must be updated even when disabled, otherwise data cannot be collected).
         """
-        if self.crazy_random_light:
+        if getattr(self, "crazy_random_light", False):
             for renderColor in self.point_light_lst:
                 renderColor.set_color([np.random.rand(), np.random.rand(), np.random.rand()])
             for renderColor in self.direction_light_lst:
