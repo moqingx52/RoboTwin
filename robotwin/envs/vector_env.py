@@ -52,12 +52,14 @@ def class_decorator(task_name):
 
 
 def update_obs(observation):
-    full_image = observation["observation"]["head_camera"]["rgb"]
+    obs_dict = observation.get("observation", {})
+    # Allow qpos-only or camera-disabled configs to pass through without KeyError.
+    full_image = obs_dict.get("head_camera", {}).get("rgb", None)
     left_wrist_image = (
-        observation["observation"].get("left_camera", {}).get("rgb", None)
+        obs_dict.get("left_camera", {}).get("rgb", None)
     )
     right_wrist_image = (
-        observation["observation"].get("right_camera", {}).get("rgb", None)
+        obs_dict.get("right_camera", {}).get("rgb", None)
     )
     state = observation["joint_action"]["vector"]
 
