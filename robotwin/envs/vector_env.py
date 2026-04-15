@@ -140,7 +140,7 @@ class SubEnv:
 
     def create_instruction(self):
         task_descriptions = generate_episode_descriptions(
-            self.task_name, self.episode_info_list, 1, self.env_seed
+            self.task_name, self.episode_info_list, 1
         )
         instruction = np.random.choice(task_descriptions[0][self.instruction_type])
         return instruction

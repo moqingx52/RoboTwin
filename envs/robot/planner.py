@@ -313,6 +313,16 @@ class MplibPlanner:
         self.plan_step_lim = 2500
         self.TOPP = self.planner.TOPP
 
+    @staticmethod
+    def _normalize_planner_type(planner_type):
+        """Normalize planner aliases to supported mplib planner names."""
+        planner_type_str = str(planner_type).strip().lower()
+        if planner_type_str in {"mplib_rrt", "rrt", "mplib", "default"}:
+            return "mplib_RRT"
+        if planner_type_str in {"mplib_screw", "screw"}:
+            return "mplib_screw"
+        return None
+
     def show_info(self):
         print("joint_limits", self.planner.joint_limits)
         print("joint_acc_limits", self.planner.joint_acc_limits)
@@ -407,7 +417,8 @@ class MplibPlanner:
         Interpolative planning with screw motion.
         Will not avoid collision and will fail if the path contains collision.
         """
-        if self.planner_type == "mplib_RRT":
+        planner_type = self._normalize_planner_type(self.planner_type)
+        if planner_type == "mplib_RRT":
             result = self.plan_pose(
                 now_qpos,
                 target_pose,
@@ -417,8 +428,23 @@ class MplibPlanner:
                 try_times=10,
                 log=log,
             )
-        elif self.planner_type == "mplib_screw":
+        elif planner_type == "mplib_screw":
             result = self.plan_screw(now_qpos, target_pose, use_point_cloud, use_attach, arms_tag, log)
+        else:
+            if log:
+                print(
+                    f"[MplibPlanner] Unknown planner_type={self.planner_type}, fallback to mplib_RRT.",
+                    flush=True,
+                )
+            result = self.plan_pose(
+                now_qpos,
+                target_pose,
+                use_point_cloud,
+                use_attach,
+                arms_tag,
+                try_times=10,
+                log=log,
+            )
 
         return result
 
