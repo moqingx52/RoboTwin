@@ -434,6 +434,13 @@ class Base_Task(gym.Env):
 
     # =========================================================== Basic APIs ===========================================================
 
+    def get_info(self):
+        """Episode parameters for instruction placeholders (e.g. ``{A}``, ``{B}``). Tasks may set ``self.info['info']``."""
+        info = getattr(self, "info", None)
+        if not info:
+            return {}
+        return dict(info.get("info", {}))
+
     def get_obs(self):
         self._update_render()
         self.cameras.update_picture()

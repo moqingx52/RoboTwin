@@ -115,7 +115,8 @@ class SubEnv:
                             is_test=True,
                             **self.args,
                         )
-                        episode_info = task.get_info()
+                        get_info = getattr(task, "get_info", None)
+                        episode_info = get_info() if callable(get_info) else {}
                         is_valid = True
                         _init_dbg(
                             f"SubEnv[{self.env_id}] setup_demo success seed={trial_seed}"

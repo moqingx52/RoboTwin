@@ -432,3 +432,39 @@ class MplibPlanner:
         res["per_step"] = per_step  # dis per step
         res["result"] = vals
         return res
+
+    def plan_batch(
+        self,
+        curr_joint_pos,
+        target_gripper_pose_list,
+        constraint_pose=None,
+        arms_tag=None,
+    ):
+        """Batch planning by calling :meth:`plan_path` per pose (compatible with :class:`CuroboPlanner` batch API)."""
+        statuses = []
+        positions = []
+        velocities = []
+        for target_pose in target_gripper_pose_list:
+            r = self.plan_path(
+                curr_joint_pos,
+                target_pose,
+                arms_tag=arms_tag,
+                log=False,
+            )
+            if r.get("status") != "Success":
+                statuses.append("Failure")
+                positions.append(np.array([]))
+                velocities.append(np.array([]))
+            else:
+                statuses.append("Success")
+                positions.append(r["position"])
+                velocities.append(r["velocity"])
+        return {
+            "status": np.array(statuses, dtype=object),
+            "position": np.array(positions, dtype=object),
+            "velocity": np.array(velocities, dtype=object),
+        }
+
+    def update_point_cloud(self, world_pcd, resolution=0.02):
+        """No-op for mplib (cuRobo-only); kept for API parity with :class:`CuroboPlanner`."""
+        del world_pcd, resolution

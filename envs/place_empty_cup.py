@@ -8,6 +8,9 @@ class place_empty_cup(Base_Task):
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)
 
+    def get_info(self):
+        return {"{A}": "021_cup/base0", "{B}": "019_coaster/base0"}
+
     def load_actors(self):
         tag = np.random.randint(0, 2)
         cup_xlim = [[0.15, 0.3], [-0.3, -0.15]]

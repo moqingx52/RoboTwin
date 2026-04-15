@@ -36,6 +36,10 @@ class Robot:
         right_robot_file = kwargs["right_robot_file"]
 
         self.need_topp = need_topp
+        self.planner_backend = str(kwargs.get("planner_backend", "curobo")).lower()
+        if self.planner_backend not in ("curobo", "mplib"):
+            self.planner_backend = "curobo"
+        print(f"[robotdbg] planner_backend={self.planner_backend}", flush=True)
 
         self.left_urdf_path = os.path.join(left_robot_file, left_embodiment_args["urdf_path"])
         self.left_srdf_path = left_embodiment_args.get("srdf_path", None)
@@ -132,8 +136,16 @@ class Robot:
                 self.right_conn.send({"cmd": "reset"})
                 _ = self.right_conn.recv()
         else:
-            if not isinstance(self.left_planner, CuroboPlanner) or not isinstance(self.right_planner, CuroboPlanner):
-                self.set_planner(scene=scene)
+            if self.planner_backend == "curobo":
+                if not isinstance(self.left_planner, CuroboPlanner) or not isinstance(
+                    self.right_planner, CuroboPlanner
+                ):
+                    self.set_planner(scene=scene)
+            elif self.planner_backend == "mplib":
+                if not isinstance(self.left_planner, MplibPlanner) or not isinstance(
+                    self.right_planner, MplibPlanner
+                ):
+                    self.set_planner(scene=scene)
 
         self.init_joints()
 
@@ -255,6 +267,33 @@ class Robot:
         print("right ee: ", self.right_ee.get_name())
 
     def set_planner(self, scene=None):
+        print(f"[robotdbg] using planner backend: {self.planner_backend}", flush=True)
+
+        if self.planner_backend == "mplib":
+            self.communication_flag = False
+            self.left_planner = MplibPlanner(
+                self.left_urdf_path,
+                self.left_srdf_path,
+                self.left_move_group,
+                self.left_entity_origion_pose,
+                self.left_entity,
+                self.left_planner_type,
+                scene,
+            )
+            self.right_planner = MplibPlanner(
+                self.right_urdf_path,
+                self.right_srdf_path,
+                self.right_move_group,
+                self.right_entity_origion_pose,
+                self.right_entity,
+                self.right_planner_type,
+                scene,
+            )
+            if self.need_topp:
+                self.left_mplib_planner = self.left_planner
+                self.right_mplib_planner = self.right_planner
+            return
+
         abs_left_curobo_yml_path = os.path.join(CONFIGS.ROOT_PATH, self.left_curobo_yml_path)
         abs_right_curobo_yml_path = os.path.join(CONFIGS.ROOT_PATH, self.right_curobo_yml_path)
 
