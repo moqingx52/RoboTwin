@@ -331,9 +331,12 @@ class Camera:
     # Get Camera RGBA
     def get_rgba(self) -> dict:
 
-        def _get_rgba(camera):
+        def _get_rgba(camera, camera_name):
+            print(f"[camdbg] before get_picture {camera_name}", flush=True)
             camera_rgba = camera.get_picture("Color")
+            print(f"[camdbg] after get_picture {camera_name}", flush=True)
             camera_rgba_img = (camera_rgba * 255).clip(0, 255).astype("uint8")
+            print(f"[camdbg] after uint8 {camera_name}", flush=True)
             return camera_rgba_img
 
         # ================================= sensor camera =================================
@@ -347,17 +350,17 @@ class Camera:
         if self.collect_wrist_camera:
             res["left_camera"] = {}
             res["right_camera"] = {}
-            res["left_camera"]["rgba"] = _get_rgba(self.left_camera)
-            res["right_camera"]["rgba"] = _get_rgba(self.right_camera)
+            res["left_camera"]["rgba"] = _get_rgba(self.left_camera, "left_camera")
+            res["right_camera"]["rgba"] = _get_rgba(self.right_camera, "right_camera")
 
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
             if camera_name == "head_camera":
                 if self.collect_head_camera:
                     res[camera_name] = {}
-                    res[camera_name]["rgba"] = _get_rgba(camera)
+                    res[camera_name]["rgba"] = _get_rgba(camera, camera_name)
             else:
                 res[camera_name] = {}
-                res[camera_name]["rgba"] = _get_rgba(camera)
+                res[camera_name]["rgba"] = _get_rgba(camera, camera_name)
         # ================================= sensor camera =================================
         # res['head_sensor']['rgb'] = _get_sensor_rgba(self.head_sensor)
 
