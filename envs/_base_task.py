@@ -207,6 +207,42 @@ class Base_Task(gym.Env):
     def check_success(self):
         pass
 
+    def get_sparse_reward(self, reward_data=None):
+        """Default sparse reward: success -> 1.0, otherwise 0.0."""
+        if reward_data is None:
+            reward_data = {"success": bool(self.check_success())}
+        return float(bool(reward_data.get("success", False)))
+
+    def compute_sparse_reward(self, reward_data=None):
+        return self.get_sparse_reward(reward_data=reward_data)
+
+    def gen_sparse_reward_data(self, actions):
+        """
+        Run one env step and return sparse reward tuple expected by VectorEnv:
+        (reward, terminated, truncated, info).
+        """
+        action = np.asarray(actions)
+        if action.ndim > 1:
+            action = action.reshape(-1)
+
+        self.take_action(action)
+        success = bool(self.check_success())
+
+        self.run_steps = int(getattr(self, "run_steps", 0)) + 1
+        step_lim = getattr(self, "step_lim", None)
+        truncated = bool(step_lim is not None and self.run_steps >= int(step_lim) and not success)
+        terminated = success
+
+        reward_data = {"success": success}
+        reward = self.compute_sparse_reward(reward_data=reward_data)
+        self.reward_step = reward
+
+        info = {"success": success}
+        if step_lim is not None:
+            info["run_steps"] = int(self.run_steps)
+            info["step_lim"] = int(step_lim)
+        return reward, terminated, truncated, info
+
     def setup_scene(self, **kwargs):
         """
         Set the scene
