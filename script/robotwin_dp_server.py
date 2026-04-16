@@ -34,6 +34,23 @@ _POLICY_LOCK = threading.Lock()
 _INFER_LOCK = threading.Lock()
 
 
+def _arr_stats(x: Any) -> dict[str, Any]:
+    arr = np.asarray(x, dtype=np.float32)
+    if arr.size == 0:
+        return {"size": 0}
+    return {
+        "shape": list(arr.shape),
+        "mean": float(arr.mean()),
+        "std": float(arr.std()),
+        "min": float(arr.min()),
+        "max": float(arr.max()),
+    }
+
+
+def _debug_enabled(level: int, debug_level: int) -> bool:
+    return debug_level >= level
+
+
 def _resolve_torch_device(map_location: str) -> torch.device:
     if map_location.startswith("cuda") and not torch.cuda.is_available():
         return torch.device("cpu")
@@ -154,6 +171,8 @@ def handle_client(
     map_location: str,
     *,
     log_ops: bool = True,
+    debug_level: int = 0,
+    debug_every: int = 1,
 ) -> None:
     from policy.DP.rlinf_adapter import rlinf_main_state_to_dp_timestep
 
@@ -214,10 +233,11 @@ def handle_client(
                     _ok_reply(conn, req, {"dp_meta": meta_out})
                     rid = req.get("request_id", "")
                     rid_s = f" request_id={rid!r}" if rid else ""
-                    print(
-                        f"[robotwin_dp_server] op=init ok{rid_s} ckpt={ckpt} device={dev} meta={meta_out}",
-                        flush=True,
-                    )
+                    if log_ops or _debug_enabled(1, debug_level):
+                        print(
+                            f"[robotwin_dp_server] op=init ok{rid_s} ckpt={ckpt} device={dev} meta={meta_out}",
+                            flush=True,
+                        )
                     continue
 
                 if policy is None:
@@ -249,7 +269,7 @@ def handle_client(
                             req,
                             {"ack_batch_size": None, "selective": False},
                         )
-                        if log_ops:
+                        if log_ops or _debug_enabled(1, debug_level):
                             rid = req.get("request_id", "")
                             rid_s = f" request_id={rid!r}" if rid else ""
                             print(
@@ -287,7 +307,7 @@ def handle_client(
                                 "cleared_slots": 0,
                             },
                         )
-                        if log_ops:
+                        if log_ops or _debug_enabled(1, debug_level):
                             rid = req.get("request_id", "")
                             rid_s = f" request_id={rid!r}" if rid else ""
                             print(
@@ -308,7 +328,7 @@ def handle_client(
                             "cleared_slots": cleared,
                         },
                     )
-                    if log_ops:
+                    if log_ops or _debug_enabled(1, debug_level):
                         rid = req.get("request_id", "")
                         rid_s = f" request_id={rid!r}" if rid else ""
                         print(
@@ -392,13 +412,37 @@ def handle_client(
                         raw,
                     )
                     dp_predict_count += 1
-                    if log_ops:
+                    if log_ops or _debug_enabled(1, debug_level):
                         rid = req.get("request_id", "")
                         rid_s = f" request_id={rid!r}" if rid else ""
                         print(
                             f"[robotwin_dp_server] op=dp_predict ok{rid_s} i={dp_predict_count} B={B} "
                             f"main_shape={main_shape} state_shape={state_shape} "
                             f"has_init_noise={has_noise} action_shape={list(act.shape)}",
+                            flush=True,
+                        )
+                    if _debug_enabled(1, debug_level) and (dp_predict_count % debug_every == 0):
+                        diag: dict[str, Any] = {
+                            "predict_i": int(dp_predict_count),
+                            "batch_size": int(B),
+                            "main": _arr_stats(main_np),
+                            "state": _arr_stats(state_np),
+                            "action": _arr_stats(act),
+                            "n_obs_steps": int(n_obs),
+                        }
+                        if hist_ready is not None and hist_ready.numel() > 0:
+                            diag["hist_ready_ratio"] = float(hist_ready.float().mean().item())
+                        if _debug_enabled(2, debug_level):
+                            if has_noise and init_noise is not None:
+                                diag["init_noise"] = _arr_stats(init_noise.detach().float().cpu().numpy())
+                            if hist_state is not None:
+                                hst = hist_state.detach().float().cpu().numpy()
+                                diag["hist_state_last"] = _arr_stats(hst[:, -1, :])
+                        if _debug_enabled(3, debug_level):
+                            a_flat = np.asarray(act, dtype=np.float32).reshape(-1)
+                            diag["action_head"] = a_flat[: min(24, a_flat.size)].tolist()
+                        print(
+                            f"[robotwin_dp_server][debug{debug_level}] predict_diag={json.dumps(diag, separators=(',', ':'))}",
                             flush=True,
                         )
                     continue
@@ -408,7 +452,7 @@ def handle_client(
                     hist_head, hist_state, hist_ready = None, None, None
                     expected_batch_size = None
                     _ok_reply(conn, req)
-                    if log_ops:
+                    if log_ops or _debug_enabled(1, debug_level):
                         rid = req.get("request_id", "")
                         rid_s = f" request_id={rid!r}" if rid else ""
                         print(f"[robotwin_dp_server] op=close ok{rid_s}", flush=True)
@@ -459,6 +503,19 @@ def main() -> None:
         action="store_true",
         help="Disable per-op success logs (init/dp_predict/dp_reset_history/close)",
     )
+    p.add_argument(
+        "--debug-level",
+        type=int,
+        default=0,
+        choices=[0, 1, 2, 3],
+        help="0=off, 1=basic predict diagnostics, 2=include noise/history diagnostics, 3=include action samples",
+    )
+    p.add_argument(
+        "--debug-every",
+        type=int,
+        default=1,
+        help="Print debug diagnostics every N dp_predict calls",
+    )
     args = p.parse_args()
 
     listen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -467,7 +524,8 @@ def main() -> None:
     listen.listen(8)
     print(
         f"[robotwin_dp_server] listening {args.host}:{args.port} default_ckpt={args.ckpt!r} "
-        f"device={args.device} api_version={API_VERSION}",
+        f"device={args.device} api_version={API_VERSION} "
+        f"debug_level={args.debug_level} debug_every={max(1, int(args.debug_every))}",
         flush=True,
     )
 
@@ -480,7 +538,11 @@ def main() -> None:
         threading.Thread(
             target=handle_client,
             args=(conn, addr, args.ckpt, args.device),
-            kwargs={"log_ops": not args.no_log_ops},
+            kwargs={
+                "log_ops": not args.no_log_ops,
+                "debug_level": args.debug_level,
+                "debug_every": max(1, int(args.debug_every)),
+            },
             daemon=True,
         ).start()
 

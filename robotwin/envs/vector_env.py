@@ -34,11 +34,30 @@ logging.basicConfig(
 logging.getLogger("concurrent.futures").setLevel(logging.WARNING)
 logging.getLogger("curobo").setLevel(logging.ERROR)
 INIT_DEBUG = os.getenv("VECTOR_ENV_INIT_DEBUG", "0") == "1"
+DEBUG_LEVEL = int(os.getenv("VECTOR_ENV_DEBUG_LEVEL", "0"))
+DEBUG_EVERY = max(1, int(os.getenv("VECTOR_ENV_DEBUG_EVERY", "1")))
 
 
 def _init_dbg(msg: str):
     if INIT_DEBUG:
         print(f"[vecdbg] {msg}", flush=True)
+
+
+def _debug_enabled(level: int) -> bool:
+    return DEBUG_LEVEL >= level
+
+
+def _arr_stats(x):
+    arr = np.asarray(x, dtype=np.float32)
+    if arr.size == 0:
+        return {"size": 0}
+    return {
+        "shape": list(arr.shape),
+        "mean": float(arr.mean()),
+        "std": float(arr.std()),
+        "min": float(arr.min()),
+        "max": float(arr.max()),
+    }
 
 
 def class_decorator(task_name):
@@ -94,6 +113,7 @@ class SubEnv:
         self.instruction_type = instruction_type
         self.global_lock = global_lock
         self.lock = threading.Lock()
+        self.debug_step_count = 0
         _init_dbg(f"SubEnv[{env_id}] __init__ done seed={self.env_seed}")
 
     def setup_task(self):
@@ -150,9 +170,47 @@ class SubEnv:
             self.reset(env_seed=None)
 
         with self.lock:
+            self.debug_step_count += 1
+            action_np = np.asarray(actions, dtype=np.float32)
             reward, termination, truncation, info = self.task.gen_sparse_reward_data(actions)
             obs = update_obs(self.task.get_obs())
             obs["instruction"] = self.task.get_instruction()
+            if _debug_enabled(1) and (self.debug_step_count % DEBUG_EVERY == 0):
+                if not isinstance(info, dict):
+                    info = {"raw_info": info}
+                dbg = {
+                    "env_id": int(self.env_id),
+                    "step_i": int(self.debug_step_count),
+                    "reward": float(reward),
+                    "terminated": bool(termination),
+                    "truncated": bool(truncation),
+                    "action_stats": _arr_stats(action_np),
+                }
+                run_steps = getattr(self.task, "run_steps", None)
+                reward_step = getattr(self.task, "reward_step", None)
+                if run_steps is not None:
+                    dbg["run_steps"] = int(run_steps)
+                if reward_step is not None:
+                    dbg["reward_step"] = int(reward_step)
+                plan_success = getattr(self.task, "plan_success", None)
+                if plan_success is not None:
+                    dbg["plan_success"] = bool(plan_success)
+                if _debug_enabled(2):
+                    state = obs.get("state")
+                    if state is not None:
+                        dbg["state_stats"] = _arr_stats(state)
+                    success_keys = ("success", "success_once", "is_success", "done_success")
+                    reward_keys = ("reward", "sparse_reward", "dense_reward", "reward_components")
+                    info_focus = {}
+                    for k, v in info.items():
+                        if k in success_keys or k in reward_keys or ("success" in str(k).lower()):
+                            info_focus[k] = v
+                    if info_focus:
+                        dbg["info_focus"] = info_focus
+                if _debug_enabled(3):
+                    flat = action_np.reshape(-1)
+                    dbg["action_head"] = flat[: min(16, flat.size)].tolist()
+                info["debug_trace"] = dbg
 
         return {
             "obs": obs,

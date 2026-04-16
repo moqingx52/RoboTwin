@@ -40,6 +40,23 @@ except ImportError:
 _UNSTABLE_TYPES: tuple[type, ...] = (_UnStableErr,) if _UnStableErr is not None else tuple()
 
 
+def _arr_stats(x: Any) -> dict[str, Any]:
+    arr = np.asarray(x, dtype=np.float32)
+    if arr.size == 0:
+        return {"size": 0}
+    return {
+        "shape": list(arr.shape),
+        "mean": float(arr.mean()),
+        "std": float(arr.std()),
+        "min": float(arr.min()),
+        "max": float(arr.max()),
+    }
+
+
+def _debug_enabled(level: int, debug_level: int) -> bool:
+    return debug_level >= level
+
+
 def _recvn(conn: socket.socket, n: int) -> bytes:
     buf = b""
     while len(buf) < n:
@@ -212,6 +229,8 @@ def handle_client_connection(
     idle_timeout: float,
     *,
     log_ops: bool = True,
+    debug_level: int = 0,
+    debug_every: int = 1,
 ) -> None:
     from robotwin.envs.vector_env import VectorEnv
 
@@ -308,7 +327,7 @@ def handle_client_connection(
                                 sample = None
                         obs_schema = _build_obs_schema(tc_use, sample)
                         _ok_reply(conn, req, {"obs_schema": obs_schema})
-                        if log_ops:
+                        if log_ops or _debug_enabled(1, debug_level):
                             tn = tc_use.get("task_name", "?")
                             sd = env_seeds
                             if sd is not None and len(sd) > 8:
@@ -348,7 +367,7 @@ def handle_client_connection(
                             env_seeds = [int(s) for s in env_seeds]
                         venv.reset(env_idx=env_idx, env_seeds=env_seeds)
                         _ok_reply(conn, req)
-                        if log_ops:
+                        if log_ops or _debug_enabled(1, debug_level):
                             es = env_seeds
                             if es is not None and len(es) > 8:
                                 es = f"{es[:8]}...(+{len(env_seeds) - 8})"
@@ -367,7 +386,7 @@ def handle_client_connection(
                     obs_list = venv.get_obs()
                     obs_meta, blob = _serialize_obs_list(obs_list)
                     _ok_reply(conn, req, {"obs_meta": obs_meta}, blob)
-                    if log_ops:
+                    if log_ops or _debug_enabled(1, debug_level):
                         rid = req.get("request_id", "")
                         rid_s = f" request_id={rid!r}" if rid else ""
                         print(
@@ -395,7 +414,7 @@ def handle_client_connection(
                             },
                             blob,
                         )
-                        if log_ops:
+                        if log_ops or _debug_enabled(1, debug_level):
                             rw = np.asarray(rewards)
                             term = np.asarray(terminated) if terminated is not None else None
                             trunc = np.asarray(truncated) if truncated is not None else None
@@ -412,6 +431,44 @@ def handle_client_connection(
                                 f"reward_mean={float(rw.mean()) if rw.size else 0.0}{term_s}{trunc_s}",
                                 flush=True,
                             )
+                        if _debug_enabled(1, debug_level) and (int(venv.envs[0].debug_step_count) % debug_every == 0):
+                            diag: dict[str, Any] = {
+                                "actions": _arr_stats(actions),
+                                "rewards": _arr_stats(rewards),
+                                "terminated_sum": int(np.asarray(terminated, dtype=np.int32).sum()),
+                                "truncated_sum": int(np.asarray(truncated, dtype=np.int32).sum()),
+                            }
+                            if _debug_enabled(2, debug_level):
+                                per_env = []
+                                for i, inf in enumerate(infos):
+                                    item = {"env_id": i}
+                                    if isinstance(inf, dict):
+                                        dbg_trace = inf.get("debug_trace")
+                                        if dbg_trace is not None:
+                                            item["debug_trace"] = dbg_trace
+                                        else:
+                                            keys = []
+                                            for k in inf.keys():
+                                                ks = str(k).lower()
+                                                if (
+                                                    "reward" in ks
+                                                    or "success" in ks
+                                                    or "done" in ks
+                                                    or "fail" in ks
+                                                ):
+                                                    keys.append(str(k))
+                                            item["info_keys_focus"] = keys
+                                    per_env.append(item)
+                                diag["per_env"] = per_env
+                            if _debug_enabled(3, debug_level):
+                                act = np.asarray(actions, dtype=np.float32)
+                                rew = np.asarray(rewards, dtype=np.float32)
+                                diag["actions_head"] = act.reshape(-1)[: min(24, act.size)].tolist()
+                                diag["rewards_full"] = rew.reshape(-1).tolist()
+                            print(
+                                f"[robotwin_env_server][debug{debug_level}] step_diag={json.dumps(_sanitize(diag), separators=(',', ':'))}",
+                                flush=True,
+                            )
                     finally:
                         processing[0] = False
                         touch()
@@ -420,7 +477,7 @@ def handle_client_connection(
                     seeds = [int(s) for s in req["seeds"]]
                     results = venv.check_seeds(seeds)
                     _ok_reply(conn, req, {"results": _sanitize(results)})
-                    if log_ops:
+                    if log_ops or _debug_enabled(1, debug_level):
                         rid = req.get("request_id", "")
                         rid_s = f" request_id={rid!r}" if rid else ""
                         print(
@@ -435,7 +492,7 @@ def handle_client_connection(
                         venv.close(clear_cache=clear_cache)
                         venv = None
                     _ok_reply(conn, req)
-                    if log_ops:
+                    if log_ops or _debug_enabled(1, debug_level):
                         rid = req.get("request_id", "")
                         rid_s = f" request_id={rid!r}" if rid else ""
                         print(f"[robotwin_env_server] op=close ok{rid_s} clear_cache={clear_cache}", flush=True)
@@ -505,6 +562,19 @@ def main() -> None:
         action="store_true",
         help="Disable per-op success logs (init/reset/get_obs/step/check_seeds/close)",
     )
+    p.add_argument(
+        "--debug-level",
+        type=int,
+        default=0,
+        choices=[0, 1, 2, 3],
+        help="0=off, 1=basic step diagnostics, 2=include per-env reward/success focus, 3=include action/reward samples",
+    )
+    p.add_argument(
+        "--debug-every",
+        type=int,
+        default=1,
+        help="Print debug diagnostics every N env steps",
+    )
     args = p.parse_args()
 
     default_task_config, assets_from_yaml = load_task_config(args.config)
@@ -513,6 +583,8 @@ def main() -> None:
     if not assets:
         raise SystemExit("Set assets_path in yaml, use --assets-path, or export ASSETS_PATH")
     os.environ["ASSETS_PATH"] = assets
+    os.environ["VECTOR_ENV_DEBUG_LEVEL"] = str(args.debug_level)
+    os.environ["VECTOR_ENV_DEBUG_EVERY"] = str(max(1, int(args.debug_every)))
 
     if not default_task_config:
         print(
@@ -526,7 +598,8 @@ def main() -> None:
     listen.listen(1)
     print(
         f"[robotwin_env_server] listening on {args.host}:{args.port} ASSETS_PATH={assets} "
-        f"idle_timeout={args.idle_timeout}s api_version={API_VERSION}",
+        f"idle_timeout={args.idle_timeout}s api_version={API_VERSION} "
+        f"debug_level={args.debug_level} debug_every={max(1, int(args.debug_every))}",
         flush=True,
     )
 
@@ -540,6 +613,8 @@ def main() -> None:
             default_task_config,
             idle_timeout=args.idle_timeout,
             log_ops=not args.no_log_ops,
+            debug_level=args.debug_level,
+            debug_every=max(1, int(args.debug_every)),
         )
 
 
