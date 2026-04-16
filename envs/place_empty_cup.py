@@ -54,6 +54,7 @@ class place_empty_cup(Base_Task):
         self.add_prohibit_area(self.coaster, padding=0.05)
         self.delay(2)
         cup_pose = self.cup.get_pose().p
+        self.init_cup_z = float(self.cup.get_functional_point(0, "pose").p[2])
 
     def play_once(self):
         # Get the current pose of the cup
@@ -103,10 +104,17 @@ class place_empty_cup(Base_Task):
     def _build_sparse_reward_data(self):
         cup_pose = self.cup.get_functional_point(0, "pose").p
         coaster_pose = self.coaster.get_functional_point(0, "pose").p
+        xy_dist = float(np.linalg.norm(cup_pose[:2] - coaster_pose[:2]))
+        z_abs = float(abs(cup_pose[2] - coaster_pose[2]))
+        init_cup_z = float(getattr(self, "init_cup_z", cup_pose[2]))
+        lift_height = float(cup_pose[2] - init_cup_z)
         return {
             "success": bool(self.check_success()),
             "cup_pose": np.asarray(cup_pose, dtype=np.float32),
             "coaster_pose": np.asarray(coaster_pose, dtype=np.float32),
+            "xy_dist": xy_dist,
+            "z_abs": z_abs,
+            "lift_height": lift_height,
             "left_gripper_open": bool(self.is_left_gripper_open()),
             "right_gripper_open": bool(self.is_right_gripper_open()),
         }
@@ -117,12 +125,32 @@ class place_empty_cup(Base_Task):
         return float(bool(reward_data.get("success", False)))
 
     def compute_sparse_reward(self, reward_data=None):
-        return self.get_sparse_reward(reward_data=reward_data)
+        if reward_data is None:
+            reward_data = self._build_sparse_reward_data()
+        if bool(reward_data.get("success", False)):
+            return 5.0
+
+        lift = np.clip((float(reward_data["lift_height"]) - 0.015) / 0.05, 0.0, 1.0)
+        align_xy = 1.0 - np.clip(float(reward_data["xy_dist"]) / 0.12, 0.0, 1.0)
+        align_z = 1.0 - np.clip(float(reward_data["z_abs"]) / 0.06, 0.0, 1.0)
+        place_bonus = (0.5 * align_xy + 0.5 * align_z) if lift > 0.2 else 0.0
+
+        release_bonus = 0.0
+        if float(reward_data["xy_dist"]) < 0.05 and float(reward_data["z_abs"]) < 0.03:
+            if bool(reward_data["left_gripper_open"]) and bool(reward_data["right_gripper_open"]):
+                release_bonus = 0.5
+
+        return float(0.8 * lift + 1.2 * place_bonus + release_bonus)
 
     def gen_sparse_reward_data(self, actions):
-        action = np.asarray(actions)
+        action = np.asarray(actions, dtype=np.float32)
         if action.ndim > 1:
             action = action.reshape(-1)
+        action = action.copy()
+
+        if action.shape[0] == 14:
+            action[6] = np.clip(action[6], 0.0, 1.0)
+            action[13] = np.clip(action[13], 0.0, 1.0)
 
         self.take_action(action)
 
@@ -142,8 +170,13 @@ class place_empty_cup(Base_Task):
             "success": success,
             "left_gripper_open": reward_data["left_gripper_open"],
             "right_gripper_open": reward_data["right_gripper_open"],
-            "cup_to_coaster_xy_dist": float(np.linalg.norm(cup_pose[:2] - coaster_pose[:2])),
-            "cup_to_coaster_z_abs": float(abs(cup_pose[2] - coaster_pose[2])),
+            "cup_to_coaster_xy_dist": float(reward_data["xy_dist"]),
+            "cup_to_coaster_z_abs": float(reward_data["z_abs"]),
+            "cup_height": float(cup_pose[2]),
+            "coaster_height": float(coaster_pose[2]),
+            "lift_height": float(reward_data["lift_height"]),
+            "action_left_gripper": float(action[6]) if action.shape[0] >= 7 else None,
+            "action_right_gripper": float(action[13]) if action.shape[0] >= 14 else None,
         }
         if step_lim is not None:
             info["run_steps"] = int(self.run_steps)

@@ -350,15 +350,15 @@ def handle_client(
                     st_sz = int(np.prod(state_shape)) * int(state_dtype.itemsize)
                     main_np = np.frombuffer(blob[off : off + main_sz], dtype=main_dtype).reshape(
                         main_shape
-                    )
+                    ).copy()
                     off += main_sz
                     state_np = np.frombuffer(blob[off : off + st_sz], dtype=state_dtype).reshape(
                         state_shape
-                    )
+                    ).copy()
                     off += st_sz
 
-                    main_t = torch.from_numpy(np.ascontiguousarray(main_np)).to(dev)
-                    state_t = torch.from_numpy(np.ascontiguousarray(state_np)).to(dev)
+                    main_t = torch.from_numpy(main_np).to(dev)
+                    state_t = torch.from_numpy(state_np).to(dev)
                     step = rlinf_main_state_to_dp_timestep(main_t, state_t)
                     head_bchw = step["head_cam"].to(dtype=torch.float32)
                     st_bd = step["agent_pos"].to(dtype=torch.float32)
@@ -392,9 +392,9 @@ def handle_client(
                         noise_sz = int(np.prod(noise_shape)) * int(noise_dtype.itemsize)
                         noise_np = np.frombuffer(
                             blob[off : off + noise_sz], dtype=noise_dtype
-                        ).reshape(noise_shape)
+                        ).reshape(noise_shape).copy()
                         off += noise_sz
-                        init_noise = torch.from_numpy(np.ascontiguousarray(noise_np)).to(
+                        init_noise = torch.from_numpy(noise_np).to(
                             device=dev, dtype=exp_dtype
                         )
 
