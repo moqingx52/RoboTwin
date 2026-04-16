@@ -108,6 +108,13 @@ class place_empty_cup(Base_Task):
         z_abs = float(abs(cup_pose[2] - coaster_pose[2]))
         left_open = bool(self.is_left_gripper_open())
         right_open = bool(self.is_right_gripper_open())
+        # Pick the arm on the same side as the cup (matches play_once()).
+        arm_tag = ArmTag("right" if float(cup_pose[0]) > 0 else "left")
+        try:
+            ee_pose = self.get_arm_pose(arm_tag).p
+            ee_to_cup_dist = float(np.linalg.norm(np.asarray(ee_pose[:3]) - np.asarray(cup_pose[:3])))
+        except Exception:
+            ee_to_cup_dist = None
         init_cup_z = float(getattr(self, "init_cup_z", cup_pose[2]))
         lift_height = float(cup_pose[2] - init_cup_z)
         return {
@@ -116,6 +123,8 @@ class place_empty_cup(Base_Task):
             "coaster_pose": np.asarray(coaster_pose, dtype=np.float32),
             "xy_dist": xy_dist,
             "z_abs": z_abs,
+            "arm_tag": str(arm_tag),
+            "ee_to_cup_dist": ee_to_cup_dist,
             "lift_height": lift_height,
             "left_gripper_open": left_open,
             "right_gripper_open": right_open,
@@ -136,17 +145,29 @@ class place_empty_cup(Base_Task):
         if bool(reward_data.get("success", False)):
             return 5.0
 
-        lift = np.clip((float(reward_data["lift_height"]) - 0.015) / 0.05, 0.0, 1.0)
-        align_xy = 1.0 - np.clip(float(reward_data["xy_dist"]) / 0.12, 0.0, 1.0)
-        align_z = 1.0 - np.clip(float(reward_data["z_abs"]) / 0.06, 0.0, 1.0)
-        place_bonus = (0.5 * align_xy + 0.5 * align_z) if lift > 0.2 else 0.0
+        # Stage 0: approach cup (gives signal even before grasp).
+        ee_to_cup = reward_data.get("ee_to_cup_dist", None)
+        if ee_to_cup is None:
+            approach = 0.0
+        else:
+            # 0 at far, ~1 when very close (<=~3cm).
+            approach = 1.0 - np.clip(float(ee_to_cup) / 0.25, 0.0, 1.0)
+
+        # Stage 1: lift cup.
+        lift = np.clip((float(reward_data["lift_height"]) - 0.01) / 0.06, 0.0, 1.0)
+
+        # Stage 2: align cup over coaster (not gated on lift to avoid all-zero episodes).
+        align_xy = 1.0 - np.clip(float(reward_data["xy_dist"]) / 0.22, 0.0, 1.0)
+        align_z = 1.0 - np.clip(float(reward_data["z_abs"]) / 0.08, 0.0, 1.0)
+        place_bonus = 0.5 * align_xy + 0.5 * align_z
 
         release_bonus = 0.0
         if float(reward_data["xy_dist"]) < 0.05 and float(reward_data["z_abs"]) < 0.03:
             if bool(reward_data["left_gripper_open"]) and bool(reward_data["right_gripper_open"]):
                 release_bonus = 0.5
 
-        return float(0.8 * lift + 1.2 * place_bonus + release_bonus)
+        # Weighted sum; keep dense shaping small vs terminal success=5.
+        return float(0.25 * approach + 0.85 * lift + 0.9 * place_bonus + release_bonus)
 
     def gen_sparse_reward_data(self, actions):
         """
@@ -211,6 +232,8 @@ class place_empty_cup(Base_Task):
             "success": bool(last_reward_data["success"]),
             "xy_dist": float(last_reward_data["xy_dist"]),
             "z_abs": float(last_reward_data["z_abs"]),
+            "ee_to_cup_dist": last_reward_data.get("ee_to_cup_dist", None),
+            "arm_tag": last_reward_data.get("arm_tag", None),
             "left_gripper_open": bool(last_reward_data["left_gripper_open"]),
             "right_gripper_open": bool(last_reward_data["right_gripper_open"]),
             "gripper_open": {
