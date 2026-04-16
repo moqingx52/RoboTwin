@@ -143,42 +143,77 @@ class place_empty_cup(Base_Task):
         return float(0.8 * lift + 1.2 * place_bonus + release_bonus)
 
     def gen_sparse_reward_data(self, actions):
-        action = np.asarray(actions, dtype=np.float32)
-        if action.ndim > 1:
-            action = action.reshape(-1)
-        action = action.copy()
+        """
+        RLinf/DP 常以 action-chunk 形式输出 (T, 14)（例如 T=6）。
+        RoboTwin 侧一个 env step 需要把 chunk 内的子动作依次执行，否则会出现“几乎不动、reward 恒为 0”。
+        """
 
-        if action.shape[0] == 14:
-            action[6] = np.clip(action[6], 0.0, 1.0)
-            action[13] = np.clip(action[13], 0.0, 1.0)
+        arr = np.asarray(actions, dtype=np.float32)
 
-        self.take_action(action)
+        def _clip_gripper(a14: np.ndarray) -> np.ndarray:
+            a14 = a14.astype(np.float32, copy=True)
+            # RoboTwin gripper 归一化到 [0,1]
+            a14[6] = np.clip(a14[6], 0.0, 1.0)
+            a14[13] = np.clip(a14[13], 0.0, 1.0)
+            return a14
 
-        reward_data = self._build_sparse_reward_data()
-        success = bool(reward_data["success"])
-        reward = self.compute_sparse_reward(reward_data)
+        # Normalize input to a sequence of (14,) actions.
+        if arr.ndim == 1:
+            if arr.shape[0] != 14:
+                arr = arr.reshape(-1)
+            act_seq = [arr[:14]]
+        elif arr.ndim == 2:
+            # (T, 14) expected
+            act_seq = [arr[t, :14] for t in range(arr.shape[0])]
+        else:
+            # e.g. (B, T, 14) -> take first env in batch (VectorEnv handles per-env already)
+            flat = arr.reshape(-1, arr.shape[-1])
+            act_seq = [flat[t, :14] for t in range(flat.shape[0])]
 
+        reward_sum = 0.0
+        success = False
+        last_reward_data = None
+        last_action = None
+
+        for a in act_seq:
+            if a.shape[0] < 14:
+                continue
+            a14 = _clip_gripper(a[:14])
+            last_action = a14
+            self.take_action(a14)
+            last_reward_data = self._build_sparse_reward_data()
+            r = float(self.compute_sparse_reward(last_reward_data))
+            reward_sum += r
+            success = bool(last_reward_data["success"])
+            if success:
+                break
+
+        # Macro-step counter: one RL step corresponds to one action-chunk.
         self.run_steps = int(getattr(self, "run_steps", 0)) + 1
         step_lim = getattr(self, "step_lim", None)
         truncated = bool(step_lim is not None and self.run_steps >= int(step_lim) and not success)
         terminated = success
-        self.reward_step = reward
+        self.reward_step = float(reward_sum)
 
-        cup_pose = reward_data["cup_pose"]
-        coaster_pose = reward_data["coaster_pose"]
+        if last_reward_data is None:
+            last_reward_data = self._build_sparse_reward_data()
+        cup_pose = last_reward_data["cup_pose"]
+        coaster_pose = last_reward_data["coaster_pose"]
         info = {
-            "success": success,
-            "left_gripper_open": reward_data["left_gripper_open"],
-            "right_gripper_open": reward_data["right_gripper_open"],
-            "cup_to_coaster_xy_dist": float(reward_data["xy_dist"]),
-            "cup_to_coaster_z_abs": float(reward_data["z_abs"]),
+            "success": bool(last_reward_data["success"]),
+            "left_gripper_open": bool(last_reward_data["left_gripper_open"]),
+            "right_gripper_open": bool(last_reward_data["right_gripper_open"]),
+            "cup_to_coaster_xy_dist": float(last_reward_data["xy_dist"]),
+            "cup_to_coaster_z_abs": float(last_reward_data["z_abs"]),
             "cup_height": float(cup_pose[2]),
             "coaster_height": float(coaster_pose[2]),
-            "lift_height": float(reward_data["lift_height"]),
-            "action_left_gripper": float(action[6]) if action.shape[0] >= 7 else None,
-            "action_right_gripper": float(action[13]) if action.shape[0] >= 14 else None,
+            "lift_height": float(last_reward_data["lift_height"]),
+            "chunk_len": int(len(act_seq)),
+            "reward_sum": float(reward_sum),
+            "action_left_gripper": float(last_action[6]) if last_action is not None else None,
+            "action_right_gripper": float(last_action[13]) if last_action is not None else None,
         }
         if step_lim is not None:
             info["run_steps"] = int(self.run_steps)
             info["step_lim"] = int(step_lim)
-        return reward, terminated, truncated, info
+        return float(reward_sum), terminated, truncated, info
