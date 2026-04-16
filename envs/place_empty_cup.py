@@ -106,6 +106,8 @@ class place_empty_cup(Base_Task):
         coaster_pose = self.coaster.get_functional_point(0, "pose").p
         xy_dist = float(np.linalg.norm(cup_pose[:2] - coaster_pose[:2]))
         z_abs = float(abs(cup_pose[2] - coaster_pose[2]))
+        left_open = bool(self.is_left_gripper_open())
+        right_open = bool(self.is_right_gripper_open())
         init_cup_z = float(getattr(self, "init_cup_z", cup_pose[2]))
         lift_height = float(cup_pose[2] - init_cup_z)
         return {
@@ -115,8 +117,12 @@ class place_empty_cup(Base_Task):
             "xy_dist": xy_dist,
             "z_abs": z_abs,
             "lift_height": lift_height,
-            "left_gripper_open": bool(self.is_left_gripper_open()),
-            "right_gripper_open": bool(self.is_right_gripper_open()),
+            "left_gripper_open": left_open,
+            "right_gripper_open": right_open,
+            "gripper_open": {
+                "left": left_open,
+                "right": right_open,
+            },
         }
 
     def get_sparse_reward(self, reward_data=None):
@@ -159,9 +165,11 @@ class place_empty_cup(Base_Task):
 
         # Normalize input to a sequence of (14,) actions.
         if arr.ndim == 1:
-            if arr.shape[0] != 14:
-                arr = arr.reshape(-1)
-            act_seq = [arr[:14]]
+            flat = arr.reshape(-1)
+            if flat.shape[0] % 14 == 0 and flat.shape[0] > 14:
+                act_seq = [flat[i : i + 14] for i in range(0, flat.shape[0], 14)]
+            else:
+                act_seq = [flat[:14]]
         elif arr.ndim == 2:
             # (T, 14) expected
             act_seq = [arr[t, :14] for t in range(arr.shape[0])]
@@ -201,14 +209,21 @@ class place_empty_cup(Base_Task):
         coaster_pose = last_reward_data["coaster_pose"]
         info = {
             "success": bool(last_reward_data["success"]),
+            "xy_dist": float(last_reward_data["xy_dist"]),
+            "z_abs": float(last_reward_data["z_abs"]),
             "left_gripper_open": bool(last_reward_data["left_gripper_open"]),
             "right_gripper_open": bool(last_reward_data["right_gripper_open"]),
+            "gripper_open": {
+                "left": bool(last_reward_data["left_gripper_open"]),
+                "right": bool(last_reward_data["right_gripper_open"]),
+            },
             "cup_to_coaster_xy_dist": float(last_reward_data["xy_dist"]),
             "cup_to_coaster_z_abs": float(last_reward_data["z_abs"]),
             "cup_height": float(cup_pose[2]),
             "coaster_height": float(coaster_pose[2]),
             "lift_height": float(last_reward_data["lift_height"]),
             "chunk_len": int(len(act_seq)),
+            "action_shape": list(arr.shape),
             "reward_sum": float(reward_sum),
             "action_left_gripper": float(last_action[6]) if last_action is not None else None,
             "action_right_gripper": float(last_action[13]) if last_action is not None else None,

@@ -191,7 +191,7 @@ class SubEnv:
                 if run_steps is not None:
                     dbg["run_steps"] = int(run_steps)
                 if reward_step is not None:
-                    dbg["reward_step"] = int(reward_step)
+                    dbg["reward_step"] = float(reward_step)
                 plan_success = getattr(self.task, "plan_success", None)
                 if plan_success is not None:
                     dbg["plan_success"] = bool(plan_success)
@@ -200,10 +200,17 @@ class SubEnv:
                     if state is not None:
                         dbg["state_stats"] = _arr_stats(state)
                     success_keys = ("success", "success_once", "is_success", "done_success")
-                    reward_keys = ("reward", "sparse_reward", "dense_reward", "reward_components")
+                    reward_keys = ("reward", "sparse_reward", "dense_reward", "reward_components", "reward_sum")
                     info_focus = {}
                     for k, v in info.items():
-                        if k in success_keys or k in reward_keys or ("success" in str(k).lower()):
+                        key_lower = str(k).lower()
+                        if (
+                            k in success_keys
+                            or k in reward_keys
+                            or ("success" in key_lower)
+                            or ("reward" in key_lower)
+                            or key_lower in {"xy_dist", "z_abs", "lift_height", "gripper_open", "action_shape", "chunk_len"}
+                        ):
                             info_focus[k] = v
                     if info_focus:
                         dbg["info_focus"] = info_focus
