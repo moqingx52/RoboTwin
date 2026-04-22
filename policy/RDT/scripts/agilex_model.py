@@ -251,7 +251,26 @@ class RoboticDiffusionTransformerModel(object):
         return joints
 
     @torch.no_grad()
-    def step(self, proprio, images, text_embeds):
+    def _format_joint_noise_to_state(self, init_noise: torch.Tensor) -> torch.Tensor:
+        """Map joint-space noise [B,H,arm+gripper] to unified state-space noise [B,H,state_dim]."""
+        AGILEX_STATE_INDICES = ([STATE_VEC_IDX_MAPPING[f"left_arm_joint_{i}_pos"]
+                                 for i in range(self.left_arm_dim)] + [STATE_VEC_IDX_MAPPING["left_gripper_open"]] +
+                                [STATE_VEC_IDX_MAPPING[f"right_arm_joint_{i}_pos"]
+                                 for i in range(self.right_arm_dim)] + [STATE_VEC_IDX_MAPPING[f"right_gripper_open"]])
+        expected_dim = self.left_arm_dim + 1 + self.right_arm_dim + 1
+        if init_noise.shape[-1] != expected_dim:
+            raise ValueError(
+                f"init_noise last dim mismatch: got {init_noise.shape[-1]}, expected {expected_dim}"
+            )
+        state_noise = torch.zeros(
+            (init_noise.shape[0], init_noise.shape[1], self.args["model"]["state_token_dim"]),
+            device=init_noise.device,
+            dtype=init_noise.dtype,
+        )
+        state_noise[:, :, AGILEX_STATE_INDICES] = init_noise
+        return state_noise
+
+    def step(self, proprio, images, text_embeds, init_noise=None):
         """
         Predict the next action chunk given the
         proprioceptive states, images, and instruction embeddings.
@@ -331,6 +350,12 @@ class RoboticDiffusionTransformerModel(object):
         text_embeds = text_embeds.to(device, dtype=dtype)
 
         # Predict the next action chunk given the inputs
+        state_noise = None
+        if init_noise is not None:
+            state_noise = self._format_joint_noise_to_state(
+                init_noise.to(device=device, dtype=dtype)
+            )
+
         trajectory = self.policy.predict_action(
             lang_tokens=text_embeds,
             lang_attn_mask=torch.ones(text_embeds.shape[:2], dtype=torch.bool, device=text_embeds.device),
@@ -338,6 +363,7 @@ class RoboticDiffusionTransformerModel(object):
             state_tokens=states,
             action_mask=state_elem_mask.unsqueeze(1),
             ctrl_freqs=ctrl_freqs,
+            init_noise=state_noise,
         )
         trajectory = self._unformat_action_to_joint(trajectory).to(torch.float32)
 

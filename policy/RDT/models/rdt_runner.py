@@ -121,7 +121,16 @@ class RDTRunner(nn.Module,
 
         return adpated_lang, adpated_img, adpated_state
 
-    def conditional_sample(self, lang_cond, lang_attn_mask, img_cond, state_traj, action_mask, ctrl_freqs):
+    def conditional_sample(
+        self,
+        lang_cond,
+        lang_attn_mask,
+        img_cond,
+        state_traj,
+        action_mask,
+        ctrl_freqs,
+        init_noise=None,
+    ):
         '''
         lang_cond: language conditional data, (batch_size, lang_len, hidden_size).
         lang_attn_mask: (batch_size, lang_len), a mask for valid language tokens,
@@ -136,9 +145,19 @@ class RDTRunner(nn.Module,
         '''
         device = state_traj.device
         dtype = state_traj.dtype
-        noisy_action = torch.randn(size=(state_traj.shape[0], self.pred_horizon, self.action_dim),
-                                   dtype=dtype,
-                                   device=device)
+        if init_noise is None:
+            noisy_action = torch.randn(
+                size=(state_traj.shape[0], self.pred_horizon, self.action_dim),
+                dtype=dtype,
+                device=device,
+            )
+        else:
+            noisy_action = init_noise.to(device=device, dtype=dtype)
+            if noisy_action.shape != (state_traj.shape[0], self.pred_horizon, self.action_dim):
+                raise ValueError(
+                    f"init_noise shape mismatch: got {tuple(noisy_action.shape)}, "
+                    f"expected {(state_traj.shape[0], self.pred_horizon, self.action_dim)}"
+                )
         action_mask = action_mask.expand(-1, self.pred_horizon, -1)
 
         # Set step values
@@ -213,7 +232,16 @@ class RDTRunner(nn.Module,
         return loss
 
     # ========= Inference  ============
-    def predict_action(self, lang_tokens, lang_attn_mask, img_tokens, state_tokens, action_mask, ctrl_freqs):
+    def predict_action(
+        self,
+        lang_tokens,
+        lang_attn_mask,
+        img_tokens,
+        state_tokens,
+        action_mask,
+        ctrl_freqs,
+        init_noise=None,
+    ):
         '''
         lang_tokens: (batch_size, lang_len, lang_token_dim)
         lang_attn_mask: (batch_size, lang_len), a mask for valid language tokens,
@@ -238,6 +266,7 @@ class RDTRunner(nn.Module,
             state_traj,
             action_mask,
             ctrl_freqs,
+            init_noise=init_noise,
         )
 
         return action_pred
