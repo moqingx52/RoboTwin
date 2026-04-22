@@ -86,7 +86,6 @@ accelerate launch --main_process_port=28499  main.py \
     --report_to=wandb \
     --precomp_lang_embed \
     --gradient_accumulation_steps=$GRAD_ACCUM_STEPS \
-    --gradient_checkpointing \
     --set_grads_to_none \
     --allow_tf32 \
     --model_config_path=$CONFIG_FILE \
