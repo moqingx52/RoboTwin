@@ -332,6 +332,7 @@ def batch(batch_size=5, root="./envs"):
         "pick_dual_bottles",
         "place_dual_shoes",
         "place_empty_cup",
+        "lift_empty_cup",
         "place_object_into_plasticbox",
     ]
     process_list = []

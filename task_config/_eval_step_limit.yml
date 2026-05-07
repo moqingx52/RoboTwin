@@ -26,6 +26,7 @@ place_cans_plasticbox: 800
 place_container_plate: 400
 place_dual_shoes: 600
 place_empty_cup: 500
+lift_empty_cup: 350
 place_fan: 400
 place_burger_fries: 500
 place_mouse_pad: 400

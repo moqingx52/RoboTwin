@@ -19,6 +19,7 @@ def get_model(usr_args):  # keep
         usr_args["right_arm_dim"],
         usr_args["rdt_step"],
     )
+    rdt_base_config = usr_args.get("rdt_base_config", "configs/base.yaml")
     rdt = RDT(
         os.path.join(
             parent_directory,
@@ -28,6 +29,7 @@ def get_model(usr_args):  # keep
         left_arm_dim,
         right_arm_dim,
         rdt_step,
+        rdt_base_config=rdt_base_config,
     )
     return rdt
 

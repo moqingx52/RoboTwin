@@ -14,7 +14,7 @@ if __name__ == "__main__":
         "model": model_name,
         "data_path": fintune_data_path,
         "checkpoint_path": checkpoint_path,
-        "pretrained_model_name_or_path": "../weights/RDT/rdt-1b",
+        "pretrained_model_name_or_path": "../weights/RDT/rdt-170m",
         "cuda_visible_device": "0,1,2,3,4,5,6,7",
         "train_batch_size": 1,
         "sample_batch_size": 1,
@@ -26,6 +26,8 @@ if __name__ == "__main__":
         "dataloader_num_workers": 2,
         "state_noise_snr": 40,
         "gradient_accumulation_steps": 16,
+        "lr_scheduler": "constant",
+        "dataset_type": "finetune",
     }
     task_config_path = os.path.join("model_config/", f"{model_name}.yml")
 

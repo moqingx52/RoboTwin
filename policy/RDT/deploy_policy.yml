@@ -4,8 +4,10 @@ task_name: null
 task_config: null
 ckpt_setting: null
 seed: null
-instruction_type: unseen
+instruction_type: seen
 policy_conda_env: null
 
 checkpoint_id: null
 rdt_step: 64
+# RDT backbone YAML under policy/RDT/ (finetuned 170M checkpoints need configs/base_170m.yaml).
+rdt_base_config: configs/base.yaml

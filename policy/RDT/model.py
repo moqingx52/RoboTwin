@@ -49,10 +49,17 @@ class RDT:
         left_arm_dim,
         right_arm_dim,
         rdt_step,
+        rdt_base_config=None,
     ):
         # set path
         current_file = Path(__file__)
         self.global_path = current_file.parent.parent
+        rdt_pkg = current_file.parent
+        cfg_rel = rdt_base_config or os.environ.get("RDT_BASE_CONFIG", "configs/base.yaml")
+        if os.path.isabs(cfg_rel):
+            self.rdt_yaml_path = cfg_rel
+        else:
+            self.rdt_yaml_path = str(rdt_pkg / cfg_rel)
         # load the config
         self.config = {
             "episode_len": 10000,  # args.max_publish_step
@@ -68,7 +75,7 @@ class RDT:
             "ctrl_freq": 25,  # The control frequency of the robot
             "chunk_size": 64,  # Action chunk size
             # 'disable_puppet_arm': False,  # Whether to disable the puppet arm
-            "config_path": os.path.join(self.global_path, "RDT/configs/base.yaml"),
+            "config_path": self.rdt_yaml_path,
             "pretrained_model_name_or_path": pretrained_model_name_or_path,
         }
 
@@ -90,7 +97,7 @@ class RDT:
     def set_language_embed(self):
         GPU = 0
         MODEL_PATH = os.path.join(self.global_path, "weights/RDT/t5-v1_1-xxl")
-        CONFIG_PATH = os.path.join(self.global_path, "RDT/configs/base.yaml")
+        CONFIG_PATH = self.rdt_yaml_path
         with open(CONFIG_PATH, "r") as fp:
             config = yaml.safe_load(fp)
         device = torch.device(f"cuda:{GPU}")
