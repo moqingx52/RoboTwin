@@ -9,5 +9,6 @@ policy_conda_env: null
 
 checkpoint_id: null
 rdt_step: 64
-# RDT backbone YAML under policy/RDT/ (finetuned 170M checkpoints need configs/base_170m.yaml).
-rdt_base_config: configs/base.yaml
+# RDT backbone YAML under policy/RDT/. "auto" uses model_config/<ckpt_setting>.yml
+# or the checkpoint name to choose configs/base_170m.yaml for 170M finetunes.
+rdt_base_config: auto

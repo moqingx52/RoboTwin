@@ -1,9 +1,30 @@
 # import packages and module here
 import sys, os
+import yaml
 from .model import *
 
 current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
+
+
+def _resolve_rdt_base_config(model_name, usr_args):
+    requested_config = usr_args.get("rdt_base_config")
+    if requested_config and requested_config != "auto":
+        return requested_config
+
+    model_config_path = os.path.join(parent_directory, "model_config", f"{model_name}.yml")
+    pretrained_model = ""
+    if os.path.isfile(model_config_path):
+        with open(model_config_path, "r", encoding="utf-8") as f:
+            model_config = yaml.safe_load(f) or {}
+        if model_config.get("rdt_base_config"):
+            return model_config["rdt_base_config"]
+        pretrained_model = str(model_config.get("pretrained_model_name_or_path", ""))
+
+    model_hint = f"{model_name} {pretrained_model}".lower()
+    if "170m" in model_hint or "rdt-170m" in model_hint:
+        return "configs/base_170m.yaml"
+    return "configs/base.yaml"
 
 
 def encode_obs(observation):  # Post-Process Observation
@@ -19,7 +40,8 @@ def get_model(usr_args):  # keep
         usr_args["right_arm_dim"],
         usr_args["rdt_step"],
     )
-    rdt_base_config = usr_args.get("rdt_base_config", "configs/base.yaml")
+    rdt_base_config = _resolve_rdt_base_config(model_name, usr_args)
+    print(f"[RDT] Using base config: {rdt_base_config}")
     rdt = RDT(
         os.path.join(
             parent_directory,

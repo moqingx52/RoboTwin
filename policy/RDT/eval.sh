@@ -7,6 +7,7 @@ model_name=${3}
 checkpoint_id=${4}
 seed=${5}
 gpu_id=${6}
+rdt_base_config=${7:-auto}
 
 DEBUG=False
 export CUDA_VISIBLE_DEVICES=${gpu_id}
@@ -22,4 +23,5 @@ python script/eval_policy.py --config policy/$policy_name/deploy_policy.yml \
     --ckpt_setting ${model_name} \
     --seed ${seed} \
     --checkpoint_id ${checkpoint_id} \
-    --policy_name ${policy_name}
+    --policy_name ${policy_name} \
+    --rdt_base_config ${rdt_base_config}
