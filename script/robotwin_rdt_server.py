@@ -99,6 +99,8 @@ def _create_rdt_model(
     config_path: str,
     vision_encoder_path: str,
     text_encoder_path: str,
+    lora_adapter_path: Optional[str],
+    merge_lora: bool,
     control_frequency: int,
     device: torch.device,
 ) -> dict[str, Any]:
@@ -121,6 +123,24 @@ def _create_rdt_model(
     model.vision_model.eval()
     model.policy = model.policy.to(device=device, dtype=torch.bfloat16)
     model.vision_model = model.vision_model.to(device=device, dtype=torch.bfloat16)
+    lora_loaded = False
+    if lora_adapter_path:
+        try:
+            from peft import PeftModel
+        except ImportError as err:
+            raise ImportError(
+                "Loading an RDT LoRA adapter requires `peft` in the RoboTwin environment."
+            ) from err
+        model.policy = PeftModel.from_pretrained(
+            model.policy,
+            lora_adapter_path,
+            is_trainable=False,
+        )
+        if merge_lora:
+            model.policy = model.policy.merge_and_unload()
+        model.policy = model.policy.to(device=device, dtype=torch.bfloat16)
+        model.policy.eval()
+        lora_loaded = True
 
     text_embedder = T5Embedder(
         from_pretrained=text_encoder_path,
@@ -140,6 +160,9 @@ def _create_rdt_model(
         "pred_horizon": int(cfg["common"]["action_chunk_size"]),
         "action_dim": 14,
         "n_obs_steps": int(cfg["common"]["img_history_size"]),
+        "lora_adapter_path": lora_adapter_path or "",
+        "lora_loaded": lora_loaded,
+        "lora_merged": bool(lora_loaded and merge_lora),
     }
 
 
@@ -149,6 +172,8 @@ def _get_cached_model(
     config_path: str,
     vision_encoder_path: str,
     text_encoder_path: str,
+    lora_adapter_path: Optional[str],
+    merge_lora: bool,
     control_frequency: int,
     device: torch.device,
 ) -> dict[str, Any]:
@@ -158,6 +183,8 @@ def _get_cached_model(
             config_path,
             vision_encoder_path,
             text_encoder_path,
+            lora_adapter_path or "",
+            str(bool(merge_lora)),
             str(control_frequency),
             str(device),
         ]
@@ -169,6 +196,8 @@ def _get_cached_model(
                 config_path=config_path,
                 vision_encoder_path=vision_encoder_path,
                 text_encoder_path=text_encoder_path,
+                lora_adapter_path=lora_adapter_path,
+                merge_lora=merge_lora,
                 control_frequency=control_frequency,
                 device=device,
             )
@@ -266,6 +295,8 @@ def handle_client(
     config_path: str,
     vision_encoder_path: str,
     text_encoder_path: str,
+    default_lora_adapter_path: Optional[str],
+    merge_lora: bool,
     default_instruction: str,
     n_action_steps: int,
     control_frequency: int,
@@ -311,11 +342,14 @@ def handle_client(
                     ckpt = req.get("ckpt_path") or default_ckpt
                     if not ckpt:
                         raise ValueError("ckpt_path required in init or set --ckpt on server")
+                    lora_adapter_path = req.get("lora_adapter_path") or default_lora_adapter_path
                     bundle = _get_cached_model(
                         ckpt_path=ckpt,
                         config_path=config_path,
                         vision_encoder_path=vision_encoder_path,
                         text_encoder_path=text_encoder_path,
+                        lora_adapter_path=lora_adapter_path,
+                        merge_lora=merge_lora,
                         control_frequency=control_frequency,
                         device=dev,
                     )
@@ -327,6 +361,9 @@ def handle_client(
                         "action_dim": int(bundle["action_dim"]),
                         "n_action_steps": int(n_action_steps),
                         "ckpt_path": ckpt,
+                        "lora_adapter_path": str(bundle.get("lora_adapter_path", "")),
+                        "lora_loaded": bool(bundle.get("lora_loaded", False)),
+                        "lora_merged": bool(bundle.get("lora_merged", False)),
                     }
                     _ok_reply(conn, req, {"dp_meta": meta_out})
                     if log_ops:
@@ -527,6 +564,17 @@ def main() -> None:
         default=str(ROOT / "weights" / "RDT" / "t5-v1_1-xxl"),
     )
     p.add_argument(
+        "--lora-adapter-path",
+        type=str,
+        default=None,
+        help="Optional PEFT LoRA adapter directory to mount on top of the RDT policy.",
+    )
+    p.add_argument(
+        "--merge-lora",
+        action="store_true",
+        help="Merge the LoRA adapter into the policy after loading for inference.",
+    )
+    p.add_argument(
         "--instruction",
         type=str,
         default="Place the empty cup to the target area.",
@@ -563,6 +611,8 @@ def main() -> None:
                 "config_path": args.config,
                 "vision_encoder_path": args.vision_encoder_path,
                 "text_encoder_path": args.text_encoder_path,
+                "default_lora_adapter_path": args.lora_adapter_path,
+                "merge_lora": bool(args.merge_lora),
                 "default_instruction": args.instruction,
                 "n_action_steps": int(args.n_action_steps),
                 "control_frequency": int(args.control_frequency),

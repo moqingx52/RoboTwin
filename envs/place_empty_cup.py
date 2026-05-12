@@ -55,6 +55,8 @@ class place_empty_cup(Base_Task):
         self.delay(2)
         cup_pose = self.cup.get_pose().p
         self.init_cup_z = float(self.cup.get_functional_point(0, "pose").p[2])
+        self._dense_reward_prev_potential = None
+        self._dense_reward_terminal_paid = False
 
     def play_once(self):
         # Get the current pose of the cup
@@ -117,6 +119,13 @@ class place_empty_cup(Base_Task):
             ee_to_cup_dist = None
         init_cup_z = float(getattr(self, "init_cup_z", cup_pose[2]))
         lift_height = float(cup_pose[2] - init_cup_z)
+        cup_name = self.cup.get_name()
+        contact_count = 0
+        try:
+            contact_count = len(self.get_gripper_actor_contact_position(cup_name))
+        except Exception:
+            contact_count = 0
+        grasped = bool(contact_count > 0 and not (left_open and right_open))
         return {
             "success": bool(self.check_success()),
             "cup_pose": np.asarray(cup_pose, dtype=np.float32),
@@ -126,6 +135,8 @@ class place_empty_cup(Base_Task):
             "arm_tag": str(arm_tag),
             "ee_to_cup_dist": ee_to_cup_dist,
             "lift_height": lift_height,
+            "gripper_cup_contact_count": int(contact_count),
+            "grasped": grasped,
             "left_gripper_open": left_open,
             "right_gripper_open": right_open,
             "gripper_open": {
@@ -139,35 +150,54 @@ class place_empty_cup(Base_Task):
             reward_data = self._build_sparse_reward_data()
         return float(bool(reward_data.get("success", False)))
 
+    def _compute_dense_potential(self, reward_data):
+        """Bounded task progress potential used as dense shaping."""
+        ee_to_cup = reward_data.get("ee_to_cup_dist", None)
+        if ee_to_cup is None:
+            approach = 0.0
+        else:
+            approach = 1.0 - np.clip(float(ee_to_cup) / 0.25, 0.0, 1.0)
+
+        grasp = 1.0 if bool(reward_data.get("grasped", False)) else 0.0
+        lift = np.clip((float(reward_data["lift_height"]) - 0.01) / 0.06, 0.0, 1.0)
+        align_xy = 1.0 - np.clip(float(reward_data["xy_dist"]) / 0.22, 0.0, 1.0)
+        align_z = 1.0 - np.clip(float(reward_data["z_abs"]) / 0.08, 0.0, 1.0)
+        place = 0.5 * align_xy + 0.5 * align_z
+        near_target = (
+            float(reward_data["xy_dist"]) < 0.05
+            and float(reward_data["z_abs"]) < 0.03
+        )
+        release = (
+            1.0
+            if near_target
+            and bool(reward_data["left_gripper_open"])
+            and bool(reward_data["right_gripper_open"])
+            else 0.0
+        )
+
+        components = {
+            "approach": float(approach),
+            "grasp": float(grasp),
+            "lift": float(lift),
+            "place": float(place),
+            "release": float(release),
+        }
+        potential = (
+            0.20 * components["approach"]
+            + 0.35 * components["grasp"]
+            + 0.85 * components["lift"]
+            + 1.00 * components["place"]
+            + 0.60 * components["release"]
+        )
+        return float(potential), components
+
     def compute_sparse_reward(self, reward_data=None):
         if reward_data is None:
             reward_data = self._build_sparse_reward_data()
         if bool(reward_data.get("success", False)):
             return 5.0
-
-        # Stage 0: approach cup (gives signal even before grasp).
-        ee_to_cup = reward_data.get("ee_to_cup_dist", None)
-        if ee_to_cup is None:
-            approach = 0.0
-        else:
-            # 0 at far, ~1 when very close (<=~3cm).
-            approach = 1.0 - np.clip(float(ee_to_cup) / 0.25, 0.0, 1.0)
-
-        # Stage 1: lift cup.
-        lift = np.clip((float(reward_data["lift_height"]) - 0.01) / 0.06, 0.0, 1.0)
-
-        # Stage 2: align cup over coaster (not gated on lift to avoid all-zero episodes).
-        align_xy = 1.0 - np.clip(float(reward_data["xy_dist"]) / 0.22, 0.0, 1.0)
-        align_z = 1.0 - np.clip(float(reward_data["z_abs"]) / 0.08, 0.0, 1.0)
-        place_bonus = 0.5 * align_xy + 0.5 * align_z
-
-        release_bonus = 0.0
-        if float(reward_data["xy_dist"]) < 0.05 and float(reward_data["z_abs"]) < 0.03:
-            if bool(reward_data["left_gripper_open"]) and bool(reward_data["right_gripper_open"]):
-                release_bonus = 0.5
-
-        # Weighted sum; keep dense shaping small vs terminal success=5.
-        return float(0.25 * approach + 0.85 * lift + 0.9 * place_bonus + release_bonus)
+        potential, _ = self._compute_dense_potential(reward_data)
+        return potential
 
     def gen_sparse_reward_data(self, actions):
         """
@@ -203,6 +233,12 @@ class place_empty_cup(Base_Task):
         success = False
         last_reward_data = None
         last_action = None
+        reward_components = []
+
+        if getattr(self, "_dense_reward_prev_potential", None) is None:
+            initial_reward_data = self._build_sparse_reward_data()
+            initial_potential, _ = self._compute_dense_potential(initial_reward_data)
+            self._dense_reward_prev_potential = float(initial_potential)
 
         for a in act_seq:
             if a.shape[0] < 14:
@@ -211,9 +247,26 @@ class place_empty_cup(Base_Task):
             last_action = a14
             self.take_action(a14)
             last_reward_data = self._build_sparse_reward_data()
-            r = float(self.compute_sparse_reward(last_reward_data))
-            reward_sum += r
+            potential, components = self._compute_dense_potential(last_reward_data)
+            prev_potential = float(getattr(self, "_dense_reward_prev_potential", potential))
+            dense_delta = float(potential - prev_potential)
+            terminal_bonus = 0.0
             success = bool(last_reward_data["success"])
+            if success and not bool(getattr(self, "_dense_reward_terminal_paid", False)):
+                terminal_bonus = 5.0
+                self._dense_reward_terminal_paid = True
+            r = dense_delta + terminal_bonus
+            reward_sum += r
+            self._dense_reward_prev_potential = float(potential)
+            reward_components.append(
+                {
+                    **components,
+                    "potential": float(potential),
+                    "potential_delta": float(dense_delta),
+                    "terminal_bonus": float(terminal_bonus),
+                    "step_reward": float(r),
+                }
+            )
             if success:
                 break
 
@@ -228,6 +281,24 @@ class place_empty_cup(Base_Task):
             last_reward_data = self._build_sparse_reward_data()
         cup_pose = last_reward_data["cup_pose"]
         coaster_pose = last_reward_data["coaster_pose"]
+        action_phase = None
+        if last_action is not None:
+            try:
+                from tasks.place_empty_cup.phase_labeler import (
+                    infer_place_empty_cup_phase,
+                )
+
+                phase = infer_place_empty_cup_phase(
+                    last_action,
+                    max(0, len(act_seq) - 1),
+                    max(1, len(act_seq)),
+                )
+                action_phase = {
+                    "phase_id": int(phase.phase_id),
+                    "phase_name": str(phase.phase_name),
+                }
+            except Exception:
+                action_phase = None
         info = {
             "success": bool(last_reward_data["success"]),
             "xy_dist": float(last_reward_data["xy_dist"]),
@@ -245,9 +316,17 @@ class place_empty_cup(Base_Task):
             "cup_height": float(cup_pose[2]),
             "coaster_height": float(coaster_pose[2]),
             "lift_height": float(last_reward_data["lift_height"]),
+            "grasped": bool(last_reward_data.get("grasped", False)),
+            "gripper_cup_contact_count": int(
+                last_reward_data.get("gripper_cup_contact_count", 0)
+            ),
             "chunk_len": int(len(act_seq)),
             "action_shape": list(arr.shape),
             "reward_sum": float(reward_sum),
+            "dense_potential": float(getattr(self, "_dense_reward_prev_potential", 0.0)),
+            "reward_components": reward_components[-1] if reward_components else {},
+            "reward_components_trace": reward_components,
+            "action_phase": action_phase,
             "action_left_gripper": float(last_action[6]) if last_action is not None else None,
             "action_right_gripper": float(last_action[13]) if last_action is not None else None,
         }
