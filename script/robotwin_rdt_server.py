@@ -104,8 +104,16 @@ def _create_rdt_model(
     control_frequency: int,
     device: torch.device,
 ) -> dict[str, Any]:
-    from policy.RDT.multimodal_encoder.t5_encoder import T5Embedder
-    from policy.RDT.scripts.agilex_model import create_model
+    rdt_root = ROOT / "policy" / "RDT"
+    rdt_models = rdt_root / "models"
+    rdt_scripts = rdt_root / "scripts"
+    for module_path in (rdt_root, rdt_models, rdt_scripts):
+        module_path_str = str(module_path)
+        if module_path_str not in sys.path:
+            sys.path.insert(0, module_path_str)
+
+    from multimodal_encoder.t5_encoder import T5Embedder
+    from agilex_model import create_model
 
     with open(config_path, "r", encoding="utf-8") as fp:
         cfg = yaml.safe_load(fp)

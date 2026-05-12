@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 import torch
+
+ROOT = Path(__file__).resolve().parents[1]
+RDT_ROOT = ROOT / "policy" / "RDT"
+RDT_MODELS = RDT_ROOT / "models"
+for module_path in (RDT_ROOT, RDT_MODELS):
+    module_path_str = str(module_path)
+    if module_path_str not in sys.path:
+        sys.path.insert(0, module_path_str)
 
 
 def _read_instruction(path: Path) -> str:
@@ -30,7 +39,7 @@ def build_embeddings(
     tokenizer_max_length: int = 128,
     device: str = "cuda",
 ) -> None:
-    from policy.RDT.multimodal_encoder.t5_encoder import T5Embedder
+    from multimodal_encoder.t5_encoder import T5Embedder
 
     dev = torch.device(device if torch.cuda.is_available() else "cpu")
     embedder = T5Embedder(
