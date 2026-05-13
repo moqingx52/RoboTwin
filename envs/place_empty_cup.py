@@ -55,8 +55,18 @@ class place_empty_cup(Base_Task):
         self.delay(2)
         cup_pose = self.cup.get_pose().p
         self.init_cup_z = float(self.cup.get_functional_point(0, "pose").p[2])
-        self._dense_reward_prev_potential = None
-        self._dense_reward_terminal_paid = False
+        self.reward_arm_tag = ArmTag("right" if float(cup_pose[0]) > 0 else "left")
+        self._reward_milestones = {
+            "grasp": False,
+            "lift": False,
+            "place": False,
+            "release": False,
+            "success": False,
+        }
+        initial_reward_data = self._build_sparse_reward_data()
+        initial_components = self._compute_reward_progress(initial_reward_data)
+        self._reward_best_approach = float(initial_components["approach"])
+        self._reward_best_place = float(initial_components["place"])
 
     def play_once(self):
         # Get the current pose of the cup
@@ -110,8 +120,13 @@ class place_empty_cup(Base_Task):
         z_abs = float(abs(cup_pose[2] - coaster_pose[2]))
         left_open = bool(self.is_left_gripper_open())
         right_open = bool(self.is_right_gripper_open())
-        # Pick the arm on the same side as the cup (matches play_once()).
-        arm_tag = ArmTag("right" if float(cup_pose[0]) > 0 else "left")
+        # Pick the arm chosen at reset time. Recomputing after the cup moves can
+        # flip sides and make grasp/release reward diagnostics misleading.
+        arm_tag = getattr(
+            self,
+            "reward_arm_tag",
+            ArmTag("right" if float(cup_pose[0]) > 0 else "left"),
+        )
         try:
             ee_pose = self.get_arm_pose(arm_tag).p
             ee_to_cup_dist = float(np.linalg.norm(np.asarray(ee_pose[:3]) - np.asarray(cup_pose[:3])))
@@ -125,7 +140,8 @@ class place_empty_cup(Base_Task):
             contact_count = len(self.get_gripper_actor_contact_position(cup_name))
         except Exception:
             contact_count = 0
-        grasped = bool(contact_count > 0 and not (left_open and right_open))
+        selected_gripper_open = right_open if arm_tag == "right" else left_open
+        grasped = bool(contact_count > 0 and not selected_gripper_open)
         return {
             "success": bool(self.check_success()),
             "cup_pose": np.asarray(cup_pose, dtype=np.float32),
@@ -137,6 +153,7 @@ class place_empty_cup(Base_Task):
             "lift_height": lift_height,
             "gripper_cup_contact_count": int(contact_count),
             "grasped": grasped,
+            "selected_gripper_open": bool(selected_gripper_open),
             "left_gripper_open": left_open,
             "right_gripper_open": right_open,
             "gripper_open": {
@@ -150,15 +167,14 @@ class place_empty_cup(Base_Task):
             reward_data = self._build_sparse_reward_data()
         return float(bool(reward_data.get("success", False)))
 
-    def _compute_dense_potential(self, reward_data):
-        """Bounded task progress potential used as dense shaping."""
+    def _compute_reward_progress(self, reward_data):
+        """Bounded progress scores used for monotonic shaping and diagnostics."""
         ee_to_cup = reward_data.get("ee_to_cup_dist", None)
         if ee_to_cup is None:
             approach = 0.0
         else:
             approach = 1.0 - np.clip(float(ee_to_cup) / 0.25, 0.0, 1.0)
 
-        grasp = 1.0 if bool(reward_data.get("grasped", False)) else 0.0
         lift = np.clip((float(reward_data["lift_height"]) - 0.01) / 0.06, 0.0, 1.0)
         align_xy = 1.0 - np.clip(float(reward_data["xy_dist"]) / 0.22, 0.0, 1.0)
         align_z = 1.0 - np.clip(float(reward_data["z_abs"]) / 0.08, 0.0, 1.0)
@@ -175,29 +191,100 @@ class place_empty_cup(Base_Task):
             else 0.0
         )
 
-        components = {
+        return {
             "approach": float(approach),
-            "grasp": float(grasp),
+            "grasp": float(bool(reward_data.get("grasped", False))),
             "lift": float(lift),
             "place": float(place),
+            "align_xy": float(align_xy),
+            "align_z": float(align_z),
+            "near_target": float(near_target),
             "release": float(release),
+            "success": float(bool(reward_data.get("success", False))),
         }
-        potential = (
-            0.20 * components["approach"]
-            + 0.35 * components["grasp"]
-            + 0.85 * components["lift"]
-            + 1.00 * components["place"]
-            + 0.60 * components["release"]
+
+    def _compute_reward_from_milestones(self, reward_data, components):
+        milestones = getattr(self, "_reward_milestones", None)
+        if milestones is None:
+            milestones = {
+                "grasp": False,
+                "lift": False,
+                "place": False,
+                "release": False,
+                "success": False,
+            }
+            self._reward_milestones = milestones
+
+        events = []
+        event_reward = 0.0
+
+        grasped = bool(reward_data.get("grasped", False))
+        lifted = float(reward_data["lift_height"]) >= 0.045
+        placed = (
+            float(reward_data["xy_dist"]) < 0.05
+            and float(reward_data["z_abs"]) < 0.03
         )
-        return float(potential), components
+        success = bool(reward_data.get("success", False))
+
+        if grasped and not milestones["grasp"]:
+            milestones["grasp"] = True
+            event_reward += 0.5
+            events.append("grasp")
+
+        if lifted and (milestones["grasp"] or grasped) and not milestones["lift"]:
+            milestones["lift"] = True
+            event_reward += 1.0
+            events.append("lift")
+
+        if placed and (milestones["lift"] or lifted) and not milestones["place"]:
+            milestones["place"] = True
+            event_reward += 2.0
+            events.append("place")
+
+        if success and not milestones["success"]:
+            milestones["release"] = True
+            milestones["success"] = True
+            event_reward += 5.0
+            events.extend(["release", "success"])
+
+        best_approach = float(getattr(self, "_reward_best_approach", 0.0))
+        approach_delta = max(0.0, float(components["approach"]) - best_approach)
+        self._reward_best_approach = max(best_approach, float(components["approach"]))
+
+        best_place = float(getattr(self, "_reward_best_place", 0.0))
+        place_delta = max(0.0, float(components["place"]) - best_place)
+        self._reward_best_place = max(best_place, float(components["place"]))
+
+        shaping_reward = 0.0
+        if not milestones["grasp"]:
+            shaping_reward += 0.05 * approach_delta
+        if milestones["grasp"] or milestones["lift"]:
+            shaping_reward += 0.10 * place_delta
+
+        step_reward = float(event_reward + shaping_reward)
+        return step_reward, {
+            **components,
+            "events": events,
+            "event_reward": float(event_reward),
+            "shaping_reward": float(shaping_reward),
+            "approach_delta": float(approach_delta),
+            "place_delta": float(place_delta),
+            "step_reward": step_reward,
+            "milestones": {k: bool(v) for k, v in milestones.items()},
+        }
 
     def compute_sparse_reward(self, reward_data=None):
         if reward_data is None:
             reward_data = self._build_sparse_reward_data()
         if bool(reward_data.get("success", False)):
             return 5.0
-        potential, _ = self._compute_dense_potential(reward_data)
-        return potential
+        components = self._compute_reward_progress(reward_data)
+        return float(
+            0.10 * components["approach"]
+            + 0.50 * components["grasp"]
+            + 1.00 * components["lift"]
+            + 2.00 * components["place"]
+        )
 
     def gen_sparse_reward_data(self, actions):
         """
@@ -235,11 +322,6 @@ class place_empty_cup(Base_Task):
         last_action = None
         reward_components = []
 
-        if getattr(self, "_dense_reward_prev_potential", None) is None:
-            initial_reward_data = self._build_sparse_reward_data()
-            initial_potential, _ = self._compute_dense_potential(initial_reward_data)
-            self._dense_reward_prev_potential = float(initial_potential)
-
         for a in act_seq:
             if a.shape[0] < 14:
                 continue
@@ -247,26 +329,14 @@ class place_empty_cup(Base_Task):
             last_action = a14
             self.take_action(a14)
             last_reward_data = self._build_sparse_reward_data()
-            potential, components = self._compute_dense_potential(last_reward_data)
-            prev_potential = float(getattr(self, "_dense_reward_prev_potential", potential))
-            dense_delta = float(potential - prev_potential)
-            terminal_bonus = 0.0
-            success = bool(last_reward_data["success"])
-            if success and not bool(getattr(self, "_dense_reward_terminal_paid", False)):
-                terminal_bonus = 5.0
-                self._dense_reward_terminal_paid = True
-            r = dense_delta + terminal_bonus
-            reward_sum += r
-            self._dense_reward_prev_potential = float(potential)
-            reward_components.append(
-                {
-                    **components,
-                    "potential": float(potential),
-                    "potential_delta": float(dense_delta),
-                    "terminal_bonus": float(terminal_bonus),
-                    "step_reward": float(r),
-                }
+            components = self._compute_reward_progress(last_reward_data)
+            r, reward_detail = self._compute_reward_from_milestones(
+                last_reward_data,
+                components,
             )
+            success = bool(last_reward_data["success"])
+            reward_sum += r
+            reward_components.append(reward_detail)
             if success:
                 break
 
@@ -323,7 +393,13 @@ class place_empty_cup(Base_Task):
             "chunk_len": int(len(act_seq)),
             "action_shape": list(arr.shape),
             "reward_sum": float(reward_sum),
-            "dense_potential": float(getattr(self, "_dense_reward_prev_potential", 0.0)),
+            "dense_potential": float(
+                reward_components[-1]["place"] if reward_components else 0.0
+            ),
+            "reward_milestones": {
+                k: bool(v)
+                for k, v in getattr(self, "_reward_milestones", {}).items()
+            },
             "reward_components": reward_components[-1] if reward_components else {},
             "reward_components_trace": reward_components,
             "action_phase": action_phase,
