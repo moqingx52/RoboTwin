@@ -32,6 +32,24 @@ _MODEL_LOCK = threading.Lock()
 _INFER_LOCK = threading.Lock()
 
 
+def _resolve_ckpt_path(ckpt_path: str) -> str:
+    p = Path(ckpt_path)
+    if p.is_dir():
+        fsdp_ckpt = p / "pytorch_model" / "mp_rank_00_model_states.pt"
+        if fsdp_ckpt.is_file():
+            return str(fsdp_ckpt)
+    return str(p)
+
+
+def _resolve_config_path(config_path: Optional[str], ckpt_path: str) -> str:
+    if config_path:
+        return config_path
+    hint = ckpt_path.lower()
+    if "170m" in hint or "rdt-170m" in hint:
+        return str(ROOT / "policy" / "RDT" / "configs" / "base_170m.yaml")
+    return str(ROOT / "policy" / "RDT" / "configs" / "base.yaml")
+
+
 def _resolve_torch_device(map_location: str) -> torch.device:
     if map_location.startswith("cuda") and not torch.cuda.is_available():
         return torch.device("cpu")
@@ -381,10 +399,12 @@ def handle_client(
                     ckpt = req.get("ckpt_path") or default_ckpt
                     if not ckpt:
                         raise ValueError("ckpt_path required in init or set --ckpt on server")
+                    resolved_ckpt = _resolve_ckpt_path(str(ckpt))
+                    resolved_config = _resolve_config_path(config_path, resolved_ckpt)
                     lora_adapter_path = req.get("lora_adapter_path") or default_lora_adapter_path
                     bundle = _get_cached_model(
-                        ckpt_path=ckpt,
-                        config_path=config_path,
+                        ckpt_path=resolved_ckpt,
+                        config_path=resolved_config,
                         vision_encoder_path=vision_encoder_path,
                         text_encoder_path=text_encoder_path,
                         lora_adapter_path=lora_adapter_path,
@@ -400,6 +420,8 @@ def handle_client(
                         "action_dim": int(bundle["action_dim"]),
                         "n_action_steps": int(n_action_steps),
                         "ckpt_path": ckpt,
+                        "resolved_ckpt_path": resolved_ckpt,
+                        "config_path": resolved_config,
                         "lora_adapter_path": str(bundle.get("lora_adapter_path", "")),
                         "lora_loaded": bool(bundle.get("lora_loaded", False)),
                         "lora_merged": bool(bundle.get("lora_merged", False)),
@@ -407,7 +429,9 @@ def handle_client(
                     _ok_reply(conn, req, {"dp_meta": meta_out})
                     if log_ops:
                         print(
-                            f"[robotwin_rdt_server] op=init ok ckpt={ckpt} device={dev} meta={meta_out}",
+                            f"[robotwin_rdt_server] op=init ok ckpt={ckpt} "
+                            f"resolved_ckpt={resolved_ckpt} config={resolved_config} "
+                            f"device={dev} meta={meta_out}",
                             flush=True,
                         )
                     continue
@@ -635,7 +659,8 @@ def main() -> None:
     p.add_argument(
         "--config",
         type=str,
-        default=str(ROOT / "policy" / "RDT" / "configs" / "base.yaml"),
+        default=None,
+        help="RDT base yaml. Defaults to base_170m.yaml when the checkpoint path hints 170M, otherwise base.yaml.",
     )
     p.add_argument(
         "--vision-encoder-path",
