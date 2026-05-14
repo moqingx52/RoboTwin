@@ -237,10 +237,28 @@ def _encode_instruction(bundle: dict[str, Any], instruction: str) -> torch.Tenso
 def _update_image_history(
     prev_imgs: Optional[list[dict[str, np.ndarray]]],
     main_np: np.ndarray,
+    left_wrist_np: Optional[np.ndarray] = None,
+    right_wrist_np: Optional[np.ndarray] = None,
 ) -> list[dict[str, np.ndarray]]:
     bsz = int(main_np.shape[0])
     if prev_imgs is None or len(prev_imgs) != bsz:
-        prev_imgs = [{"main": main_np[i].copy()} for i in range(bsz)]
+        prev_imgs = []
+        for i in range(bsz):
+            prev_imgs.append(
+                {
+                    "main": main_np[i].copy(),
+                    "left_wrist": (
+                        left_wrist_np[i].copy()
+                        if left_wrist_np is not None
+                        else main_np[i].copy()
+                    ),
+                    "right_wrist": (
+                        right_wrist_np[i].copy()
+                        if right_wrist_np is not None
+                        else main_np[i].copy()
+                    ),
+                }
+            )
     return prev_imgs
 
 
@@ -250,29 +268,40 @@ def _predict_actions(
     main_np: np.ndarray,
     state_np: np.ndarray,
     prev_imgs: list[dict[str, np.ndarray]],
-    task_desc: str,
+    task_desc: str | list[str],
     init_noise: Optional[np.ndarray],
     n_action_steps: int,
+    left_wrist_np: Optional[np.ndarray] = None,
+    right_wrist_np: Optional[np.ndarray] = None,
 ) -> tuple[np.ndarray, list[dict[str, np.ndarray]]]:
     model = bundle["model"]
     pred_horizon = int(bundle["pred_horizon"])
     per_env_actions: list[np.ndarray] = []
 
     for i in range(main_np.shape[0]):
-        prev = prev_imgs[i]["main"]
+        prev_main = prev_imgs[i]["main"]
+        curr_main = main_np[i]
+        curr_left = left_wrist_np[i] if left_wrist_np is not None else curr_main
+        curr_right = right_wrist_np[i] if right_wrist_np is not None else curr_main
+        prev_left = prev_imgs[i].get("left_wrist", prev_main)
+        prev_right = prev_imgs[i].get("right_wrist", prev_main)
         curr = main_np[i]
         imgs = [
-            Image.fromarray(prev),
-            Image.fromarray(prev),
-            Image.fromarray(prev),
-            Image.fromarray(curr),
-            Image.fromarray(curr),
-            Image.fromarray(curr),
+            Image.fromarray(prev_main),
+            Image.fromarray(prev_right),
+            Image.fromarray(prev_left),
+            Image.fromarray(curr_main),
+            Image.fromarray(curr_right),
+            Image.fromarray(curr_left),
         ]
         proprio = torch.from_numpy(state_np[i : i + 1]).to(
             device=model.device, dtype=torch.float32
         )
-        text_embeds = _encode_instruction(bundle, task_desc)
+        if isinstance(task_desc, list):
+            desc_i = task_desc[i] if i < len(task_desc) else ""
+        else:
+            desc_i = task_desc
+        text_embeds = _encode_instruction(bundle, desc_i)
         noise_i = None
         if init_noise is not None:
             noise_i = torch.from_numpy(init_noise[i : i + 1]).to(
@@ -289,7 +318,9 @@ def _predict_actions(
             init_noise=noise_i,
         )
         per_env_actions.append(traj[:, :n_action_steps, :].detach().cpu().numpy())
-        prev_imgs[i]["main"] = curr.copy()
+        prev_imgs[i]["main"] = curr_main.copy()
+        prev_imgs[i]["left_wrist"] = curr_left.copy()
+        prev_imgs[i]["right_wrist"] = curr_right.copy()
 
     actions = np.concatenate(per_env_actions, axis=0).astype(np.float32, copy=False)
     return actions, prev_imgs
@@ -444,7 +475,11 @@ def handle_client(
                     main_dtype = np.dtype(req["main_dtype"])
                     state_dtype = np.dtype(req["state_dtype"])
                     has_noise = bool(req.get("has_init_noise", False))
-                    task_desc = str(req.get("task_description") or default_instruction)
+                    task_descs = req.get("task_descriptions")
+                    if isinstance(task_descs, list):
+                        task_desc = [str(x) for x in task_descs]
+                    else:
+                        task_desc = str(req.get("task_description") or default_instruction)
 
                     off = 0
                     main_sz = int(np.prod(main_shape)) * int(main_dtype.itemsize)
@@ -459,6 +494,29 @@ def handle_client(
                     off += state_sz
                     state_np = np.asarray(state_np, dtype=np.float32)
 
+                    left_wrist_np = None
+                    right_wrist_np = None
+                    if bool(req.get("has_wrist_images", False)):
+                        left_wrist_shape = tuple(req["left_wrist_shape"])
+                        left_wrist_dtype = np.dtype(req["left_wrist_dtype"])
+                        left_wrist_sz = int(np.prod(left_wrist_shape)) * int(
+                            left_wrist_dtype.itemsize
+                        )
+                        left_wrist_np = np.frombuffer(
+                            blob[off : off + left_wrist_sz], dtype=left_wrist_dtype
+                        ).reshape(left_wrist_shape).copy()
+                        off += left_wrist_sz
+
+                        right_wrist_shape = tuple(req["right_wrist_shape"])
+                        right_wrist_dtype = np.dtype(req["right_wrist_dtype"])
+                        right_wrist_sz = int(np.prod(right_wrist_shape)) * int(
+                            right_wrist_dtype.itemsize
+                        )
+                        right_wrist_np = np.frombuffer(
+                            blob[off : off + right_wrist_sz], dtype=right_wrist_dtype
+                        ).reshape(right_wrist_shape).copy()
+                        off += right_wrist_sz
+
                     bsz = int(main_np.shape[0])
                     if expected_batch_size is None:
                         expected_batch_size = bsz
@@ -466,7 +524,12 @@ def handle_client(
                         raise ValueError(
                             f"dp_predict batch size {bsz} != locked {expected_batch_size}"
                         )
-                    prev_imgs = _update_image_history(prev_imgs, main_np)
+                    prev_imgs = _update_image_history(
+                        prev_imgs,
+                        main_np,
+                        left_wrist_np=left_wrist_np,
+                        right_wrist_np=right_wrist_np,
+                    )
 
                     init_noise = None
                     if has_noise:
@@ -484,6 +547,16 @@ def handle_client(
                     for ii in range(len(prev_imgs)):
                         if prev_imgs[ii]["main"] is None:
                             prev_imgs[ii]["main"] = main_np[ii].copy()
+                            prev_imgs[ii]["left_wrist"] = (
+                                left_wrist_np[ii].copy()
+                                if left_wrist_np is not None
+                                else main_np[ii].copy()
+                            )
+                            prev_imgs[ii]["right_wrist"] = (
+                                right_wrist_np[ii].copy()
+                                if right_wrist_np is not None
+                                else main_np[ii].copy()
+                            )
 
                     with _INFER_LOCK, torch.inference_mode():
                         actions, prev_imgs = _predict_actions(
@@ -494,6 +567,8 @@ def handle_client(
                             task_desc=task_desc,
                             init_noise=init_noise,
                             n_action_steps=n_action_steps,
+                            left_wrist_np=left_wrist_np,
+                            right_wrist_np=right_wrist_np,
                         )
                     raw = np.ascontiguousarray(actions).tobytes()
                     _ok_reply(
@@ -509,6 +584,7 @@ def handle_client(
                         print(
                             f"[robotwin_rdt_server] op=dp_predict ok B={bsz} "
                             f"main_shape={main_shape} state_shape={state_shape} "
+                            f"has_wrist={left_wrist_np is not None and right_wrist_np is not None} "
                             f"has_init_noise={has_noise} action_shape={list(actions.shape)}",
                             flush=True,
                         )

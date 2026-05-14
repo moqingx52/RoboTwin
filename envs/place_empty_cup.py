@@ -343,7 +343,10 @@ class place_empty_cup(Base_Task):
         # Macro-step counter: one RL step corresponds to one action-chunk.
         self.run_steps = int(getattr(self, "run_steps", 0)) + 1
         step_lim = getattr(self, "step_lim", None)
-        truncated = bool(step_lim is not None and self.run_steps >= int(step_lim) and not success)
+        take_action_cnt = int(getattr(self, "take_action_cnt", 0))
+        truncated = bool(
+            step_lim is not None and take_action_cnt >= int(step_lim) and not success
+        )
         terminated = success
         self.reward_step = float(reward_sum)
 
@@ -409,4 +412,5 @@ class place_empty_cup(Base_Task):
         if step_lim is not None:
             info["run_steps"] = int(self.run_steps)
             info["step_lim"] = int(step_lim)
+            info["take_action_cnt"] = take_action_cnt
         return float(reward_sum), terminated, truncated, info
