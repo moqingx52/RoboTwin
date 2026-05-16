@@ -21,6 +21,11 @@ import torch
 import yaml
 from PIL import Image
 
+try:
+    import cv2
+except ImportError:  # pragma: no cover - RoboTwin envs normally include cv2.
+    cv2 = None
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -274,6 +279,21 @@ def _update_image_history(
     return prev_imgs
 
 
+def _preprocess_rdt_image(img: Optional[np.ndarray]) -> Optional[np.ndarray]:
+    """Match policy/RDT/model.py update_observation_window preprocessing."""
+    if img is None:
+        return None
+    arr = np.asarray(img)
+    if cv2 is None:
+        pil = Image.fromarray(arr)
+        return np.asarray(pil.resize((640, 480)))
+    arr = cv2.resize(arr, (640, 480))
+    ok, encoded = cv2.imencode(".jpg", arr)
+    if not ok:
+        raise RuntimeError("cv2.imencode('.jpg', image) failed")
+    return cv2.imdecode(np.frombuffer(encoded.tobytes(), np.uint8), cv2.IMREAD_COLOR)
+
+
 def _predict_actions(
     *,
     bundle: dict[str, Any],
@@ -291,9 +311,13 @@ def _predict_actions(
     per_env_actions: list[np.ndarray] = []
 
     for i in range(main_np.shape[0]):
-        curr_main = main_np[i]
-        curr_left = left_wrist_np[i] if left_wrist_np is not None else curr_main
-        curr_right = right_wrist_np[i] if right_wrist_np is not None else curr_main
+        curr_main = _preprocess_rdt_image(main_np[i])
+        curr_left = _preprocess_rdt_image(
+            left_wrist_np[i] if left_wrist_np is not None else main_np[i]
+        )
+        curr_right = _preprocess_rdt_image(
+            right_wrist_np[i] if right_wrist_np is not None else main_np[i]
+        )
         cold_start = prev_imgs[i]["main"] is None
         # The official deploy updates the observation window after every inner
         # action in a 64-step chunk. The remote env RPC only returns the final
@@ -302,7 +326,6 @@ def _predict_actions(
         prev_main = None if cold_start else curr_main
         prev_left = None if cold_start else curr_left
         prev_right = None if cold_start else curr_right
-        curr = main_np[i]
         imgs = [
             Image.fromarray(x) if x is not None else None
             for x in (
