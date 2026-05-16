@@ -30,6 +30,18 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 1
 fi
 
+read_optional_yaml() {
+  local key="$1"
+  local default="$2"
+  local value
+  value=$(python scripts/read_yaml.py "$CONFIG_FILE" "$key")
+  if [[ "$value" == Key\ \'* ]]; then
+    echo "$default"
+  else
+    echo "$value"
+  fi
+}
+
 PRETRAINED_MODEL_NAME=$(python scripts/read_yaml.py "$CONFIG_FILE" pretrained_model_name_or_path)
 TRAIN_BATCH_SIZE=$(python scripts/read_yaml.py "$CONFIG_FILE" train_batch_size)
 SAMPLE_BATCH_SIZE=$(python scripts/read_yaml.py "$CONFIG_FILE" sample_batch_size)
@@ -45,11 +57,22 @@ STATE_NOISE_SNR=$(python scripts/read_yaml.py "$CONFIG_FILE" state_noise_snr)
 GRAD_ACCUM_STEPS=$(python scripts/read_yaml.py "$CONFIG_FILE" gradient_accumulation_steps)
 OUTPUT_DIR=$(python scripts/read_yaml.py "$CONFIG_FILE" checkpoint_path)
 CUDA_USE=$(python scripts/read_yaml.py "$CONFIG_FILE" cuda_visible_device)
+LORA_ENABLE=$(read_optional_yaml lora_enable false)
+LORA_RANK=$(read_optional_yaml lora_rank 8)
+LORA_ALPHA=$(read_optional_yaml lora_alpha 16)
+LORA_DROPOUT=$(read_optional_yaml lora_dropout 0.05)
+LORA_TARGET_MODULES=$(read_optional_yaml lora_target_modules "qkv,proj,q,kv,out_proj")
+LORA_ADAPTER_NAME=$(read_optional_yaml lora_adapter_name "lora_adapter")
+SAVE_LORA_ADAPTER_ONLY=$(read_optional_yaml save_lora_adapter_only true)
 
 
 PRETRAINED_MODEL_NAME=$(echo "$PRETRAINED_MODEL_NAME" | tr -d '"')
 CUDA_USE=$(echo "$CUDA_USE" | tr -d '"')
 OUTPUT_DIR=$(echo "$OUTPUT_DIR" | tr -d '"')
+LORA_ENABLE=$(echo "$LORA_ENABLE" | tr -d '"')
+LORA_TARGET_MODULES=$(echo "$LORA_TARGET_MODULES" | tr -d '"')
+LORA_ADAPTER_NAME=$(echo "$LORA_ADAPTER_NAME" | tr -d '"')
+SAVE_LORA_ADAPTER_ONLY=$(echo "$SAVE_LORA_ADAPTER_ONLY" | tr -d '"')
 
 # create output path
 if [ ! -d "$OUTPUT_DIR" ]; then
@@ -62,6 +85,19 @@ fi
 export CUDA_VISIBLE_DEVICES=$CUDA_USE
 
 python -m data.compute_dataset_stat_hdf5 --task_name $CONFIG_NAME
+
+LORA_ARGS=()
+if [ "$LORA_ENABLE" = "true" ] || [ "$LORA_ENABLE" = "True" ] || [ "$LORA_ENABLE" = "1" ]; then
+  LORA_ARGS+=(--lora_enable)
+  LORA_ARGS+=(--lora_rank="$LORA_RANK")
+  LORA_ARGS+=(--lora_alpha="$LORA_ALPHA")
+  LORA_ARGS+=(--lora_dropout="$LORA_DROPOUT")
+  LORA_ARGS+=(--lora_target_modules="$LORA_TARGET_MODULES")
+  LORA_ARGS+=(--lora_adapter_name="$LORA_ADAPTER_NAME")
+  if [ "$SAVE_LORA_ADAPTER_ONLY" = "true" ] || [ "$SAVE_LORA_ADAPTER_ONLY" = "True" ] || [ "$SAVE_LORA_ADAPTER_ONLY" = "1" ]; then
+    LORA_ARGS+=(--save_lora_adapter_only)
+  fi
+fi
 
 accelerate launch --main_process_port=28499  main.py \
     --deepspeed="./configs/zero2.json" \
@@ -89,5 +125,5 @@ accelerate launch --main_process_port=28499  main.py \
     --set_grads_to_none \
     --allow_tf32 \
     --model_config_path=$CONFIG_FILE \
-    --CONFIG_NAME=$CONFIG_NAME
-
+    --CONFIG_NAME=$CONFIG_NAME \
+    "${LORA_ARGS[@]}"

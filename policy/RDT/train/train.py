@@ -21,6 +21,7 @@ from pathlib import Path
 
 import diffusers
 import torch
+import torch.nn as nn
 import torch.utils.checkpoint
 import transformers
 import yaml
@@ -41,6 +42,56 @@ from train.sample import log_sample_res
 
 if is_wandb_available():
     import wandb
+
+
+def _split_lora_targets(target_modules: str) -> list[str]:
+    return [item.strip() for item in target_modules.split(",") if item.strip()]
+
+
+def _resolve_lora_targets(model: nn.Module, target_modules: str) -> list[str]:
+    requested = _split_lora_targets(target_modules)
+    if not requested:
+        raise ValueError("LoRA target module list is empty")
+    resolved = set()
+    for name, module in model.named_modules():
+        if not isinstance(module, nn.Linear):
+            continue
+        leaf = name.rsplit(".", 1)[-1]
+        if leaf in requested or any(len(token) > 2 and token in leaf for token in requested):
+            resolved.add(leaf)
+    if resolved:
+        return sorted(resolved)
+    return requested
+
+
+def _inject_lora(model: nn.Module, args, logger) -> nn.Module:
+    try:
+        from peft import LoraConfig, get_peft_model
+    except ImportError as exc:
+        raise ImportError("LoRA training requires the peft package.") from exc
+
+    target_modules = _resolve_lora_targets(model, args.lora_target_modules)
+    logger.info(f"Injecting LoRA into target_modules={target_modules}")
+    lora_config = LoraConfig(
+        r=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        target_modules=target_modules,
+        lora_dropout=args.lora_dropout,
+        bias="none",
+        task_type=None,
+    )
+    peft_model = get_peft_model(model, lora_config)
+    if hasattr(peft_model, "print_trainable_parameters"):
+        peft_model.print_trainable_parameters()
+    return peft_model
+
+
+def _save_lora_adapter(model: nn.Module, output_dir: str, adapter_name: str) -> str:
+    unwrapped = model.module if hasattr(model, "module") else model
+    adapter_dir = os.path.join(output_dir, adapter_name)
+    os.makedirs(adapter_dir, exist_ok=True)
+    unwrapped.save_pretrained(adapter_dir)
+    return adapter_dir
 
 
 def save_model_card(repo_id: str, base_model=str, repo_folder=None):
@@ -184,20 +235,33 @@ def train(args, logger):
             dtype=weight_dtype,
         )
 
-    ema_rdt = copy.deepcopy(rdt)
-    ema_model = EMAModel(
-        ema_rdt,
-        update_after_step=config["model"]["ema"]["update_after_step"],
-        inv_gamma=config["model"]["ema"]["inv_gamma"],
-        power=config["model"]["ema"]["power"],
-        min_value=config["model"]["ema"]["min_value"],
-        max_value=config["model"]["ema"]["max_value"],
-    )
+    if args.lora_enable:
+        rdt = _inject_lora(rdt, args, logger)
+        ema_rdt = None
+        ema_model = None
+    else:
+        ema_rdt = copy.deepcopy(rdt)
+        ema_model = EMAModel(
+            ema_rdt,
+            update_after_step=config["model"]["ema"]["update_after_step"],
+            inv_gamma=config["model"]["ema"]["inv_gamma"],
+            power=config["model"]["ema"]["power"],
+            min_value=config["model"]["ema"]["min_value"],
+            max_value=config["model"]["ema"]["max_value"],
+        )
 
     # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
     # which ensure saving model in huggingface format (config.json + pytorch_model.bin)
     def save_model_hook(models, weights, output_dir):
         if accelerator.is_main_process:
+            if args.lora_enable:
+                adapter_dir = _save_lora_adapter(
+                    accelerator.unwrap_model(rdt),
+                    output_dir,
+                    args.lora_adapter_name,
+                )
+                logger.info(f"Saved LoRA adapter to {adapter_dir}")
+                return
             for model in models:
                 model_to_save = model.module if hasattr(model, "module") else model  # type: ignore
                 if isinstance(model_to_save, type(accelerator.unwrap_model(rdt))):
@@ -230,7 +294,7 @@ def train(args, logger):
         optimizer_class = torch.optim.AdamW
 
     # Optimizer creation
-    params_to_optimize = rdt.parameters()
+    params_to_optimize = [p for p in rdt.parameters() if p.requires_grad]
     optimizer = optimizer_class(
         params_to_optimize,
         lr=args.learning_rate,
@@ -312,7 +376,8 @@ def train(args, logger):
     rdt, optimizer, train_dataloader, sample_dataloader, lr_scheduler = (accelerator.prepare(
         rdt, optimizer, train_dataloader, sample_dataloader, lr_scheduler))
 
-    ema_rdt.to(accelerator.device, dtype=weight_dtype)
+    if ema_rdt is not None:
+        ema_rdt.to(accelerator.device, dtype=weight_dtype)
 
     if text_encoder is not None:
         text_encoder.to(accelerator.device, dtype=weight_dtype)
@@ -391,7 +456,8 @@ def train(args, logger):
                     ))
                 rdt.module.load_state_dict(checkpoint["module"])
 
-            load_model(ema_rdt, os.path.join(args.output_dir, path, "ema", "model.safetensors"))
+            if ema_rdt is not None:
+                load_model(ema_rdt, os.path.join(args.output_dir, path, "ema", "model.safetensors"))
             global_step = int(path.split("-")[1])
 
             resume_global_step = global_step * args.gradient_accumulation_steps
@@ -448,13 +514,14 @@ def train(args, logger):
 
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
-                    params_to_clip = rdt.parameters()
+                    params_to_clip = [p for p in rdt.parameters() if p.requires_grad]
                     accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad(set_to_none=args.set_grads_to_none)
 
-            ema_model.step(accelerator.unwrap_model(rdt))
+            if ema_model is not None:
+                ema_model.step(accelerator.unwrap_model(rdt))
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:
@@ -464,8 +531,9 @@ def train(args, logger):
                 if global_step % args.checkpointing_period == 0:
                     save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                     accelerator.save_state(save_path)
-                    ema_save_path = os.path.join(save_path, f"ema")
-                    accelerator.save_model(ema_rdt, ema_save_path)
+                    if ema_rdt is not None:
+                        ema_save_path = os.path.join(save_path, f"ema")
+                        accelerator.save_model(ema_rdt, ema_save_path)
                     logger.info(f"Saved state to {save_path}")
 
                 if args.sample_period > 0 and global_step % args.sample_period == 0:
@@ -495,9 +563,19 @@ def train(args, logger):
     # Create the pipeline using using the trained modules and save it.
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
-        accelerator.unwrap_model(rdt).save_pretrained(args.output_dir)
-        ema_save_path = os.path.join(args.output_dir, f"ema")
-        accelerator.save_model(ema_rdt, ema_save_path)
+        if args.lora_enable:
+            adapter_dir = _save_lora_adapter(
+                accelerator.unwrap_model(rdt),
+                args.output_dir,
+                args.lora_adapter_name,
+            )
+            logger.info(f"Saved LoRA adapter to {adapter_dir}")
+            if not args.save_lora_adapter_only:
+                accelerator.unwrap_model(rdt).save_pretrained(args.output_dir)
+        else:
+            accelerator.unwrap_model(rdt).save_pretrained(args.output_dir)
+            ema_save_path = os.path.join(args.output_dir, f"ema")
+            accelerator.save_model(ema_rdt, ema_save_path)
 
         logger.info(f"Saved Model to {args.output_dir}")
 

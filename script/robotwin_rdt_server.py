@@ -253,28 +253,22 @@ def _encode_instruction(bundle: dict[str, Any], instruction: str) -> torch.Tenso
 
 
 def _update_image_history(
-    prev_imgs: Optional[list[dict[str, np.ndarray]]],
+    prev_imgs: Optional[list[dict[str, Optional[np.ndarray]]]],
     main_np: np.ndarray,
     left_wrist_np: Optional[np.ndarray] = None,
     right_wrist_np: Optional[np.ndarray] = None,
-) -> list[dict[str, np.ndarray]]:
+) -> list[dict[str, Optional[np.ndarray]]]:
     bsz = int(main_np.shape[0])
     if prev_imgs is None or len(prev_imgs) != bsz:
         prev_imgs = []
         for i in range(bsz):
+            # Match policy/RDT/model.py warmup: the first observation window is
+            # [dummy(None), current], not [current, current].
             prev_imgs.append(
                 {
-                    "main": main_np[i].copy(),
-                    "left_wrist": (
-                        left_wrist_np[i].copy()
-                        if left_wrist_np is not None
-                        else main_np[i].copy()
-                    ),
-                    "right_wrist": (
-                        right_wrist_np[i].copy()
-                        if right_wrist_np is not None
-                        else main_np[i].copy()
-                    ),
+                    "main": None,
+                    "left_wrist": None,
+                    "right_wrist": None,
                 }
             )
     return prev_imgs
@@ -285,32 +279,40 @@ def _predict_actions(
     bundle: dict[str, Any],
     main_np: np.ndarray,
     state_np: np.ndarray,
-    prev_imgs: list[dict[str, np.ndarray]],
+    prev_imgs: list[dict[str, Optional[np.ndarray]]],
     task_desc: str | list[str],
     init_noise: Optional[np.ndarray],
     n_action_steps: int,
     left_wrist_np: Optional[np.ndarray] = None,
     right_wrist_np: Optional[np.ndarray] = None,
-) -> tuple[np.ndarray, list[dict[str, np.ndarray]]]:
+) -> tuple[np.ndarray, list[dict[str, Optional[np.ndarray]]]]:
     model = bundle["model"]
     pred_horizon = int(bundle["pred_horizon"])
     per_env_actions: list[np.ndarray] = []
 
     for i in range(main_np.shape[0]):
-        prev_main = prev_imgs[i]["main"]
         curr_main = main_np[i]
         curr_left = left_wrist_np[i] if left_wrist_np is not None else curr_main
         curr_right = right_wrist_np[i] if right_wrist_np is not None else curr_main
-        prev_left = prev_imgs[i].get("left_wrist", prev_main)
-        prev_right = prev_imgs[i].get("right_wrist", prev_main)
+        cold_start = prev_imgs[i]["main"] is None
+        # The official deploy updates the observation window after every inner
+        # action in a 64-step chunk. The remote env RPC only returns the final
+        # observation for the whole chunk, so the closest non-stale approximation
+        # is [None, current] on reset and [current, current] afterwards.
+        prev_main = None if cold_start else curr_main
+        prev_left = None if cold_start else curr_left
+        prev_right = None if cold_start else curr_right
         curr = main_np[i]
         imgs = [
-            Image.fromarray(prev_main),
-            Image.fromarray(prev_right),
-            Image.fromarray(prev_left),
-            Image.fromarray(curr_main),
-            Image.fromarray(curr_right),
-            Image.fromarray(curr_left),
+            Image.fromarray(x) if x is not None else None
+            for x in (
+                prev_main,
+                prev_right,
+                prev_left,
+                curr_main,
+                curr_right,
+                curr_left,
+            )
         ]
         proprio = torch.from_numpy(state_np[i : i + 1]).to(
             device=model.device, dtype=torch.float32
@@ -362,7 +364,7 @@ def handle_client(
 ) -> None:
     bundle: Optional[dict[str, Any]] = None
     expected_batch_size: Optional[int] = None
-    prev_imgs: Optional[list[dict[str, np.ndarray]]] = None
+    prev_imgs: Optional[list[dict[str, Optional[np.ndarray]]]] = None
     dev = _resolve_torch_device(map_location)
 
     try:
@@ -567,20 +569,13 @@ def handle_client(
                             blob[off : off + noise_sz], dtype=noise_dtype
                         ).reshape(noise_shape).copy()
 
-                    # Reset slots that were marked by selective reset.
+                    # Reset slots that were marked by selective reset. Leave the
+                    # previous frame as None for this prediction so reset matches
+                    # the official RDT warmup window [dummy(None), current].
                     for ii in range(len(prev_imgs)):
                         if prev_imgs[ii]["main"] is None:
-                            prev_imgs[ii]["main"] = main_np[ii].copy()
-                            prev_imgs[ii]["left_wrist"] = (
-                                left_wrist_np[ii].copy()
-                                if left_wrist_np is not None
-                                else main_np[ii].copy()
-                            )
-                            prev_imgs[ii]["right_wrist"] = (
-                                right_wrist_np[ii].copy()
-                                if right_wrist_np is not None
-                                else main_np[ii].copy()
-                            )
+                            prev_imgs[ii]["left_wrist"] = None
+                            prev_imgs[ii]["right_wrist"] = None
 
                     with _INFER_LOCK, torch.inference_mode():
                         actions, prev_imgs = _predict_actions(

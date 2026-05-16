@@ -1,12 +1,20 @@
 from ._base_task import Base_Task
 from .utils import *
+from .utils.rdt_success_dataset import write_rdt_success_episode
 import sapien
+import numpy as np
 
 
 class place_empty_cup(Base_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)
+        self.rdt_success_dataset_dir = kwags.get("rdt_success_dataset_dir")
+        self.rdt_success_dataset_enabled = bool(self.rdt_success_dataset_dir)
+        self.rdt_episode_seed = kwags.get("seed")
+        self._rdt_episode_return = 0.0
+        self._rdt_success_trace = []
+        self._rdt_success_dataset_saved = False
 
     def get_info(self):
         return {"{A}": "021_cup/base0", "{B}": "019_coaster/base0"}
@@ -286,6 +294,68 @@ class place_empty_cup(Base_Task):
             + 2.00 * components["place"]
         )
 
+    def _record_rdt_pre_action(self, action):
+        if not getattr(self, "rdt_success_dataset_enabled", False):
+            return
+        obs = self.get_obs()
+        observation = obs.get("observation", {})
+        head = observation.get("head_camera", {}).get("rgb")
+        left = observation.get("left_camera", {}).get("rgb")
+        right = observation.get("right_camera", {}).get("rgb")
+        if head is None:
+            return
+        if left is None:
+            left = head
+        if right is None:
+            right = head
+        qpos = obs.get("joint_action", {}).get("vector")
+        if qpos is None:
+            return
+        self._rdt_success_trace.append(
+            {
+                "cam_high": np.asarray(head).copy(),
+                "cam_left_wrist": np.asarray(left).copy(),
+                "cam_right_wrist": np.asarray(right).copy(),
+                "qpos": np.asarray(qpos, dtype=np.float32).reshape(-1).copy(),
+                "action": np.asarray(action, dtype=np.float32).reshape(-1).copy(),
+            }
+        )
+
+    def _flush_rdt_success_trace(self, info):
+        if not getattr(self, "rdt_success_dataset_enabled", False):
+            return None
+        if getattr(self, "_rdt_success_dataset_saved", False):
+            return None
+        trace = getattr(self, "_rdt_success_trace", [])
+        if not trace or not bool(info.get("success", False)):
+            return None
+        instruction = "Place the empty cup to the target area."
+        try:
+            instruction = str(self.get_instruction())
+        except Exception:
+            pass
+        metadata = {
+            "task": "place_empty_cup",
+            "success": bool(info.get("success", False)),
+            "return": float(getattr(self, "_rdt_episode_return", 0.0)),
+            "reward_milestones": info.get("reward_milestones", {}),
+            "reward_components": info.get("reward_components", {}),
+            "reward_components_trace": info.get("reward_components_trace", []),
+            "seed": getattr(self, "rdt_episode_seed", None),
+            "run_steps": info.get("run_steps"),
+            "take_action_cnt": info.get("take_action_cnt"),
+            "step_lim": info.get("step_lim"),
+            "ep_num": getattr(self, "ep_num", None),
+        }
+        path = write_rdt_success_episode(
+            self.rdt_success_dataset_dir,
+            trace,
+            instruction=instruction,
+            metadata=metadata,
+        )
+        self._rdt_success_dataset_saved = True
+        return str(path.parent)
+
     def gen_sparse_reward_data(self, actions):
         """
         RLinf/DP 常以 action-chunk 形式输出 (T, 14)（例如 T=6）。
@@ -327,6 +397,7 @@ class place_empty_cup(Base_Task):
                 continue
             a14 = _clip_gripper(a[:14])
             last_action = a14
+            self._record_rdt_pre_action(a14)
             self.take_action(a14)
             last_reward_data = self._build_sparse_reward_data()
             components = self._compute_reward_progress(last_reward_data)
@@ -349,6 +420,8 @@ class place_empty_cup(Base_Task):
         )
         terminated = success
         self.reward_step = float(reward_sum)
+        if getattr(self, "rdt_success_dataset_enabled", False):
+            self._rdt_episode_return = float(getattr(self, "_rdt_episode_return", 0.0)) + float(reward_sum)
 
         if last_reward_data is None:
             last_reward_data = self._build_sparse_reward_data()
@@ -396,6 +469,7 @@ class place_empty_cup(Base_Task):
             "chunk_len": int(len(act_seq)),
             "action_shape": list(arr.shape),
             "reward_sum": float(reward_sum),
+            "episode_return": float(getattr(self, "_rdt_episode_return", reward_sum)),
             "dense_potential": float(
                 reward_components[-1]["place"] if reward_components else 0.0
             ),
@@ -413,4 +487,10 @@ class place_empty_cup(Base_Task):
             info["run_steps"] = int(self.run_steps)
             info["step_lim"] = int(step_lim)
             info["take_action_cnt"] = take_action_cnt
+        saved_dir = self._flush_rdt_success_trace(info)
+        if saved_dir is not None:
+            info["rdt_success_dataset_saved"] = True
+            info["rdt_success_dataset_episode_dir"] = saved_dir
+        elif getattr(self, "rdt_success_dataset_enabled", False):
+            info["rdt_success_dataset_saved"] = False
         return float(reward_sum), terminated, truncated, info

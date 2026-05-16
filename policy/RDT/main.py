@@ -318,6 +318,32 @@ def parse_args(input_args=None):
         required=False,
         help="Whether to load the pretrain dataset or finetune dataset.",
     )
+    parser.add_argument(
+        "--lora_enable",
+        "--lora-enable",
+        action="store_true",
+        help="Inject PEFT LoRA adapters into RDTRunner and train only adapter weights.",
+    )
+    parser.add_argument("--lora_rank", type=int, default=8)
+    parser.add_argument("--lora_alpha", type=int, default=16)
+    parser.add_argument("--lora_dropout", type=float, default=0.05)
+    parser.add_argument(
+        "--lora_target_modules",
+        type=str,
+        default="qkv,proj,q,kv,out_proj",
+        help="Comma-separated Linear module leaf names or substrings for LoRA.",
+    )
+    parser.add_argument(
+        "--lora_adapter_name",
+        type=str,
+        default="lora_adapter",
+        help="Subdirectory name used when saving the trained adapter.",
+    )
+    parser.add_argument(
+        "--save_lora_adapter_only",
+        action="store_true",
+        help="When LoRA is enabled, save only adapter weights instead of a full RDT checkpoint.",
+    )
 
     parser.add_argument(
         "--CONFIG_NAME",
