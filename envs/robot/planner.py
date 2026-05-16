@@ -412,11 +412,17 @@ class MplibPlanner:
         use_attach=False,
         arms_tag=None,
         log=True,
+        constraint_pose=None,
     ):
         """
         Interpolative planning with screw motion.
         Will not avoid collision and will fail if the path contains collision.
+
+        ``constraint_pose`` is accepted for API parity with CuroboPlanner and
+        Robot.{left,right}_plan_path. mplib does not support hold-vector pose
+        constraints, so the value is intentionally ignored.
         """
+        del constraint_pose
         planner_type = self._normalize_planner_type(self.planner_type)
         if planner_type == "mplib_RRT":
             result = self.plan_pose(
