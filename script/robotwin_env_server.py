@@ -80,10 +80,10 @@ def _send_frame(conn: socket.socket, meta: dict[str, Any], blob: bytes = b"") ->
     conn.sendall(struct.pack(">I", len(body)) + body + struct.pack(">I", len(blob)) + blob)
 
 
-def _serialize_obs_list(obs_list: list[dict]) -> tuple[dict, bytes]:
+def _serialize_obs_list(obs_list: list[dict], *, offset: int = 0) -> tuple[dict, bytes]:
     serializable: list[dict[str, Any]] = []
     blob_parts: list[bytes] = []
-    offset = 0
+    cur_offset = int(offset)
     keys = ("full_image", "left_wrist_image", "right_wrist_image", "state")
     for obs in obs_list:
         instr = obs.get("instruction", "")
@@ -104,13 +104,29 @@ def _serialize_obs_list(obs_list: list[dict]) -> tuple[dict, bytes]:
                 entry[k] = {
                     "shape": list(arr.shape),
                     "dtype": arr.dtype.str,
-                    "start": offset,
+                    "start": cur_offset,
                     "len": len(raw),
                 }
-                offset += len(raw)
+                cur_offset += len(raw)
                 blob_parts.append(raw)
         serializable.append(entry)
     return {"obs": serializable}, b"".join(blob_parts)
+
+
+def _serialize_rdt_history_infos(infos: list[Any], *, offset: int = 0) -> tuple[dict, bytes]:
+    serializable: list[dict[str, Any]] = []
+    blob_parts: list[bytes] = []
+    cur_offset = int(offset)
+    for info in infos:
+        history = []
+        if isinstance(info, dict):
+            history = info.pop("rdt_history_obs", []) or []
+        hist_meta, hist_blob = _serialize_obs_list(history, offset=cur_offset)
+        cur_offset += len(hist_blob)
+        serializable.append({"obs": hist_meta["obs"]})
+        if hist_blob:
+            blob_parts.append(hist_blob)
+    return {"history": serializable}, b"".join(blob_parts)
 
 
 def _sanitize(x: Any) -> Any:
@@ -401,12 +417,18 @@ def handle_client_connection(
                     try:
                         actions = np.asarray(req["actions"], dtype=np.float32)
                         obs_list, rewards, terminated, truncated, infos = venv.step(actions)
-                        obs_meta, blob = _serialize_obs_list(obs_list)
+                        obs_meta, obs_blob = _serialize_obs_list(obs_list)
+                        history_meta, history_blob = _serialize_rdt_history_infos(
+                            infos,
+                            offset=len(obs_blob),
+                        )
+                        blob = obs_blob + history_blob
                         _ok_reply(
                             conn,
                             req,
                             {
                                 "obs_meta": obs_meta,
+                                "rdt_history_meta": history_meta,
                                 "rewards": _sanitize(rewards),
                                 "terminated": _sanitize(terminated),
                                 "truncated": _sanitize(truncated),

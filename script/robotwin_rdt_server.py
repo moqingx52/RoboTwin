@@ -271,6 +271,9 @@ def _update_image_history(
             # [dummy(None), current], not [current, current].
             prev_imgs.append(
                 {
+                    "prev_main": None,
+                    "prev_left_wrist": None,
+                    "prev_right_wrist": None,
                     "main": None,
                     "left_wrist": None,
                     "right_wrist": None,
@@ -319,13 +322,19 @@ def _predict_actions(
             right_wrist_np[i] if right_wrist_np is not None else main_np[i]
         )
         cold_start = prev_imgs[i]["main"] is None
-        # The official deploy updates the observation window after every inner
-        # action in a 64-step chunk. The remote env RPC only returns the final
-        # observation for the whole chunk, so the closest non-stale approximation
-        # is [None, current] on reset and [current, current] afterwards.
-        prev_main = None if cold_start else curr_main
-        prev_left = None if cold_start else curr_left
-        prev_right = None if cold_start else curr_right
+        # The smoke/eval client can sync the true last two observations after
+        # each executed chunk. Without that sync, fall back to the last observed
+        # frame so older clients keep working.
+        prev_main = None if cold_start else prev_imgs[i].get("prev_main")
+        prev_left = None if cold_start else prev_imgs[i].get("prev_left_wrist")
+        prev_right = None if cold_start else prev_imgs[i].get("prev_right_wrist")
+        if not cold_start:
+            if prev_main is None:
+                prev_main = prev_imgs[i]["main"]
+            if prev_left is None:
+                prev_left = prev_imgs[i]["left_wrist"]
+            if prev_right is None:
+                prev_right = prev_imgs[i]["right_wrist"]
         imgs = [
             Image.fromarray(x) if x is not None else None
             for x in (
@@ -361,6 +370,9 @@ def _predict_actions(
             init_noise=noise_i,
         )
         per_env_actions.append(traj[:, :n_action_steps, :].detach().cpu().numpy())
+        prev_imgs[i]["prev_main"] = curr_main.copy()
+        prev_imgs[i]["prev_left_wrist"] = curr_left.copy()
+        prev_imgs[i]["prev_right_wrist"] = curr_right.copy()
         prev_imgs[i]["main"] = curr_main.copy()
         prev_imgs[i]["left_wrist"] = curr_left.copy()
         prev_imgs[i]["right_wrist"] = curr_right.copy()
@@ -506,7 +518,12 @@ def handle_client(
                             mask[ii] = True
                     for ii, reset in enumerate(mask.tolist()):
                         if reset:
+                            prev_imgs[ii]["prev_main"] = None  # type: ignore[index]
+                            prev_imgs[ii]["prev_left_wrist"] = None  # type: ignore[index]
+                            prev_imgs[ii]["prev_right_wrist"] = None  # type: ignore[index]
                             prev_imgs[ii]["main"] = None  # type: ignore[index]
+                            prev_imgs[ii]["left_wrist"] = None  # type: ignore[index]
+                            prev_imgs[ii]["right_wrist"] = None  # type: ignore[index]
                     _ok_reply(
                         conn,
                         req,
@@ -516,6 +533,86 @@ def handle_client(
                             "cleared_slots": int(mask.sum()),
                         },
                     )
+                    continue
+
+                if op == "dp_set_image_history":
+                    main_shape = tuple(req["main_shape"])
+                    left_wrist_shape = tuple(req["left_wrist_shape"])
+                    right_wrist_shape = tuple(req["right_wrist_shape"])
+                    main_dtype = np.dtype(req["main_dtype"])
+                    left_wrist_dtype = np.dtype(req["left_wrist_dtype"])
+                    right_wrist_dtype = np.dtype(req["right_wrist_dtype"])
+                    if len(main_shape) != 5:
+                        raise ValueError(
+                            f"main history must be shaped (B,Hn,H,W,C), got {main_shape}"
+                        )
+                    if left_wrist_shape != main_shape or right_wrist_shape != main_shape:
+                        raise ValueError(
+                            "wrist history shapes must match main history shape"
+                        )
+
+                    off = 0
+                    main_sz = int(np.prod(main_shape)) * int(main_dtype.itemsize)
+                    left_sz = int(np.prod(left_wrist_shape)) * int(left_wrist_dtype.itemsize)
+                    right_sz = int(np.prod(right_wrist_shape)) * int(
+                        right_wrist_dtype.itemsize
+                    )
+                    main_np = np.frombuffer(
+                        blob[off : off + main_sz], dtype=main_dtype
+                    ).reshape(main_shape).copy()
+                    off += main_sz
+                    left_np = np.frombuffer(
+                        blob[off : off + left_sz], dtype=left_wrist_dtype
+                    ).reshape(left_wrist_shape).copy()
+                    off += left_sz
+                    right_np = np.frombuffer(
+                        blob[off : off + right_sz], dtype=right_wrist_dtype
+                    ).reshape(right_wrist_shape).copy()
+
+                    bsz = int(main_np.shape[0])
+                    hist_len = int(main_np.shape[1])
+                    if hist_len < 1:
+                        raise ValueError("image history length must be >= 1")
+                    if expected_batch_size is None:
+                        expected_batch_size = bsz
+                    elif bsz != int(expected_batch_size):
+                        raise ValueError(
+                            f"dp_set_image_history batch size {bsz} != locked {expected_batch_size}"
+                        )
+                    prev_imgs = _update_image_history(prev_imgs, main_np[:, -1])
+                    for i in range(bsz):
+                        prev_i = max(0, hist_len - 2)
+                        curr_i = hist_len - 1
+                        prev_imgs[i]["prev_main"] = _preprocess_rdt_image(
+                            main_np[i, prev_i]
+                        )
+                        prev_imgs[i]["prev_left_wrist"] = _preprocess_rdt_image(
+                            left_np[i, prev_i]
+                        )
+                        prev_imgs[i]["prev_right_wrist"] = _preprocess_rdt_image(
+                            right_np[i, prev_i]
+                        )
+                        prev_imgs[i]["main"] = _preprocess_rdt_image(main_np[i, curr_i])
+                        prev_imgs[i]["left_wrist"] = _preprocess_rdt_image(
+                            left_np[i, curr_i]
+                        )
+                        prev_imgs[i]["right_wrist"] = _preprocess_rdt_image(
+                            right_np[i, curr_i]
+                        )
+                    _ok_reply(
+                        conn,
+                        req,
+                        {
+                            "ack_batch_size": bsz,
+                            "history_len": hist_len,
+                        },
+                    )
+                    if log_ops:
+                        print(
+                            f"[robotwin_rdt_server] op=dp_set_image_history ok "
+                            f"B={bsz} history_len={hist_len}",
+                            flush=True,
+                        )
                     continue
 
                 if op == "dp_predict":

@@ -294,6 +294,23 @@ class place_empty_cup(Base_Task):
             + 2.00 * components["place"]
         )
 
+    def _compact_rdt_obs(self):
+        obs = self.get_obs()
+        observation = obs.get("observation", {})
+        head = observation.get("head_camera", {}).get("rgb")
+        left = observation.get("left_camera", {}).get("rgb")
+        right = observation.get("right_camera", {}).get("rgb")
+        state = obs.get("joint_action", {}).get("vector")
+        if head is None or state is None:
+            return None
+        return {
+            "full_image": np.asarray(head).copy(),
+            "left_wrist_image": np.asarray(left if left is not None else head).copy(),
+            "right_wrist_image": np.asarray(right if right is not None else head).copy(),
+            "state": np.asarray(state, dtype=np.float32).reshape(-1).copy(),
+            "instruction": str(self.get_instruction()),
+        }
+
     def _record_rdt_pre_action(self, action):
         if not getattr(self, "rdt_success_dataset_enabled", False):
             return
@@ -391,6 +408,7 @@ class place_empty_cup(Base_Task):
         last_reward_data = None
         last_action = None
         reward_components = []
+        rdt_history_obs = []
 
         for a in act_seq:
             if a.shape[0] < 14:
@@ -405,6 +423,11 @@ class place_empty_cup(Base_Task):
                 last_reward_data,
                 components,
             )
+            compact_obs = self._compact_rdt_obs()
+            if compact_obs is not None:
+                rdt_history_obs.append(compact_obs)
+                if len(rdt_history_obs) > 2:
+                    rdt_history_obs = rdt_history_obs[-2:]
             success = bool(last_reward_data["success"])
             reward_sum += r
             reward_components.append(reward_detail)
@@ -483,6 +506,8 @@ class place_empty_cup(Base_Task):
             "action_left_gripper": float(last_action[6]) if last_action is not None else None,
             "action_right_gripper": float(last_action[13]) if last_action is not None else None,
         }
+        if rdt_history_obs:
+            info["rdt_history_obs"] = rdt_history_obs
         if step_lim is not None:
             info["run_steps"] = int(self.run_steps)
             info["step_lim"] = int(step_lim)
