@@ -6,6 +6,9 @@ CONFIG_FILE="model_config/$CONFIG_NAME.yml"
 echo "CONFIG_FILE_PATH: $CONFIG_FILE"
 ### ===============================
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
 export NCCL_IB_HCA=mlx5_0:1,mlx5_1:1,mlx5_2:1,mlx5_3:1,mlx5_4:1,mlx5_7:1,mlx5_8:1,mlx5_9:1
 export NCCL_IB_DISABLE=0
 export NCCL_SOCKET_IFNAME=bond0
@@ -64,6 +67,7 @@ LORA_DROPOUT=$(read_optional_yaml lora_dropout 0.05)
 LORA_TARGET_MODULES=$(read_optional_yaml lora_target_modules "qkv,proj,q,kv,out_proj")
 LORA_ADAPTER_NAME=$(read_optional_yaml lora_adapter_name "lora_adapter")
 SAVE_LORA_ADAPTER_ONLY=$(read_optional_yaml save_lora_adapter_only true)
+RDT_BASE_CONFIG=$(read_optional_yaml rdt_base_config "configs/base.yaml")
 
 
 PRETRAINED_MODEL_NAME=$(echo "$PRETRAINED_MODEL_NAME" | tr -d '"')
@@ -73,6 +77,7 @@ LORA_ENABLE=$(echo "$LORA_ENABLE" | tr -d '"')
 LORA_TARGET_MODULES=$(echo "$LORA_TARGET_MODULES" | tr -d '"')
 LORA_ADAPTER_NAME=$(echo "$LORA_ADAPTER_NAME" | tr -d '"')
 SAVE_LORA_ADAPTER_ONLY=$(echo "$SAVE_LORA_ADAPTER_ONLY" | tr -d '"')
+RDT_BASE_CONFIG=$(echo "$RDT_BASE_CONFIG" | tr -d '"')
 
 # create output path
 if [ ! -d "$OUTPUT_DIR" ]; then
@@ -99,8 +104,10 @@ if [ "$LORA_ENABLE" = "true" ] || [ "$LORA_ENABLE" = "True" ] || [ "$LORA_ENABLE
   fi
 fi
 
+echo "RDT_BASE_CONFIG_PATH: ${RDT_BASE_CONFIG}"
 accelerate launch --main_process_port=28499  main.py \
     --deepspeed="./configs/zero2.json" \
+    --config_path="${RDT_BASE_CONFIG}" \
     --pretrained_model_name_or_path=$PRETRAINED_MODEL_NAME \
     --pretrained_text_encoder_name_or_path=$TEXT_ENCODER_NAME \
     --pretrained_vision_encoder_name_or_path=$VISION_ENCODER_NAME \
