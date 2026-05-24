@@ -297,6 +297,43 @@ def _preprocess_rdt_image(img: Optional[np.ndarray]) -> Optional[np.ndarray]:
     return cv2.imdecode(np.frombuffer(encoded.tobytes(), np.uint8), cv2.IMREAD_COLOR)
 
 
+def _assert_wrist_images_are_real(
+    main_np: np.ndarray,
+    left_wrist_np: Optional[np.ndarray],
+    right_wrist_np: Optional[np.ndarray],
+    *,
+    context: str,
+    min_mean_abs_diff: float = 1.0,
+) -> None:
+    if left_wrist_np is None or right_wrist_np is None:
+        raise ValueError(
+            f"{context} requires left/right wrist images. RDT-170M uses "
+            "head + right wrist + left wrist views; refusing to duplicate "
+            "the head camera into wrist slots."
+        )
+    if left_wrist_np.shape != main_np.shape or right_wrist_np.shape != main_np.shape:
+        raise ValueError(
+            f"{context} wrist image shapes must match main image shape: "
+            f"main={main_np.shape}, left={left_wrist_np.shape}, right={right_wrist_np.shape}"
+        )
+    if main_np.shape[0] != left_wrist_np.shape[0] or main_np.shape[0] != right_wrist_np.shape[0]:
+        raise ValueError(f"{context} image batch size mismatch")
+    main_i = main_np.astype(np.int16, copy=False)
+    left_i = left_wrist_np.astype(np.int16, copy=False)
+    right_i = right_wrist_np.astype(np.int16, copy=False)
+    left_diff = np.abs(main_i - left_i).reshape(main_np.shape[0], -1).mean(axis=1)
+    right_diff = np.abs(main_i - right_i).reshape(main_np.shape[0], -1).mean(axis=1)
+    bad_left = np.where(left_diff < min_mean_abs_diff)[0]
+    bad_right = np.where(right_diff < min_mean_abs_diff)[0]
+    if bad_left.size or bad_right.size:
+        raise ValueError(
+            f"{context} wrist images are nearly identical to the head camera "
+            f"(left_bad={bad_left.tolist()}, right_bad={bad_right.tolist()}, "
+            f"left_diff={left_diff.tolist()}, right_diff={right_diff.tolist()}). "
+            "This usually means wrist rendering is disabled or head frames were copied."
+        )
+
+
 def _predict_actions(
     *,
     bundle: dict[str, Any],
@@ -312,15 +349,19 @@ def _predict_actions(
     model = bundle["model"]
     pred_horizon = int(bundle["pred_horizon"])
     per_env_actions: list[np.ndarray] = []
+    _assert_wrist_images_are_real(
+        main_np,
+        left_wrist_np,
+        right_wrist_np,
+        context="dp_predict",
+    )
+    assert left_wrist_np is not None
+    assert right_wrist_np is not None
 
     for i in range(main_np.shape[0]):
         curr_main = _preprocess_rdt_image(main_np[i])
-        curr_left = _preprocess_rdt_image(
-            left_wrist_np[i] if left_wrist_np is not None else main_np[i]
-        )
-        curr_right = _preprocess_rdt_image(
-            right_wrist_np[i] if right_wrist_np is not None else main_np[i]
-        )
+        curr_left = _preprocess_rdt_image(left_wrist_np[i])
+        curr_right = _preprocess_rdt_image(right_wrist_np[i])
         cold_start = prev_imgs[i]["main"] is None
         # The smoke/eval client can sync the true last two observations after
         # each executed chunk. Without that sync, fall back to the last observed
@@ -400,6 +441,7 @@ def handle_client(
     bundle: Optional[dict[str, Any]] = None
     expected_batch_size: Optional[int] = None
     prev_imgs: Optional[list[dict[str, Optional[np.ndarray]]]] = None
+    needs_history_sync = False
     dev = _resolve_torch_device(map_location)
 
     try:
@@ -451,6 +493,7 @@ def handle_client(
                     )
                     expected_batch_size = None
                     prev_imgs = None
+                    needs_history_sync = False
                     meta_out = {
                         "n_obs_steps": int(bundle["n_obs_steps"]),
                         "horizon": int(bundle["pred_horizon"]),
@@ -495,6 +538,7 @@ def handle_client(
                     if env_idx is None and env_mask is None:
                         prev_imgs = None
                         expected_batch_size = None
+                        needs_history_sync = False
                         _ok_reply(conn, req, {"ack_batch_size": None, "selective": False})
                         continue
                     if prev_imgs is None or expected_batch_size is None:
@@ -533,6 +577,7 @@ def handle_client(
                             "cleared_slots": int(mask.sum()),
                         },
                     )
+                    needs_history_sync = False
                     continue
 
                 if op == "dp_set_image_history":
@@ -568,6 +613,12 @@ def handle_client(
                     right_np = np.frombuffer(
                         blob[off : off + right_sz], dtype=right_wrist_dtype
                     ).reshape(right_wrist_shape).copy()
+                    _assert_wrist_images_are_real(
+                        main_np.reshape((-1,) + main_np.shape[2:]),
+                        left_np.reshape((-1,) + left_np.shape[2:]),
+                        right_np.reshape((-1,) + right_np.shape[2:]),
+                        context="dp_set_image_history",
+                    )
 
                     bsz = int(main_np.shape[0])
                     hist_len = int(main_np.shape[1])
@@ -607,6 +658,7 @@ def handle_client(
                             "history_len": hist_len,
                         },
                     )
+                    needs_history_sync = False
                     if log_ops:
                         print(
                             f"[robotwin_rdt_server] op=dp_set_image_history ok "
@@ -616,6 +668,13 @@ def handle_client(
                     continue
 
                 if op == "dp_predict":
+                    if needs_history_sync:
+                        raise RuntimeError(
+                            "dp_predict called again before dp_set_image_history. "
+                            "Remote RDT executes action chunks in the env, so the "
+                            "server must receive the true post-chunk image history "
+                            "before the next prediction."
+                        )
                     main_shape = tuple(req["main_shape"])
                     state_shape = tuple(req["state_shape"])
                     main_dtype = np.dtype(req["main_dtype"])
@@ -662,6 +721,12 @@ def handle_client(
                             blob[off : off + right_wrist_sz], dtype=right_wrist_dtype
                         ).reshape(right_wrist_shape).copy()
                         off += right_wrist_sz
+                    else:
+                        raise ValueError(
+                            "dp_predict requires left/right wrist images for RDT-170M. "
+                            "Start RoboTwin with camera.collect_wrist_camera=true and "
+                            "send left_wrist_images/right_wrist_images from the client."
+                        )
 
                     bsz = int(main_np.shape[0])
                     if expected_batch_size is None:
@@ -719,6 +784,7 @@ def handle_client(
                         },
                         raw,
                     )
+                    needs_history_sync = True
                     if log_ops:
                         print(
                             f"[robotwin_rdt_server] op=dp_predict ok B={bsz} "
@@ -733,6 +799,7 @@ def handle_client(
                     bundle = None
                     expected_batch_size = None
                     prev_imgs = None
+                    needs_history_sync = False
                     _ok_reply(conn, req)
                     continue
 

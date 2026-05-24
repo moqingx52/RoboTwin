@@ -303,10 +303,15 @@ class place_empty_cup(Base_Task):
         state = obs.get("joint_action", {}).get("vector")
         if head is None or state is None:
             return None
+        if left is None or right is None:
+            raise RuntimeError(
+                "place_empty_cup RDT history requires left/right wrist RGB; "
+                "set camera.collect_wrist_camera=true in the RoboTwin task config."
+            )
         return {
             "full_image": np.asarray(head).copy(),
-            "left_wrist_image": np.asarray(left if left is not None else head).copy(),
-            "right_wrist_image": np.asarray(right if right is not None else head).copy(),
+            "left_wrist_image": np.asarray(left).copy(),
+            "right_wrist_image": np.asarray(right).copy(),
             "state": np.asarray(state, dtype=np.float32).reshape(-1).copy(),
             "instruction": str(self.get_instruction()),
         }
@@ -321,10 +326,11 @@ class place_empty_cup(Base_Task):
         right = observation.get("right_camera", {}).get("rgb")
         if head is None:
             return
-        if left is None:
-            left = head
-        if right is None:
-            right = head
+        if left is None or right is None:
+            raise RuntimeError(
+                "RDT success dataset requires wrist cameras; "
+                "set camera.collect_wrist_camera=true in the RoboTwin task config."
+            )
         qpos = obs.get("joint_action", {}).get("vector")
         if qpos is None:
             return

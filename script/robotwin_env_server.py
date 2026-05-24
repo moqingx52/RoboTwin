@@ -179,6 +179,35 @@ def _build_obs_schema(
         "collect_head_camera": cam.get("collect_head_camera", True),
         "collect_wrist_camera": cam.get("collect_wrist_camera", False),
     }
+    if sample_obs is not None:
+        sample_keys = [k for k, v in sample_obs.items() if v is not None]
+        schema["sample_obs_keys"] = sample_keys
+        if cam.get("collect_wrist_camera", False):
+            if sample_obs.get("left_wrist_image") is None or sample_obs.get("right_wrist_image") is None:
+                raise RuntimeError(
+                    "task_config.camera.collect_wrist_camera=true but the first "
+                    "RoboTwin observation has no left/right wrist RGB images. "
+                    "Check the embodiment camera links and wrist camera rendering."
+                )
+            head = sample_obs.get("full_image")
+            left = sample_obs.get("left_wrist_image")
+            right = sample_obs.get("right_wrist_image")
+            if head is not None:
+                head_i = np.asarray(head, dtype=np.int16)
+                left_diff = float(
+                    np.abs(head_i - np.asarray(left, dtype=np.int16)).mean()
+                )
+                right_diff = float(
+                    np.abs(head_i - np.asarray(right, dtype=np.int16)).mean()
+                )
+                schema["sample_cam_high_vs_left_wrist_mean_abs_diff"] = left_diff
+                schema["sample_cam_high_vs_right_wrist_mean_abs_diff"] = right_diff
+                if left_diff < 1.0 or right_diff < 1.0:
+                    raise RuntimeError(
+                        "RoboTwin wrist RGB is nearly identical to head RGB during "
+                        f"env init (left_diff={left_diff:.4f}, right_diff={right_diff:.4f}). "
+                        "Wrist cameras are likely not rendering correctly."
+                    )
     if sample_obs is not None and sample_obs.get("state") is not None:
         st = np.asarray(sample_obs["state"])
         schema["state_dim"] = int(st.reshape(-1).shape[0])
@@ -189,11 +218,15 @@ def _build_obs_schema(
 
 def load_task_config(config_path: Path) -> tuple[dict, Optional[str]]:
     with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
     assets = cfg.get("assets_path") or cfg.get("ASSETS_PATH")
     task_config = cfg.get("task_config")
-    if task_config is None:
-        task_config = {}
+    if not isinstance(task_config, dict):
+        # RoboTwin task_config/*.yml are flat task configs (no nested task_config key).
+        if isinstance(cfg, dict) and cfg.get("task_config") is None:
+            task_config = dict(cfg)
+        else:
+            task_config = {}
     return task_config, assets
 
 
@@ -340,6 +373,10 @@ def handle_client_connection(
                             try:
                                 sample = venv.get_obs()[0]
                             except Exception:
+                                if (tc_use.get("camera") or {}).get(
+                                    "collect_wrist_camera", False
+                                ):
+                                    raise
                                 sample = None
                         obs_schema = _build_obs_schema(tc_use, sample)
                         _ok_reply(conn, req, {"obs_schema": obs_schema})
@@ -353,6 +390,8 @@ def handle_client_connection(
                             print(
                                 f"[robotwin_env_server] op=init ok{rid_s} n_envs={n_envs} "
                                 f"task_name={tn!r} env_seeds={sd} state_dim={obs_schema.get('state_dim')}",
+                                f"collect_wrist_camera={obs_schema.get('collect_wrist_camera')} "
+                                f"obs_keys={obs_schema.get('obs_keys')}",
                                 flush=True,
                             )
                     finally:
