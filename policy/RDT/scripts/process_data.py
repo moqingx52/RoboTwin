@@ -2,6 +2,7 @@ import sys
 
 sys.path.append("./")
 
+import json
 import os
 import h5py
 import numpy as np
@@ -10,6 +11,27 @@ import cv2
 import argparse
 import yaml
 from scripts.encode_lang_batch_once import encode_lang
+
+
+def write_episode_instruction_json(data_file_path: str, target_dir: str) -> str:
+    """Copy RoboTwin episode instructions into the RDT episode dir for training audit."""
+    if not os.path.isfile(data_file_path):
+        raise FileNotFoundError(f"Missing episode instruction file: {data_file_path}")
+
+    with open(data_file_path, "r", encoding="utf-8") as f:
+        instruction_dict = json.load(f)
+
+    seen = instruction_dict.get("seen")
+    if isinstance(seen, list) and seen and "instruction" not in instruction_dict:
+        instruction_dict["instruction"] = seen[0]
+    elif isinstance(seen, str) and "instruction" not in instruction_dict:
+        instruction_dict["instruction"] = seen
+
+    os.makedirs(target_dir, exist_ok=True)
+    instruction_json_path = os.path.join(target_dir, "instruction.json")
+    with open(instruction_json_path, "w", encoding="utf-8") as f:
+        json.dump(instruction_dict, f, indent=2, ensure_ascii=False)
+    return instruction_json_path
 
 
 def load_hdf5(dataset_path):
@@ -157,10 +179,17 @@ if __name__ == "__main__":
     tokenizer, text_encoder = None, None
     for idx in range(expert_data_num):
         print(f"Processing Language: {idx}", end="\r")
-        data_file_path = (f"../../data/{task_name}/{task_config}/instructions/episode{idx}.json")
-        target_dir = (f"processed_data/{task_name}-{task_config}-{expert_data_num}/episode_{idx}")
+        data_file_path = os.path.join(
+            "../../data",
+            task_name,
+            task_config,
+            "instructions",
+            f"episode{idx}.json",
+        )
+        target_dir = f"processed_data/{task_name}-{task_config}-{expert_data_num}/episode_{idx}"
+        instruction_json_path = write_episode_instruction_json(data_file_path, target_dir)
         tokenizer, text_encoder = encode_lang(
-            DATA_FILE_PATH=data_file_path,
+            DATA_FILE_PATH=instruction_json_path,
             TARGET_DIR=target_dir,
             GPU=0,
             desc_type="seen",
