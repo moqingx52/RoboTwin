@@ -1,0 +1,3 @@
+[submodule "policy/wall-x"]
+	path = policy/wall-x
+	url = git@github.com:moqingx52/wall-x.git
