@@ -38,6 +38,7 @@ class DPRunner:
 
         self.obs = deque(maxlen=n_obs_steps + 1)
         self.env = None
+        self.generator = None
 
     def stack_last_n_obs(self, all_obs, n_steps):
         assert len(all_obs) > 0
@@ -75,7 +76,7 @@ class DPRunner:
 
         return result
 
-    def get_action(self, policy: BaseImagePolicy, observaton=None):
+    def get_action(self, policy: BaseImagePolicy, observaton=None, generator=None):
         device, dtype = policy.device, policy.dtype
         if observaton is not None:
             self.obs.append(observaton)  # update
@@ -94,7 +95,7 @@ class DPRunner:
             obs_dict_input["right_cam"] = obs_dict["right_cam"].unsqueeze(0)
             obs_dict_input["agent_pos"] = obs_dict["agent_pos"].unsqueeze(0)
 
-            action_dict = policy.predict_action(obs_dict_input)
+            action_dict = policy.predict_action(obs_dict_input, generator=generator or self.generator)
 
         # device_transfer
         np_action_dict = dict_apply(action_dict, lambda x: x.detach().to("cpu").numpy())

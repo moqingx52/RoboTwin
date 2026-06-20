@@ -67,6 +67,17 @@ class RobotWorkspace(BaseWorkspace):
                 print(f"Resuming from checkpoint {lastest_ckpt_path}")
                 self.load_checkpoint(path=lastest_ckpt_path)
 
+        resume_from_ckpt = OmegaConf.select(cfg, "training.resume_from_ckpt", default=None)
+        if resume_from_ckpt:
+            print(f"Loading model weights from {resume_from_ckpt}")
+            self.load_checkpoint(
+                path=resume_from_ckpt,
+                exclude_keys=("optimizer", ),
+                include_keys=(),
+            )
+            self.global_step = 0
+            self.epoch = 0
+
         # configure dataset
         dataset: BaseImageDataset
         dataset = hydra.utils.instantiate(cfg.task.dataset)

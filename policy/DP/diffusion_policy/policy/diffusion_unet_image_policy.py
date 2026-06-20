@@ -122,7 +122,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
 
         return trajectory
 
-    def predict_action(self, obs_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def predict_action(self, obs_dict: Dict[str, torch.Tensor], generator=None) -> Dict[str, torch.Tensor]:
         """
         obs_dict: must include "obs" key
         result: must include "action" key
@@ -170,6 +170,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
             cond_mask,
             local_cond=local_cond,
             global_cond=global_cond,
+            generator=generator,
             **self.kwargs,
         )
 
@@ -254,5 +255,12 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         loss = F.mse_loss(pred, target, reduction="none")
         loss = loss * loss_mask.type(loss.dtype)
         loss = reduce(loss, "b ... -> b (...)", "mean")
-        loss = loss.mean()
+        sample_weight = batch.get("sample_weight")
+        if sample_weight is not None:
+            if sample_weight.ndim > 1:
+                sample_weight = sample_weight.float().mean(dim=tuple(range(1, sample_weight.ndim)))
+            sample_weight = sample_weight.to(device=loss.device, dtype=loss.dtype)
+            loss = (loss * sample_weight).sum() / sample_weight.sum().clamp_min(1e-6)
+        else:
+            loss = loss.mean()
         return loss
