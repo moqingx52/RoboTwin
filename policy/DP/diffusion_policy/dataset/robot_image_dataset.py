@@ -3,6 +3,7 @@ import numba
 import torch
 import numpy as np
 import copy
+import zarr
 from diffusion_policy.common.pytorch_util import dict_apply
 from diffusion_policy.common.replay_buffer import ReplayBuffer
 from diffusion_policy.common.sampler import (
@@ -31,10 +32,15 @@ class RobotImageDataset(BaseImageDataset):
     ):
 
         super().__init__()
+        zarr_root = zarr.open(zarr_path, mode="r")
+        replay_keys = ["head_camera", "state", "action"]
+        if "sample_weight" in zarr_root["data"]:
+            replay_keys.append("sample_weight")
+
         self.replay_buffer = ReplayBuffer.copy_from_path(
             zarr_path,
             # keys=['head_camera', 'front_camera', 'left_camera', 'right_camera', 'state', 'action'],
-            keys=["head_camera", "state", "action"],
+            keys=replay_keys,
         )
 
         val_mask = get_val_mask(n_episodes=self.replay_buffer.n_episodes, val_ratio=val_ratio, seed=seed)
@@ -108,6 +114,8 @@ class RobotImageDataset(BaseImageDataset):
             },
             "action": sample["action"].astype(np.float32),  # T, D
         }
+        if "sample_weight" in sample:
+            data["sample_weight"] = sample["sample_weight"].astype(np.float32)
         return data
 
     def __getitem__(self, idx) -> Dict[str, torch.Tensor]:
@@ -138,7 +146,7 @@ class RobotImageDataset(BaseImageDataset):
         # left_cam = samples['left_camera'].to(device, non_blocking=True) / 255.0
         # right_cam = samples['right_camera'].to(device, non_blocking=True) / 255.0
         action = samples["action"].to(device, non_blocking=True)
-        return {
+        data = {
             "obs": {
                 "head_cam": head_cam,  # B, T, 3, H, W
                 # 'front_cam': front_cam, # B, T, 3, H, W
@@ -148,6 +156,9 @@ class RobotImageDataset(BaseImageDataset):
             },
             "action": action,  # B, T, D
         }
+        if "sample_weight" in samples:
+            data["sample_weight"] = samples["sample_weight"].to(device, non_blocking=True).float()
+        return data
 
 
 def _batch_sample_sequence(

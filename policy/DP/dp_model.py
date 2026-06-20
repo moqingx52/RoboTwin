@@ -23,6 +23,9 @@ class DP:
     def reset_obs(self):
         self.runner.reset_obs()
 
+    def set_generator(self, generator):
+        self.runner.generator = generator
+
     def get_action(self, observation=None):
         action = self.runner.get_action(self.policy, observation)
         return action
