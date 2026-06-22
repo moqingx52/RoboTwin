@@ -1626,6 +1626,13 @@ class Base_Task(gym.Env):
 
         now_left_id, now_right_id = 0, 0
 
+        save_freq = self.save_freq if self.save_freq is not None else 15
+        if not self.save_data:
+            save_freq = None
+        if save_freq is not None:
+            self._take_picture()
+
+        control_idx = 0
         # ========== Control Loop ==========
         while now_left_id < left_n_step or now_right_id < right_n_step:
 
@@ -1653,17 +1660,26 @@ class Base_Task(gym.Env):
 
             self.scene.step()
             self._update_render()
-                
+
+            if save_freq is not None and control_idx % save_freq == 0:
+                self._take_picture()
+            control_idx += 1
+
             if self.check_success():
                 self.eval_success = True
                 self.get_obs() # update obs
                 if (self.eval_video_path is not None):
                     self.eval_video_ffmpeg.stdin.write(self.now_obs["observation"]["head_camera"]["rgb"].tobytes())
+                if save_freq is not None:
+                    self._take_picture()
                 return
 
         self._update_render()
         if self.render_freq:  # UI
             self.viewer.render()
+
+        if save_freq is not None:
+            self._take_picture()
 
 
     def save_camera_images(self, task_name, step_name, generate_num_id, save_dir="./camera_images"):
