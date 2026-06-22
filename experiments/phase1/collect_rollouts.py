@@ -55,6 +55,8 @@ def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_r
             "render_freq": 0,
         }
     )
+    if run_args.get("save_freq") is None:
+        run_args["save_freq"] = 15
 
     try:
         if hasattr(model, "set_generator"):
