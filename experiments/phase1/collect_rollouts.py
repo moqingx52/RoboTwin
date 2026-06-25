@@ -21,6 +21,16 @@ from common import (
 sys.path.append(str(repo_path()))
 
 
+def path_for_manifest(path: Path) -> str:
+    """Return a stable path string without crashing on mixed abs/rel mounts."""
+    abs_path = path.resolve()
+    repo_root = repo_path().resolve()
+    try:
+        return str(abs_path.relative_to(repo_root))
+    except ValueError:
+        return str(abs_path)
+
+
 def make_model_args(task_name, task_config, ckpt_setting, expert_data_num, train_seed, checkpoint_num, action_dim):
     # Aloha-AgileX DP uses 6 arm joints + 1 gripper per arm.
     arm_dim = (action_dim - 2) // 2
@@ -99,7 +109,7 @@ def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_r
             "policy_seed": int(rollout_id),
             "episode_idx": int(episode_idx),
             "success": bool(success),
-            "hdf5_path": str(success_path.relative_to(repo_path())) if success_path else None,
+            "hdf5_path": path_for_manifest(success_path) if success_path else None,
             "steps": int(env.take_action_cnt),
         }
     finally:
@@ -165,7 +175,7 @@ def main():
     seeds_payload = read_json(seeds_file)
     seeds = split_range(seeds_payload["train_rollout"], args.shard_id, args.num_shards)
 
-    save_root = args.output_dir / args.task_name
+    save_root = (args.output_dir / args.task_name).resolve()
     if args.num_shards > 1:
         manifest_path = save_root / f"manifest_shard_{args.shard_id:02d}_of_{args.num_shards:02d}.jsonl"
         stats_path = save_root / f"seed_stats_shard_{args.shard_id:02d}_of_{args.num_shards:02d}.json"
