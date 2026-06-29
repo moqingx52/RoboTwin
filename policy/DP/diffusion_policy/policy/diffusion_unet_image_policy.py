@@ -254,12 +254,20 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
 
         loss = F.mse_loss(pred, target, reduction="none")
         loss = loss * loss_mask.type(loss.dtype)
-        loss = reduce(loss, "b ... -> b (...)", "mean")
+        # Reduce action/time dimensions first so weighting is strictly
+        # per batch sample. Keeping a flattened [B, T*Da] tensor here makes a
+        # [B] weight align with the action dimension under PyTorch broadcasting.
+        loss = reduce(loss, "b ... -> b", "mean")
         sample_weight = batch.get("sample_weight")
         if sample_weight is not None:
             if sample_weight.ndim > 1:
                 sample_weight = sample_weight.float().mean(dim=tuple(range(1, sample_weight.ndim)))
             sample_weight = sample_weight.to(device=loss.device, dtype=loss.dtype)
+            if sample_weight.shape != loss.shape:
+                raise ValueError(
+                    f"Expected one sample weight per batch item, got "
+                    f"loss shape {tuple(loss.shape)} and weight shape {tuple(sample_weight.shape)}"
+                )
             loss = (loss * sample_weight).sum() / sample_weight.sum().clamp_min(1e-6)
         else:
             loss = loss.mean()
