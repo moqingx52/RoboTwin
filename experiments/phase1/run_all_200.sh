@@ -105,11 +105,11 @@ run_finetune() {
   for task in "${tasks[@]}"; do
     if [[ "${steps_per_epoch_setting}" == "auto" ]]; then
       task_steps_per_epoch=$(python "${phase_dir}/dataset_train_batches.py" \
-        "${data_dir}/${task}-success.zarr" --batch-size 128)
+        "${data_dir}/${task}-expert_only.zarr" --batch-size 128)
     else
       task_steps_per_epoch="${steps_per_epoch_setting}"
     fi
-    echo "${task}: fixed training batches per epoch=${task_steps_per_epoch}"
+    echo "${task}: fixed training batches per epoch=${task_steps_per_epoch} (expert-only reference)"
     for variant in "${variants[@]}"; do
       for seed in "${train_seeds[@]}"; do
         gpu=$((job % num_gpus))
