@@ -30,7 +30,7 @@ bash experiments/phase1/run_all.sh all 8
 The 200-demo experiment uses isolated rollout, dataset, evaluation, figure, and log directories.
 It also includes an `expert_only` continued-training control so improvements cannot be explained
 only by the additional fine-tuning epochs. For each task, all variants use the natural number of
-batches in that task's `success` dataset, so dataset size does not silently change optimizer
+batches in that task's `expert_only` dataset, so dataset size does not silently change optimizer
 compute. Override the automatically selected value with `FINETUNE_STEPS_PER_EPOCH` when needed.
 
 After rollout collection has completed, run:

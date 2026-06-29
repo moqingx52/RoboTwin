@@ -300,10 +300,13 @@ class BatchSampler:
         self.data_size = data_size
         self.batch_size = batch_size
         self.natural_num_batch = data_size // batch_size
-        if self.natural_num_batch == 0:
-            raise ValueError(f"Dataset has {data_size} samples, fewer than batch_size={batch_size}.")
+        if self.natural_num_batch == 0 and num_batches is not None:
+            raise ValueError(
+                f"Cannot request fixed batches: dataset has {data_size} samples, "
+                f"fewer than batch_size={batch_size}."
+            )
         self.num_batch = int(num_batches) if num_batches is not None else self.natural_num_batch
-        if self.num_batch <= 0:
+        if self.num_batch < 0:
             raise ValueError(f"num_batches must be positive, got {self.num_batch}.")
         self.discard = data_size - batch_size * self.natural_num_batch
         self.shuffle = shuffle
@@ -316,6 +319,8 @@ class BatchSampler:
                 indices = self.rng.permutation(self.data_size)
             else:
                 indices = np.arange(self.data_size)
+            if self.natural_num_batch == 0:
+                return
             if self.discard > 0:
                 indices = indices[:-self.discard]
             indices = indices.reshape(self.natural_num_batch, self.batch_size)
