@@ -81,15 +81,30 @@ def hard_seeds_from_stats(seed_stats, count=20):
 def main():
     parser = argparse.ArgumentParser(description="Evaluate DP checkpoints per seed for phase1 diagnostics.")
     add_common_args(parser)
-    parser.add_argument("--variant", required=True, choices=("base", "success", "seed_balanced", "difficulty_weighted"))
+    parser.add_argument(
+        "--variant",
+        required=True,
+        choices=("base", "expert_only", "success", "seed_balanced", "difficulty_weighted"),
+    )
     parser.add_argument("--ckpt-path", type=Path, required=True)
     parser.add_argument("--seeds-file", type=Path)
+    parser.add_argument(
+        "--hard-seeds-file",
+        type=Path,
+        help="Optional JSON list (or object with hard_seeds) defining a shared held-out hard split.",
+    )
     parser.add_argument("--rollout-dir", type=Path, default=repo_path("experiments", "phase1", "rollouts"))
     parser.add_argument("--output-dir", type=Path, default=repo_path("experiments", "phase1", "eval_results"))
     parser.add_argument("--action-dim", type=int, default=14)
     parser.add_argument("--id-repeats", type=int, default=3)
     parser.add_argument("--train-repeats", type=int, default=3)
     parser.add_argument("--hard-repeats", type=int, default=8)
+    parser.add_argument(
+        "--policy-seed-offset",
+        type=int,
+        default=0,
+        help="Offset stochastic policy seeds; use a fresh offset after selecting a hard split.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -97,7 +112,14 @@ def main():
     seed_payload = read_json(seeds_file)
     seed_stats_path = args.rollout_dir / args.task_name / "seed_stats.json"
     seed_stats = read_json(seed_stats_path) if seed_stats_path.exists() else {}
-    hard_seeds = hard_seeds_from_stats(seed_stats) if seed_stats else seed_payload["train_rollout"][:20]
+    if args.hard_seeds_file:
+        hard_payload = read_json(args.hard_seeds_file)
+        hard_seeds = hard_payload["hard_seeds"] if isinstance(hard_payload, dict) else hard_payload
+        hard_seeds = [int(seed) for seed in hard_seeds]
+        hard_seed_source = str(args.hard_seeds_file)
+    else:
+        hard_seeds = hard_seeds_from_stats(seed_stats) if seed_stats else seed_payload["train_rollout"][:20]
+        hard_seed_source = "train_rollout_seed_stats"
 
     rows = []
     if args.dry_run:
@@ -113,7 +135,7 @@ def main():
                             "split": split,
                             "env_seed": int(env_seed),
                             "repeat": repeat,
-                            "policy_seed": repeat,
+                            "policy_seed": args.policy_seed_offset + repeat,
                             "success": repeat % 2 == 0,
                             "steps": 0,
                         }
@@ -132,12 +154,13 @@ def main():
         ):
             for env_seed in seeds:
                 for repeat in range(repeats):
-                    result = evaluate_once(args.task_name, env_args, model, env_seed, repeat)
+                    policy_seed = args.policy_seed_offset + repeat
+                    result = evaluate_once(args.task_name, env_args, model, env_seed, policy_seed)
                     row = {
                         "split": split,
                         "env_seed": int(env_seed),
                         "repeat": repeat,
-                        "policy_seed": repeat,
+                        "policy_seed": policy_seed,
                         **result,
                     }
                     rows.append(row)
@@ -154,6 +177,7 @@ def main():
             "hard_20": summarize(rows, "hard_20"),
         },
         "hard_seeds": hard_seeds,
+        "hard_seed_source": hard_seed_source,
         "rows": rows,
     }
     out_path = args.output_dir / args.task_name / f"{args.variant}.json"
@@ -163,4 +187,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

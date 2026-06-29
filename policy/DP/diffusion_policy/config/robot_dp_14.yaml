@@ -74,6 +74,9 @@ ema:
 
 dataloader:
   batch_size: 128
+  # Optional fixed optimizer batches per epoch. When set, the sampler cycles
+  # uniformly over the dataset so variants of different sizes get equal compute.
+  num_batches: null
   num_workers: 0
   shuffle: True
   pin_memory: True

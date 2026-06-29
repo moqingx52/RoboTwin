@@ -25,6 +25,51 @@ Run all four tasks on an 8-GPU node:
 bash experiments/phase1/run_all.sh all 8
 ```
 
+## Clean 200-Demo Pipeline
+
+The 200-demo experiment uses isolated rollout, dataset, evaluation, figure, and log directories.
+It also includes an `expert_only` continued-training control so improvements cannot be explained
+only by the additional fine-tuning epochs. For each task, all variants use the natural number of
+batches in that task's `success` dataset, so dataset size does not silently change optimizer
+compute. Override the automatically selected value with `FINETUNE_STEPS_PER_EPOCH` when needed.
+
+After rollout collection has completed, run:
+
+```bash
+bash experiments/phase1/run_all_200.sh verify 8
+bash experiments/phase1/run_all_200.sh merge 8
+bash experiments/phase1/run_all_200.sh build 8
+bash experiments/phase1/run_all_200.sh finetune 8
+bash experiments/phase1/run_all_200.sh eval 8
+```
+
+The pilot defaults to one fine-tuning seed. For the formal three-seed experiment:
+
+```bash
+TRAIN_SEEDS="0 1 2" bash experiments/phase1/run_all_200.sh finetune 8
+TRAIN_SEEDS="0 1 2" bash experiments/phase1/run_all_200.sh eval 8
+```
+
+Tasks and variants can be restricted without editing the script:
+
+```bash
+TASKS="place_container_plate dump_bin_bigbin" \
+VARIANTS="expert_only success seed_balanced difficulty_weighted" \
+bash experiments/phase1/run_all_200.sh finetune 8
+```
+
+Outputs:
+
+- Rollouts: `experiments/phase1/rollouts_200`
+- Datasets: `policy/DP/data_phase1_200`
+- Evaluation: `experiments/phase1/eval_results_200`
+- Shared held-out hard splits: `experiments/phase1/eval_results_200/hard_eval_seeds`
+- Figures: `experiments/phase1/figures_200`
+- Per-job logs: `experiments/phase1/logs_200`
+
+The Base hard-split probe uses policy seeds 0--7. Final evaluation uses a disjoint stochastic
+policy-seed range starting at 1000, preventing selection noise from biasing the hard-split result.
+
 The `rollout` stage uses 8 stable independent workers by default:
 
 ```text
@@ -78,4 +123,3 @@ python experiments/phase1/generate_seed_splits.py --task click_alarmclock --dry-
 python experiments/phase1/collect_rollouts.py --task click_alarmclock --dry-run
 python experiments/phase1/eval_per_seed.py --task click_alarmclock --variant base --ckpt-path policy/DP/checkpoints/dummy.ckpt --dry-run
 ```
-
