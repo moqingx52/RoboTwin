@@ -294,25 +294,36 @@ class BatchSampler:
         shuffle: bool = False,
         seed: int = 0,
         drop_last: bool = True,
+        num_batches: int = None,
     ):
         assert drop_last
         self.data_size = data_size
         self.batch_size = batch_size
-        self.num_batch = data_size // batch_size
-        self.discard = data_size - batch_size * self.num_batch
+        self.natural_num_batch = data_size // batch_size
+        if self.natural_num_batch == 0:
+            raise ValueError(f"Dataset has {data_size} samples, fewer than batch_size={batch_size}.")
+        self.num_batch = int(num_batches) if num_batches is not None else self.natural_num_batch
+        if self.num_batch <= 0:
+            raise ValueError(f"num_batches must be positive, got {self.num_batch}.")
+        self.discard = data_size - batch_size * self.natural_num_batch
         self.shuffle = shuffle
         self.rng = np.random.default_rng(seed) if shuffle else None
 
     def __iter__(self):
-        if self.shuffle:
-            perm = self.rng.permutation(self.data_size)
-        else:
-            perm = np.arange(self.data_size)
-        if self.discard > 0:
-            perm = perm[:-self.discard]
-        perm = perm.reshape(self.num_batch, self.batch_size)
-        for i in range(self.num_batch):
-            yield perm[i]
+        yielded = 0
+        while yielded < self.num_batch:
+            if self.shuffle:
+                indices = self.rng.permutation(self.data_size)
+            else:
+                indices = np.arange(self.data_size)
+            if self.discard > 0:
+                indices = indices[:-self.discard]
+            indices = indices.reshape(self.natural_num_batch, self.batch_size)
+            for batch in indices:
+                if yielded >= self.num_batch:
+                    return
+                yield batch
+                yielded += 1
 
     def __len__(self):
         return self.num_batch
@@ -327,8 +338,16 @@ def create_dataloader(
     pin_memory: bool,
     persistent_workers: bool,
     seed: int = 0,
+    num_batches: int = None,
 ):
-    batch_sampler = BatchSampler(len(dataset), batch_size, shuffle=shuffle, seed=seed, drop_last=True)
+    batch_sampler = BatchSampler(
+        len(dataset),
+        batch_size,
+        shuffle=shuffle,
+        seed=seed,
+        drop_last=True,
+        num_batches=num_batches,
+    )
 
     def collate(x):
         assert len(x) == 1

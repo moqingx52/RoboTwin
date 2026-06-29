@@ -39,6 +39,8 @@ def expert_episodes(task_name, task_config, expert_data_num):
 
 
 def rollout_success_episodes(task_name, rollout_dir, variant, seed_stats):
+    if variant == "expert_only":
+        return []
     manifest = rollout_dir / task_name / "manifest.jsonl"
     rows = [row for row in iter_jsonl(manifest) if row.get("success") and row.get("hdf5_path")]
     if variant == "seed_balanced":
@@ -173,6 +175,7 @@ def main():
     episodes.extend(rollout_success_episodes(args.task_name, args.rollout_dir, args.variant, seed_stats))
 
     suffix = {
+        "expert_only": "expert_only",
         "success": "success",
         "seed_balanced": "seed_balanced",
         "difficulty_weighted": "difficulty_weighted",
@@ -195,4 +198,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

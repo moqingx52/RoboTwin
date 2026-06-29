@@ -27,6 +27,7 @@ TASKS = (
 )
 
 VARIANTS = (
+    "expert_only",
     "success",
     "seed_balanced",
     "difficulty_weighted",
@@ -170,4 +171,3 @@ def copy_episode(src: Path, dst_dir: Path, episode_name: str) -> Path:
 def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--task", dest="task_name", required=True, choices=TASKS)
     parser.add_argument("--task-config", default="demo_clean")
-
