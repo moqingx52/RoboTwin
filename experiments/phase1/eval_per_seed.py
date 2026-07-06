@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 import yaml
 
-from common import add_common_args, load_task_args, make_task_env, read_json, repo_path, write_json
+from common import add_common_args, load_task_args, make_task_env, read_json, repo_path, split_range, write_json
 
 sys.path.append(str(repo_path()))
 
@@ -78,6 +78,19 @@ def hard_seeds_from_stats(seed_stats, count=20):
     return [int(seed) for seed, _ in items[:count]]
 
 
+def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_repeats):
+    items = []
+    for split, seeds, repeats in (
+        ("id_heldout", seed_payload["eval_id"], id_repeats),
+        ("train_seen", seed_payload["train_rollout"], train_repeats),
+        ("hard_20", hard_seeds, hard_repeats),
+    ):
+        for env_seed in seeds:
+            for repeat in range(repeats):
+                items.append((split, int(env_seed), repeat))
+    return items
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate DP checkpoints per seed for phase1 diagnostics.")
     add_common_args(parser)
@@ -105,6 +118,8 @@ def main():
         default=0,
         help="Offset stochastic policy seeds; use a fresh offset after selecting a hard split.",
     )
+    parser.add_argument("--shard-id", type=int, default=0)
+    parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -121,25 +136,25 @@ def main():
         hard_seeds = hard_seeds_from_stats(seed_stats) if seed_stats else seed_payload["train_rollout"][:20]
         hard_seed_source = "train_rollout_seed_stats"
 
+    work_items = build_work_items(
+        seed_payload, hard_seeds, args.id_repeats, args.train_repeats, args.hard_repeats
+    )
+    if args.num_shards > 1:
+        work_items = split_range(work_items, args.shard_id, args.num_shards)
+
     rows = []
     if args.dry_run:
-        for split, seeds, repeats in (
-            ("id_heldout", seed_payload["eval_id"], args.id_repeats),
-            ("train_seen", seed_payload["train_rollout"], args.train_repeats),
-            ("hard_20", hard_seeds, args.hard_repeats),
-        ):
-            for env_seed in seeds:
-                for repeat in range(repeats):
-                    rows.append(
-                        {
-                            "split": split,
-                            "env_seed": int(env_seed),
-                            "repeat": repeat,
-                            "policy_seed": args.policy_seed_offset + repeat,
-                            "success": repeat % 2 == 0,
-                            "steps": 0,
-                        }
-                    )
+        for split, env_seed, repeat in work_items:
+            rows.append(
+                {
+                    "split": split,
+                    "env_seed": env_seed,
+                    "repeat": repeat,
+                    "policy_seed": args.policy_seed_offset + repeat,
+                    "success": repeat % 2 == 0,
+                    "steps": 0,
+                }
+            )
     else:
         os.chdir(repo_path())
         env_args = load_task_args(args.task_name, args.task_config)
@@ -147,24 +162,18 @@ def main():
         env_args["save_data"] = False
         env_args["render_freq"] = 0
         model = load_dp_model(args.ckpt_path, args.action_dim)
-        for split, seeds, repeats in (
-            ("id_heldout", seed_payload["eval_id"], args.id_repeats),
-            ("train_seen", seed_payload["train_rollout"], args.train_repeats),
-            ("hard_20", hard_seeds, args.hard_repeats),
-        ):
-            for env_seed in seeds:
-                for repeat in range(repeats):
-                    policy_seed = args.policy_seed_offset + repeat
-                    result = evaluate_once(args.task_name, env_args, model, env_seed, policy_seed)
-                    row = {
-                        "split": split,
-                        "env_seed": int(env_seed),
-                        "repeat": repeat,
-                        "policy_seed": policy_seed,
-                        **result,
-                    }
-                    rows.append(row)
-                    print(f"[{args.task_name}/{args.variant}] {split} seed={env_seed} repeat={repeat} success={row['success']}")
+        for split, env_seed, repeat in work_items:
+            policy_seed = args.policy_seed_offset + repeat
+            result = evaluate_once(args.task_name, env_args, model, env_seed, policy_seed)
+            row = {
+                "split": split,
+                "env_seed": env_seed,
+                "repeat": repeat,
+                "policy_seed": policy_seed,
+                **result,
+            }
+            rows.append(row)
+            print(f"[{args.task_name}/{args.variant}] {split} seed={env_seed} repeat={repeat} success={row['success']}")
 
     summary = {
         "task_name": args.task_name,
@@ -180,7 +189,14 @@ def main():
         "hard_seed_source": hard_seed_source,
         "rows": rows,
     }
-    out_path = args.output_dir / args.task_name / f"{args.variant}.json"
+    if args.num_shards > 1:
+        out_path = (
+            args.output_dir
+            / args.task_name
+            / f"{args.variant}_shard_{args.shard_id:02d}_of_{args.num_shards:02d}.json"
+        )
+    else:
+        out_path = args.output_dir / args.task_name / f"{args.variant}.json"
     write_json(out_path, summary)
     print(f"Wrote {out_path}")
 

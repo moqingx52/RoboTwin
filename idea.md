@@ -1890,3 +1890,79 @@ Scalable Self-Improvement for Diffusion Policies
 **规模化、多任务、在线迭代和 PPO/GRPO 对比：再用 RLinf。**
 
 你现在最应该先验证的是：成功率从 50% 提高到 80% 时，究竟是更多 seed 被解决了，还是原来会做的 seed 被做得更稳定了。这个实验用单独 RoboTwin 脚本反而最干净。
+
+
+
+
+
+
+
+
+总体判断：这版可以继续跑，分片结果是正确的。单进程与 8 分片 dry-run 对比，逐条结果及汇总完全一致。
+
+  但有三个注意点：
+
+  1. 你前后使用了 /workspace/RoboTwin 和 /depot/rlinf/repos/RoboTwin。先确认它们是同一个挂载，否则 checkpoint、eval 输出和代码可能分散在两个目录：
+
+  readlink -f /workspace/RoboTwin
+  readlink -f /depot/rlinf/repos/RoboTwin
+
+  2. 当前评测是“8 个静态分片各占一张卡”，并非真正的空闲 GPU 动态领取任务。experiments/phase1/run_all_200.sh:85 能让八卡同时工作，但先完成的卡在尾段仍会闲置。现在不要设置 EVAL_SHARDS_PER_JOB>8，否则会同时
+     在一张卡启动多个进程。
+
+  3. experiments/phase1/merge_eval_shards.py:32 目前只检查“文件数量”，重复记录还会静默丢弃，未严格验证 shard ID、metadata 和预期总条数。正常运行没问题，但正式实验前建议补强。另外这个文件目前是 untracked，
+     提交代码时别漏掉：
+
+  ?? experiments/phase1/merge_eval_shards.py
+
+  按默认 100 个 train/eval seed，正确条数应为：
+
+  - 每个 base probe：800 episodes
+  - 每个最终模型：100×3 + 100×3 + 20×8 = 760
+  - 两个任务、每个任务 5 个模型：7600
+  - 加 probe 总计：9200
+
+  因此你贴出的 hard-seed 输出只表示 probe 完成；在那个时间点按 episode 数约完成 17%，后续才是主要评测。
+
+  下一步建议：
+
+  1. 先完成 seed 0 pilot，查看：
+
+  jq -r '
+  to_entries[] as $t |
+  $t.value | to_entries[] |
+  [$t.key, .key,
+   .value.id_heldout.mean_sr.mean,
+   .value.hard_20.mean_sr.mean,
+   .value.hard_20.solved_coverage.mean] | @tsv
+  ' experiments/phase1/eval_results_200/summary.json
+
+  重点判断：
+
+  - expert_only 是否已经解释了全部提升；
+  - success 是否只提高 ID；
+  - seed_balanced / difficulty_weighted 是否提高 hard_20 和 coverage。
+
+  2. 如果两个任务方向一致，再补训练 seed 1、2：
+
+  TASKS="place_container_plate dump_bin_bigbin" \
+  TRAIN_SEEDS="1 2" \
+  bash experiments/phase1/run_all_200.sh finetune 8
+
+  TASKS="place_container_plate dump_bin_bigbin" \
+  TRAIN_SEEDS="1 2" \
+  bash experiments/phase1/run_all_200.sh eval 8
+
+  然后重新聚合 0/1/2：
+
+  python experiments/phase1/aggregate_eval.py \
+    --eval-dir experiments/phase1/eval_results_200 \
+    --train-seeds 0 1 2 \
+    --tasks place_container_plate dump_bin_bigbin \
+    --variants base expert_only success seed_balanced difficulty_weighted \
+    --output experiments/phase1/eval_results_200/summary.json
+
+  3. 三 seed 成立后，再扩展另外两个任务。下一项算法实验优先做 success_plus_failure_prefix，暂时不必直接上更复杂的 RL/critic。
+
+  当前运行不用停。跑完后把 summary.json 发我，我可以直接判断结果是否支持 easy-seed bias，以及下一轮该扩任务还是先改方法。
+
