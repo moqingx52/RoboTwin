@@ -15,7 +15,7 @@ epochs=${FINETUNE_EPOCHS:-200}
 steps_per_epoch_setting=${FINETUNE_STEPS_PER_EPOCH:-auto}
 rollouts_per_seed=${ROLLOUTS_PER_SEED:-8}
 shards_per_task=${SHARDS_PER_TASK:-2}
-eval_shards=${EVAL_SHARDS_PER_JOB:-8}
+eval_shards=${EVAL_SHARDS_PER_JOB:-${num_gpus}}
 action_dim=${ACTION_DIM:-14}
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -194,35 +194,57 @@ run_finetune() {
 
 run_eval() {
   local task variant seed seed_eval_dir hard_seeds_file
+  local reuse_hard_seeds=${REUSE_HARD_SEEDS:-0}
+  local reuse_base_eval_from_seed=${REUSE_BASE_EVAL_FROM_SEED:-}
 
   # Rank difficulty only on held-out eval seeds. Eight repeats reduce the
   # discretization noise before choosing the shared hard-20 split.
   local probe_dir="${eval_dir}/base_probe"
   local hard_dir="${eval_dir}/hard_eval_seeds"
   mkdir -p "${probe_dir}" "${hard_dir}"
+
+  local hard_seeds_ready=1
   for task in "${tasks[@]}"; do
-    run_eval_sharded "eval_probe_${task}_base" "${task}" base "${probe_dir}" \
-      --ckpt-path "${repo_root}/policy/DP/checkpoints/${task}-demo_clean-200-${base_train_seed}/${checkpoint_num}.ckpt" \
-      --rollout-dir "${rollout_dir}" \
-      --id-repeats 8 --train-repeats 0 --hard-repeats 0
+    if [[ ! -s "${hard_dir}/${task}.json" ]]; then
+      hard_seeds_ready=0
+    fi
   done
 
-  cd "${repo_root}"
-  for task in "${tasks[@]}"; do
-    python "${phase_dir}/select_hard_eval_seeds.py" \
-      --base-eval "${probe_dir}/${task}/base.json" --count 20 \
-      --output "${hard_dir}/${task}.json"
-  done
+  if [[ "${reuse_hard_seeds}" == "1" && "${hard_seeds_ready}" == "1" ]]; then
+    echo "Reusing existing hard seeds from ${hard_dir}"
+  else
+    for task in "${tasks[@]}"; do
+      run_eval_sharded "eval_probe_${task}_base" "${task}" base "${probe_dir}" \
+        --ckpt-path "${repo_root}/policy/DP/checkpoints/${task}-demo_clean-200-${base_train_seed}/${checkpoint_num}.ckpt" \
+        --rollout-dir "${rollout_dir}" \
+        --id-repeats 8 --train-repeats 0 --hard-repeats 0
+    done
+
+    cd "${repo_root}"
+    for task in "${tasks[@]}"; do
+      python "${phase_dir}/select_hard_eval_seeds.py" \
+        --base-eval "${probe_dir}/${task}/base.json" --count 20 \
+        --output "${hard_dir}/${task}.json"
+    done
+  fi
 
   for seed in "${train_seeds[@]}"; do
     seed_eval_dir="${eval_dir}/train_seed_${seed}"
     mkdir -p "${seed_eval_dir}"
     for task in "${tasks[@]}"; do
       hard_seeds_file="${hard_dir}/${task}.json"
-      run_eval_sharded "eval_${task}_base_seed${seed}" "${task}" base "${seed_eval_dir}" \
-        --ckpt-path "${repo_root}/policy/DP/checkpoints/${task}-demo_clean-200-${base_train_seed}/${checkpoint_num}.ckpt" \
-        --rollout-dir "${rollout_dir}" \
-        --hard-seeds-file "${hard_seeds_file}" --policy-seed-offset 1000
+      local base_eval_source="${eval_dir}/train_seed_${reuse_base_eval_from_seed}/${task}/base.json"
+      local base_eval_target="${seed_eval_dir}/${task}/base.json"
+      if [[ -n "${reuse_base_eval_from_seed}" && "${seed}" != "${reuse_base_eval_from_seed}" && -s "${base_eval_source}" ]]; then
+        mkdir -p "$(dirname "${base_eval_target}")"
+        cp "${base_eval_source}" "${base_eval_target}"
+        echo "Reused base eval for ${task} seed ${seed} from train_seed_${reuse_base_eval_from_seed}"
+      else
+        run_eval_sharded "eval_${task}_base_seed${seed}" "${task}" base "${seed_eval_dir}" \
+          --ckpt-path "${repo_root}/policy/DP/checkpoints/${task}-demo_clean-200-${base_train_seed}/${checkpoint_num}.ckpt" \
+          --rollout-dir "${rollout_dir}" \
+          --hard-seeds-file "${hard_seeds_file}" --policy-seed-offset 1000
+      fi
 
       for variant in "${variants[@]}"; do
         run_eval_sharded "eval_${task}_${variant}_seed${seed}" "${task}" "${variant}" "${seed_eval_dir}" \
@@ -260,7 +282,9 @@ run_followup_seeds() {
   read -r -a followup_train_seeds <<< "${FOLLOWUP_TRAIN_SEEDS:-1 2}"
   train_seeds=("${followup_train_seeds[@]}")
   run_finetune
-  run_eval
+  REUSE_HARD_SEEDS="${REUSE_HARD_SEEDS:-1}" \
+    REUSE_BASE_EVAL_FROM_SEED="${REUSE_BASE_EVAL_FROM_SEED:-0}" \
+    run_eval
 
   AGGREGATE_TRAIN_SEEDS="${AGGREGATE_TRAIN_SEEDS:-0 ${FOLLOWUP_TRAIN_SEEDS:-1 2}}" run_aggregate
 }

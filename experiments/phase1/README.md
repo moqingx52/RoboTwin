@@ -60,6 +60,11 @@ AGGREGATE_TRAIN_SEEDS="0 1 2" \
 bash experiments/phase1/run_all_200.sh followup_seeds 8
 ```
 
+`followup_seeds` defaults to `REUSE_HARD_SEEDS=1` and `REUSE_BASE_EVAL_FROM_SEED=0`.
+It reuses existing `hard_eval_seeds/*.json` and copies seed-0 `base.json` into the
+new train-seed result folders, so the eight GPUs are spent on the missing fine-tuned
+checkpoints instead of repeated base probes/evals.
+
 Audit the `dump_bin_bigbin` rollout/zarr/checkpoint path before interpreting a collapse:
 
 ```bash
