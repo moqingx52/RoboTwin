@@ -50,6 +50,28 @@ TRAIN_SEEDS="0 1 2" bash experiments/phase1/run_all_200.sh finetune 8
 TRAIN_SEEDS="0 1 2" bash experiments/phase1/run_all_200.sh eval 8
 ```
 
+After a seed-0 pilot has already been run, use the follow-up entry to train/evaluate only
+the missing seeds and then aggregate seeds 0/1/2:
+
+```bash
+TASKS="place_container_plate dump_bin_bigbin" \
+FOLLOWUP_TRAIN_SEEDS="1 2" \
+AGGREGATE_TRAIN_SEEDS="0 1 2" \
+bash experiments/phase1/run_all_200.sh followup_seeds 8
+```
+
+Audit the `dump_bin_bigbin` rollout/zarr/checkpoint path before interpreting a collapse:
+
+```bash
+AUDIT_TASKS="dump_bin_bigbin" \
+AUDIT_TRAIN_SEEDS="0 1 2" \
+bash experiments/phase1/run_all_200.sh audit 8
+```
+
+The audit writes `experiments/phase1/eval_results_200/audit_summary.json` and checks rollout
+success counts, expert/rollout ratios, action/state dimensions, gripper action statistics,
+zarr state/action offset alignment, success hdf5 integrity, finetune logs, and expected checkpoints.
+
 Tasks and variants can be restricted without editing the script:
 
 ```bash

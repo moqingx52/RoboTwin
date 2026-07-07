@@ -245,6 +245,48 @@ run_eval() {
     --output "${eval_dir}/summary.json"
 }
 
+run_aggregate() {
+  local -a aggregate_train_seeds=()
+  read -r -a aggregate_train_seeds <<< "${AGGREGATE_TRAIN_SEEDS:-${TRAIN_SEEDS:-0}}"
+  cd "${repo_root}"
+  python "${phase_dir}/aggregate_eval.py" \
+    --eval-dir "${eval_dir}" --train-seeds "${aggregate_train_seeds[@]}" --tasks "${tasks[@]}" \
+    --variants base "${variants[@]}" \
+    --output "${eval_dir}/summary.json"
+}
+
+run_followup_seeds() {
+  local -a followup_train_seeds=()
+  read -r -a followup_train_seeds <<< "${FOLLOWUP_TRAIN_SEEDS:-1 2}"
+  train_seeds=("${followup_train_seeds[@]}")
+  run_finetune
+  run_eval
+
+  AGGREGATE_TRAIN_SEEDS="${AGGREGATE_TRAIN_SEEDS:-0 ${FOLLOWUP_TRAIN_SEEDS:-1 2}}" run_aggregate
+}
+
+run_audit() {
+  local -a audit_tasks=()
+  local -a audit_train_seeds=()
+  read -r -a audit_tasks <<< "${AUDIT_TASKS:-dump_bin_bigbin}"
+  read -r -a audit_train_seeds <<< "${AUDIT_TRAIN_SEEDS:-0 1 2}"
+  cd "${repo_root}"
+  python "${phase_dir}/audit_phase1_dataset.py" \
+    --tasks "${audit_tasks[@]}" \
+    --variants expert_only "${variants[@]}" \
+    --train-seeds "${audit_train_seeds[@]}" \
+    --rollout-dir "${rollout_dir}" \
+    --data-dir "${data_dir}" \
+    --checkpoint-dir "${repo_root}/policy/DP/checkpoints" \
+    --log-dir "${log_dir}" \
+    --expert-data-num "${expert_data_num}" \
+    --base-train-seed "${base_train_seed}" \
+    --epochs "${epochs}" \
+    --rollouts-per-seed "${rollouts_per_seed}" \
+    --expected-action-dim "${action_dim}" \
+    --output "${eval_dir}/audit_summary.json"
+}
+
 case "${stage}" in
   rollout) run_rollout; run_merge ;;
   verify) run_verify ;;
@@ -252,9 +294,12 @@ case "${stage}" in
   build) run_build ;;
   finetune) run_finetune ;;
   eval) run_eval ;;
+  aggregate) run_aggregate ;;
+  followup_seeds) run_followup_seeds ;;
+  audit) run_audit ;;
   all) run_rollout; run_merge; run_build; run_finetune; run_eval ;;
   *)
-    echo "stage must be one of: rollout, verify, merge, build, finetune, eval, all" >&2
+    echo "stage must be one of: rollout, verify, merge, build, finetune, eval, aggregate, followup_seeds, audit, all" >&2
     exit 1
     ;;
 esac
