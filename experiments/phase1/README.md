@@ -103,16 +103,17 @@ skipped automatically. Resume validation checks the task, variant, checkpoint pa
 split, and expected work-item keys before accepting saved rows. A completed legacy shard JSON
 without the newer `progress` field is also reusable.
 
-Keep the existing eight-way shard layout while reserving GPU 0 by separating logical shards from
-physical workers:
+Reserve GPU 0 and run three evaluation workers on each of the other seven GPUs:
 
 ```bash
-EVAL_SHARDS_PER_JOB=8 EVAL_GPU_IDS="1 2 3 4 5 6 7" \
+EVAL_GPU_IDS="1 2 3 4 5 6 7" EVAL_WORKERS_PER_GPU=3 \
   bash experiments/phase1/run_all_200.sh eval 8
 ```
 
-The seven selected GPUs dynamically process all eight logical shards, preserving compatibility
-with existing `*_of_08.json` results.
+This creates 21 logical shards and 21 concurrent workers. Before starting a group, the runner
+validates and reuses a compatible completed merged JSON even if it came from the older eight-shard
+layout. Incomplete eight-shard groups are restarted with the 21-shard layout; subsequent
+interruptions resume from the per-episode 21-shard checkpoints.
 
 The `rollout` stage uses 8 stable independent workers by default:
 

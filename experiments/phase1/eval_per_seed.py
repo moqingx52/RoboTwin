@@ -136,10 +136,7 @@ def build_summary(args, hard_seeds, hard_seed_source, rows, complete):
     }
 
 
-def load_resume_rows(path, args, hard_seeds, expected_keys):
-    if not args.resume or not path.exists():
-        return []
-
+def validate_result_rows(path, args, hard_seeds, expected_keys):
     payload = read_json(path)
     expected_meta = {
         "task_name": args.task_name,
@@ -190,6 +187,12 @@ def load_resume_rows(path, args, hard_seeds, expected_keys):
     return rows
 
 
+def load_resume_rows(path, args, hard_seeds, expected_keys):
+    if not args.resume or not path.exists():
+        return []
+    return validate_result_rows(path, args, hard_seeds, expected_keys)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate DP checkpoints per seed for phase1 diagnostics.")
     add_common_args(parser)
@@ -224,6 +227,11 @@ def main():
         action="store_true",
         help="Checkpoint after every episode and skip compatible rows already saved in the shard result.",
     )
+    parser.add_argument(
+        "--check-complete-result",
+        action="store_true",
+        help="Exit successfully only when the merged result is compatible and contains every episode.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -243,6 +251,30 @@ def main():
     work_items = build_work_items(
         seed_payload, hard_seeds, args.id_repeats, args.train_repeats, args.hard_repeats
     )
+    if args.check_complete_result:
+        merged_path = args.output_dir / args.task_name / f"{args.variant}.json"
+        if not merged_path.exists():
+            print(f"No completed result: {merged_path}")
+            raise SystemExit(1)
+        full_expected_keys = {work_item_key(*item) for item in work_items}
+        try:
+            merged_rows = validate_result_rows(merged_path, args, hard_seeds, full_expected_keys)
+        except (KeyError, OSError, TypeError, ValueError, RuntimeError) as exc:
+            print(f"Completed result is not reusable: {exc}")
+            raise SystemExit(1)
+        merged_keys = {
+            work_item_key(row["split"], row["env_seed"], row["repeat"])
+            for row in merged_rows
+        }
+        if merged_keys != full_expected_keys:
+            print(
+                f"Completed result is incomplete: {merged_path} "
+                f"({len(merged_keys)}/{len(full_expected_keys)} episodes)"
+            )
+            raise SystemExit(1)
+        print(f"Reusing completed result: {merged_path} ({len(merged_keys)} episodes)")
+        return
+
     if args.num_shards > 1:
         work_items = split_range(work_items, args.shard_id, args.num_shards)
 

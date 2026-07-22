@@ -15,7 +15,6 @@ epochs=${FINETUNE_EPOCHS:-200}
 steps_per_epoch_setting=${FINETUNE_STEPS_PER_EPOCH:-auto}
 rollouts_per_seed=${ROLLOUTS_PER_SEED:-8}
 shards_per_task=${SHARDS_PER_TASK:-2}
-eval_shards=${EVAL_SHARDS_PER_JOB:-${num_gpus}}
 action_dim=${ACTION_DIM:-14}
 
 eval_gpu_ids=()
@@ -30,6 +29,18 @@ if (( ${#eval_gpu_ids[@]} == 0 )); then
   echo "EVAL_GPU_IDS must contain at least one GPU id." >&2
   exit 1
 fi
+eval_workers_per_gpu=${EVAL_WORKERS_PER_GPU:-1}
+if (( eval_workers_per_gpu < 1 )); then
+  echo "EVAL_WORKERS_PER_GPU must be at least 1." >&2
+  exit 1
+fi
+eval_worker_gpu_ids=()
+for gpu in "${eval_gpu_ids[@]}"; do
+  for ((worker=0; worker<eval_workers_per_gpu; worker++)); do
+    eval_worker_gpu_ids+=("${gpu}")
+  done
+done
+eval_shards=${EVAL_SHARDS_PER_JOB:-${#eval_worker_gpu_ids[@]}}
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 phase_dir="${repo_root}/experiments/phase1"
@@ -102,10 +113,22 @@ run_eval_sharded() {
   local output_dir=$4
   shift 4
   local -a extra_args=("$@")
+
+  if (
+    cd "${repo_root}"
+    python "${phase_dir}/eval_per_seed.py" \
+      --task "${task}" --task-config demo_clean --variant "${variant}" \
+      --output-dir "${output_dir}" \
+      --shard-id 0 --num-shards "${eval_shards}" --resume --check-complete-result \
+      "${extra_args[@]}"
+  ); then
+    return
+  fi
+
   local failed=0
   local next_shard=0
   local running=0
-  local worker_count=${#eval_gpu_ids[@]}
+  local worker_count=${#eval_worker_gpu_ids[@]}
   local -a worker_pids=()
   local -a worker_shards=()
   local slot shard gpu
@@ -130,7 +153,7 @@ run_eval_sharded() {
     for ((slot=0; slot<worker_count; slot++)); do
       if (( next_shard < eval_shards && worker_pids[slot] == 0 )); then
         shard=${next_shard}
-        gpu=${eval_gpu_ids[slot]}
+        gpu=${eval_worker_gpu_ids[slot]}
         (
           cd "${repo_root}"
           export CUDA_VISIBLE_DEVICES="${gpu}"
