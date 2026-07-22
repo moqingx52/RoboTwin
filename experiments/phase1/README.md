@@ -97,6 +97,23 @@ Outputs:
 The Base hard-split probe uses policy seeds 0--7. Final evaluation uses a disjoint stochastic
 policy-seed range starting at 1000, preventing selection noise from biasing the hard-split result.
 
+Evaluation shards are resumable. Each shard atomically updates its JSON result after every
+episode, and `run_all_200.sh` passes `--resume` so compatible rows from an interrupted run are
+skipped automatically. Resume validation checks the task, variant, checkpoint path, hard-seed
+split, and expected work-item keys before accepting saved rows. A completed legacy shard JSON
+without the newer `progress` field is also reusable.
+
+Keep the existing eight-way shard layout while reserving GPU 0 by separating logical shards from
+physical workers:
+
+```bash
+EVAL_SHARDS_PER_JOB=8 EVAL_GPU_IDS="1 2 3 4 5 6 7" \
+  bash experiments/phase1/run_all_200.sh eval 8
+```
+
+The seven selected GPUs dynamically process all eight logical shards, preserving compatibility
+with existing `*_of_08.json` results.
+
 The `rollout` stage uses 8 stable independent workers by default:
 
 ```text

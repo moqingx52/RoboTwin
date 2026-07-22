@@ -115,6 +115,23 @@ def write_json(path: Path, data: Dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
 
 
+def write_json_atomic(path: Path, data: Dict) -> None:
+    """Write JSON without exposing a truncated file to interrupted readers."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    try:
+        with tmp_path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    finally:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def read_json(path: Path) -> Dict:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)

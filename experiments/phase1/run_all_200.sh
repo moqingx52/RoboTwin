@@ -18,6 +18,19 @@ shards_per_task=${SHARDS_PER_TASK:-2}
 eval_shards=${EVAL_SHARDS_PER_JOB:-${num_gpus}}
 action_dim=${ACTION_DIM:-14}
 
+eval_gpu_ids=()
+if [[ -n "${EVAL_GPU_IDS:-}" ]]; then
+  read -r -a eval_gpu_ids <<< "${EVAL_GPU_IDS}"
+else
+  for ((g=0; g<num_gpus; g++)); do
+    eval_gpu_ids+=("${g}")
+  done
+fi
+if (( ${#eval_gpu_ids[@]} == 0 )); then
+  echo "EVAL_GPU_IDS must contain at least one GPU id." >&2
+  exit 1
+fi
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 phase_dir="${repo_root}/experiments/phase1"
 rollout_dir="${phase_dir}/rollouts_200"
@@ -89,23 +102,60 @@ run_eval_sharded() {
   local output_dir=$4
   shift 4
   local -a extra_args=("$@")
-  local shard
+  local failed=0
+  local next_shard=0
+  local running=0
+  local worker_count=${#eval_gpu_ids[@]}
+  local -a worker_pids=()
+  local -a worker_shards=()
+  local slot shard gpu
 
-  pids=()
-  for ((shard=0; shard<eval_shards; shard++)); do
-    local gpu=$((shard % num_gpus))
-    (
-      cd "${repo_root}"
-      export CUDA_VISIBLE_DEVICES="${gpu}"
-      python "${phase_dir}/eval_per_seed.py" \
-        --task "${task}" --task-config demo_clean --variant "${variant}" \
-        --output-dir "${output_dir}" \
-        --shard-id "${shard}" --num-shards "${eval_shards}" \
-        "${extra_args[@]}"
-    ) >"${log_dir}/${log_prefix}_shard${shard}.log" 2>&1 &
-    pids+=("$!")
+  for ((slot=0; slot<worker_count; slot++)); do
+    worker_pids[slot]=0
+    worker_shards[slot]=-1
   done
-  wait_jobs
+
+  # Logical shard count stays fixed for resume compatibility, while the worker
+  # list can omit GPUs that must remain available for other jobs.
+  while (( next_shard < eval_shards || running > 0 )); do
+    for ((slot=0; slot<worker_count; slot++)); do
+      if (( worker_pids[slot] != 0 )) && ! kill -0 "${worker_pids[slot]}" 2>/dev/null; then
+        wait "${worker_pids[slot]}" || failed=1
+        worker_pids[slot]=0
+        worker_shards[slot]=-1
+        running=$((running - 1))
+      fi
+    done
+
+    for ((slot=0; slot<worker_count; slot++)); do
+      if (( next_shard < eval_shards && worker_pids[slot] == 0 )); then
+        shard=${next_shard}
+        gpu=${eval_gpu_ids[slot]}
+        (
+          cd "${repo_root}"
+          export CUDA_VISIBLE_DEVICES="${gpu}"
+          python "${phase_dir}/eval_per_seed.py" \
+            --task "${task}" --task-config demo_clean --variant "${variant}" \
+            --output-dir "${output_dir}" \
+            --shard-id "${shard}" --num-shards "${eval_shards}" --resume \
+            "${extra_args[@]}"
+        ) >"${log_dir}/${log_prefix}_shard${shard}.log" 2>&1 &
+        worker_pids[slot]=$!
+        worker_shards[slot]=${shard}
+        next_shard=$((next_shard + 1))
+        running=$((running + 1))
+      fi
+    done
+
+    if (( running > 0 )); then
+      sleep 1
+    fi
+  done
+
+  if (( failed != 0 )); then
+    echo "One or more evaluation shards failed. Inspect ${log_dir}." >&2
+    return 1
+  fi
 
   cd "${repo_root}"
   python "${phase_dir}/merge_eval_shards.py" \

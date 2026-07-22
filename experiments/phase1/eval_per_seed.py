@@ -7,7 +7,15 @@ from pathlib import Path
 import torch
 import yaml
 
-from common import add_common_args, load_task_args, make_task_env, read_json, repo_path, split_range, write_json
+from common import (
+    add_common_args,
+    load_task_args,
+    make_task_env,
+    read_json,
+    repo_path,
+    split_range,
+    write_json_atomic,
+)
 
 sys.path.append(str(repo_path()))
 
@@ -91,6 +99,97 @@ def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_r
     return items
 
 
+def work_item_key(split, env_seed, repeat):
+    return split, int(env_seed), int(repeat)
+
+
+def output_path(output_dir, task_name, variant, shard_id, num_shards):
+    if num_shards > 1:
+        return output_dir / task_name / f"{variant}_shard_{shard_id:02d}_of_{num_shards:02d}.json"
+    return output_dir / task_name / f"{variant}.json"
+
+
+def build_summary(args, hard_seeds, hard_seed_source, rows, complete):
+    return {
+        "task_name": args.task_name,
+        "task_config": args.task_config,
+        "variant": args.variant,
+        "ckpt_path": str(args.ckpt_path),
+        "splits": {
+            "id_heldout": summarize(rows, "id_heldout"),
+            "train_seen": summarize(rows, "train_seen"),
+            "hard_20": summarize(rows, "hard_20"),
+        },
+        "hard_seeds": hard_seeds,
+        "hard_seed_source": hard_seed_source,
+        "rows": rows,
+        "progress": {
+            "complete": bool(complete),
+            "completed_episodes": len(rows),
+            "id_repeats": args.id_repeats,
+            "train_repeats": args.train_repeats,
+            "hard_repeats": args.hard_repeats,
+            "policy_seed_offset": args.policy_seed_offset,
+            "shard_id": args.shard_id,
+            "num_shards": args.num_shards,
+        },
+    }
+
+
+def load_resume_rows(path, args, hard_seeds, expected_keys):
+    if not args.resume or not path.exists():
+        return []
+
+    payload = read_json(path)
+    expected_meta = {
+        "task_name": args.task_name,
+        "task_config": args.task_config,
+        "variant": args.variant,
+        "ckpt_path": str(args.ckpt_path),
+    }
+    mismatches = [
+        f"{key}: found {payload.get(key)!r}, expected {value!r}"
+        for key, value in expected_meta.items()
+        if payload.get(key) != value
+    ]
+    if [int(seed) for seed in payload.get("hard_seeds", [])] != [int(seed) for seed in hard_seeds]:
+        mismatches.append("hard_seeds differ")
+    progress = payload.get("progress")
+    if progress is not None:
+        expected_progress = {
+            "id_repeats": args.id_repeats,
+            "train_repeats": args.train_repeats,
+            "hard_repeats": args.hard_repeats,
+            "policy_seed_offset": args.policy_seed_offset,
+            "shard_id": args.shard_id,
+            "num_shards": args.num_shards,
+        }
+        mismatches.extend(
+            f"progress.{key}: found {progress.get(key)!r}, expected {value!r}"
+            for key, value in expected_progress.items()
+            if progress.get(key) != value
+        )
+    if mismatches:
+        raise RuntimeError(f"Refusing to resume incompatible result {path}: " + "; ".join(mismatches))
+
+    rows = payload.get("rows", [])
+    seen = set()
+    for row in rows:
+        key = work_item_key(row["split"], row["env_seed"], row["repeat"])
+        if key not in expected_keys:
+            raise RuntimeError(f"Refusing to resume {path}: unexpected work item {key}")
+        if key in seen:
+            raise RuntimeError(f"Refusing to resume {path}: duplicate work item {key}")
+        expected_policy_seed = args.policy_seed_offset + int(row["repeat"])
+        if int(row.get("policy_seed", -1)) != expected_policy_seed:
+            raise RuntimeError(
+                f"Refusing to resume {path}: work item {key} has policy_seed "
+                f"{row.get('policy_seed')!r}, expected {expected_policy_seed}"
+            )
+        seen.add(key)
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate DP checkpoints per seed for phase1 diagnostics.")
     add_common_args(parser)
@@ -120,6 +219,11 @@ def main():
     )
     parser.add_argument("--shard-id", type=int, default=0)
     parser.add_argument("--num-shards", type=int, default=1)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Checkpoint after every episode and skip compatible rows already saved in the shard result.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -142,9 +246,26 @@ def main():
     if args.num_shards > 1:
         work_items = split_range(work_items, args.shard_id, args.num_shards)
 
-    rows = []
+    out_path = output_path(args.output_dir, args.task_name, args.variant, args.shard_id, args.num_shards)
+    expected_keys = {work_item_key(*item) for item in work_items}
+    rows = load_resume_rows(out_path, args, hard_seeds, expected_keys)
+    completed_keys = {
+        work_item_key(row["split"], row["env_seed"], row["repeat"])
+        for row in rows
+    }
+    if rows:
+        print(f"Resuming {out_path}: {len(rows)}/{len(work_items)} episodes already complete")
+
+    if completed_keys == expected_keys:
+        write_json_atomic(out_path, build_summary(args, hard_seeds, hard_seed_source, rows, complete=True))
+        print(f"Shard already complete: {out_path}")
+        return
+
     if args.dry_run:
         for split, env_seed, repeat in work_items:
+            key = work_item_key(split, env_seed, repeat)
+            if key in completed_keys:
+                continue
             rows.append(
                 {
                     "split": split,
@@ -155,6 +276,11 @@ def main():
                     "steps": 0,
                 }
             )
+            completed_keys.add(key)
+            write_json_atomic(
+                out_path,
+                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False),
+            )
     else:
         os.chdir(repo_path())
         env_args = load_task_args(args.task_name, args.task_config)
@@ -163,6 +289,9 @@ def main():
         env_args["render_freq"] = 0
         model = load_dp_model(args.ckpt_path, args.action_dim)
         for split, env_seed, repeat in work_items:
+            key = work_item_key(split, env_seed, repeat)
+            if key in completed_keys:
+                continue
             policy_seed = args.policy_seed_offset + repeat
             result = evaluate_once(args.task_name, env_args, model, env_seed, policy_seed)
             row = {
@@ -173,31 +302,16 @@ def main():
                 **result,
             }
             rows.append(row)
+            completed_keys.add(key)
+            write_json_atomic(
+                out_path,
+                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False),
+            )
             print(f"[{args.task_name}/{args.variant}] {split} seed={env_seed} repeat={repeat} success={row['success']}")
 
-    summary = {
-        "task_name": args.task_name,
-        "task_config": args.task_config,
-        "variant": args.variant,
-        "ckpt_path": str(args.ckpt_path),
-        "splits": {
-            "id_heldout": summarize(rows, "id_heldout"),
-            "train_seen": summarize(rows, "train_seen"),
-            "hard_20": summarize(rows, "hard_20"),
-        },
-        "hard_seeds": hard_seeds,
-        "hard_seed_source": hard_seed_source,
-        "rows": rows,
-    }
-    if args.num_shards > 1:
-        out_path = (
-            args.output_dir
-            / args.task_name
-            / f"{args.variant}_shard_{args.shard_id:02d}_of_{args.num_shards:02d}.json"
-        )
-    else:
-        out_path = args.output_dir / args.task_name / f"{args.variant}.json"
-    write_json(out_path, summary)
+    complete = completed_keys == expected_keys
+    summary = build_summary(args, hard_seeds, hard_seed_source, rows, complete=complete)
+    write_json_atomic(out_path, summary)
     print(f"Wrote {out_path}")
 
 
