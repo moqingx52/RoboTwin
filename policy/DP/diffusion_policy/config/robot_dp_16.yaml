@@ -77,6 +77,8 @@ dataloader:
   # Optional fixed optimizer batches per epoch. When set, the sampler cycles
   # uniformly over the dataset so variants of different sizes get equal compute.
   num_batches: null
+  # Optional exact fraction of expert-source sequences in every training batch.
+  expert_ratio: null
   num_workers: 0
   shuffle: True
   pin_memory: True
@@ -102,6 +104,8 @@ training:
   debug: False
   resume: True
   resume_from_ckpt: null
+  resume_training_ckpt: null
+  checkpoint_name: null
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 500

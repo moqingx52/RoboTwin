@@ -33,6 +33,18 @@ class RobotImageDataset(BaseImageDataset):
 
         super().__init__()
         zarr_root = zarr.open(zarr_path, mode="r")
+        episode_ends = np.asarray(zarr_root["meta/episode_ends"][:], dtype=np.int64)
+        if "episode_source" in zarr_root["meta"]:
+            episode_sources = np.asarray(zarr_root["meta/episode_source"][:], dtype=np.int64)
+            if episode_sources.shape != episode_ends.shape:
+                raise ValueError(
+                    f"episode_source shape {episode_sources.shape} does not match "
+                    f"episode_ends shape {episode_ends.shape}"
+                )
+            frame_counts = np.diff(np.concatenate(([0], episode_ends)))
+            self.frame_sources = np.repeat(episode_sources, frame_counts)
+        else:
+            self.frame_sources = None
         replay_keys = ["head_camera", "state", "action"]
         if "sample_weight" in zarr_root["data"]:
             replay_keys.append("sample_weight")
@@ -58,6 +70,7 @@ class RobotImageDataset(BaseImageDataset):
         self.horizon = horizon
         self.pad_before = pad_before
         self.pad_after = pad_after
+        self._refresh_sample_sources()
 
         self.batch_size = batch_size
         sequence_length = self.sampler.sequence_length
@@ -79,7 +92,20 @@ class RobotImageDataset(BaseImageDataset):
             episode_mask=~self.train_mask,
         )
         val_set.train_mask = ~self.train_mask
+        val_set._refresh_sample_sources()
         return val_set
+
+    def _refresh_sample_sources(self):
+        if self.frame_sources is None:
+            self.sample_sources = None
+            return
+        # SequenceSampler indices are
+        # (buffer_start, buffer_end, sample_start, sample_end). Every sequence
+        # stays within one episode, so its first real frame identifies source.
+        self.sample_sources = np.asarray(
+            [self.frame_sources[int(row[0])] for row in self.sampler.indices],
+            dtype=np.int64,
+        )
 
     def get_normalizer(self, mode="limits", **kwargs):
         data = {

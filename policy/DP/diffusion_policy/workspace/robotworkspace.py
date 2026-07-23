@@ -61,14 +61,25 @@ class RobotWorkspace(BaseWorkspace):
         head_camera_type = cfg.head_camera_type
 
         # resume training
-        if cfg.training.resume:
+        resume_training_ckpt = OmegaConf.select(cfg, "training.resume_training_ckpt", default=None)
+        if resume_training_ckpt:
+            resume_training_ckpt = pathlib.Path(resume_training_ckpt)
+            print(f"Resuming full training state from {resume_training_ckpt}")
+            self.load_checkpoint(path=resume_training_ckpt)
+            try:
+                self.epoch = int(resume_training_ckpt.stem)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Training resume checkpoint must have a numeric filename: {resume_training_ckpt}"
+                ) from exc
+        elif cfg.training.resume:
             lastest_ckpt_path = self.get_checkpoint_path()
             if lastest_ckpt_path.is_file():
                 print(f"Resuming from checkpoint {lastest_ckpt_path}")
                 self.load_checkpoint(path=lastest_ckpt_path)
 
         resume_from_ckpt = OmegaConf.select(cfg, "training.resume_from_ckpt", default=None)
-        if resume_from_ckpt:
+        if resume_from_ckpt and not resume_training_ckpt:
             print(f"Loading model weights from {resume_from_ckpt}")
             self.load_checkpoint(
                 path=resume_from_ckpt,
@@ -157,7 +168,7 @@ class RobotWorkspace(BaseWorkspace):
         log_path = os.path.join(self.output_dir, "logs.json.txt")
 
         with JsonLogger(log_path) as json_logger:
-            for local_epoch_idx in range(cfg.training.num_epochs):
+            for local_epoch_idx in range(self.epoch, cfg.training.num_epochs):
                 step_log = dict()
                 # ========= train for this epoch ==========
                 if cfg.training.freeze_encoder:
@@ -270,9 +281,14 @@ class RobotWorkspace(BaseWorkspace):
                         del mse
 
                 # checkpoint
-                if ((self.epoch + 1) % cfg.training.checkpoint_every) == 0:
+                if (
+                    ((self.epoch + 1) % cfg.training.checkpoint_every) == 0
+                    or (self.epoch + 1) == cfg.training.num_epochs
+                ):
                     # checkpointing
-                    save_name = pathlib.Path(self.cfg.task.dataset.zarr_path).stem
+                    save_name = OmegaConf.select(cfg, "training.checkpoint_name", default=None)
+                    if not save_name:
+                        save_name = pathlib.Path(self.cfg.task.dataset.zarr_path).stem
                     self.save_checkpoint(f"checkpoints/{save_name}-{seed}/{self.epoch + 1}.ckpt")  # TODO
 
                 # ========= eval end for this epoch ==========
@@ -295,6 +311,8 @@ class BatchSampler:
         seed: int = 0,
         drop_last: bool = True,
         num_batches: int = None,
+        sample_sources: np.ndarray = None,
+        expert_ratio: float = None,
     ):
         assert drop_last
         self.data_size = data_size
@@ -311,8 +329,57 @@ class BatchSampler:
         self.discard = data_size - batch_size * self.natural_num_batch
         self.shuffle = shuffle
         self.rng = np.random.default_rng(seed) if shuffle else None
+        self.expert_ratio = expert_ratio
+        self.expert_indices = None
+        self.rollout_indices = None
+        if expert_ratio is not None:
+            if not 0.0 <= float(expert_ratio) <= 1.0:
+                raise ValueError(f"expert_ratio must be in [0, 1], got {expert_ratio}.")
+            if sample_sources is None or len(sample_sources) != data_size:
+                raise ValueError("expert_ratio requires one sample source label per dataset index.")
+            self.expert_indices = np.flatnonzero(np.asarray(sample_sources) == 0)
+            self.rollout_indices = np.flatnonzero(np.asarray(sample_sources) == 1)
+            expert_per_batch = int(round(batch_size * float(expert_ratio)))
+            rollout_per_batch = batch_size - expert_per_batch
+            if expert_per_batch and len(self.expert_indices) == 0:
+                raise ValueError("Requested expert samples but the dataset has no expert indices.")
+            if rollout_per_batch and len(self.rollout_indices) == 0:
+                raise ValueError("Requested rollout samples but the dataset has no rollout indices.")
+            self.expert_per_batch = expert_per_batch
+            self.rollout_per_batch = rollout_per_batch
+            print(
+                "Using source-aware batches: "
+                f"expert={self.expert_per_batch}, rollout={self.rollout_per_batch}, "
+                f"expert_pool={len(self.expert_indices)}, rollout_pool={len(self.rollout_indices)}"
+            )
 
     def __iter__(self):
+        if self.expert_ratio is not None:
+            rng = self.rng if self.rng is not None else np.random.default_rng(0)
+            for _ in range(self.num_batch):
+                parts = []
+                if self.expert_per_batch:
+                    parts.append(
+                        rng.choice(
+                            self.expert_indices,
+                            size=self.expert_per_batch,
+                            replace=len(self.expert_indices) < self.expert_per_batch,
+                        )
+                    )
+                if self.rollout_per_batch:
+                    parts.append(
+                        rng.choice(
+                            self.rollout_indices,
+                            size=self.rollout_per_batch,
+                            replace=len(self.rollout_indices) < self.rollout_per_batch,
+                        )
+                    )
+                batch = np.concatenate(parts).astype(np.int64, copy=False)
+                if self.shuffle:
+                    rng.shuffle(batch)
+                yield batch
+            return
+
         yielded = 0
         while yielded < self.num_batch:
             if self.shuffle:
@@ -344,6 +411,7 @@ def create_dataloader(
     persistent_workers: bool,
     seed: int = 0,
     num_batches: int = None,
+    expert_ratio: float = None,
 ):
     batch_sampler = BatchSampler(
         len(dataset),
@@ -352,6 +420,8 @@ def create_dataloader(
         seed=seed,
         drop_last=True,
         num_batches=num_batches,
+        sample_sources=getattr(dataset, "sample_sources", None),
+        expert_ratio=expert_ratio,
     )
 
     def collate(x):

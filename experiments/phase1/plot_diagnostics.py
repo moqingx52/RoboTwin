@@ -8,7 +8,17 @@ import numpy as np
 from common import TASKS, read_json, repo_path, write_json
 
 
-VARIANTS = ("base", "expert_only", "success", "seed_balanced", "difficulty_weighted")
+VARIANTS = (
+    "base",
+    "expert_only",
+    "success",
+    "seed_balanced",
+    "difficulty_weighted",
+    "uniform_mixed",
+    "anchored_70",
+    "anchored_50",
+    "anchored_70_weighted",
+)
 
 
 def success_rate(rows):

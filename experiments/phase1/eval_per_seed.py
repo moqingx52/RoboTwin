@@ -199,7 +199,17 @@ def main():
     parser.add_argument(
         "--variant",
         required=True,
-        choices=("base", "expert_only", "success", "seed_balanced", "difficulty_weighted"),
+        choices=(
+            "base",
+            "expert_only",
+            "success",
+            "seed_balanced",
+            "difficulty_weighted",
+            "uniform_mixed",
+            "anchored_70",
+            "anchored_50",
+            "anchored_70_weighted",
+        ),
     )
     parser.add_argument("--ckpt-path", type=Path, required=True)
     parser.add_argument("--seeds-file", type=Path)

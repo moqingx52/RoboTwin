@@ -26,5 +26,12 @@ envs/curobo/*
 .vscode
 /config.json
 
+# Phase 2 runtime artifacts
+experiments/phase2/logs/
+experiments/phase2/eval_results/
+experiments/phase2/figures/
+experiments/phase2/run_state*.json
+experiments/phase2/run_state*.json.lock
+
 /*.json*
 /*.txt

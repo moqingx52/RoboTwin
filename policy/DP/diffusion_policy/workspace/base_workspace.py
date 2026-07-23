@@ -62,12 +62,28 @@ class BaseWorkspace:
                         payload["state_dicts"][key] = value.state_dict()
             elif key in include_keys:
                 payload["pickles"][key] = dill.dumps(value)
+
+        def atomic_torch_save():
+            tmp_path = path.with_name(
+                f".{path.name}.tmp.{os.getpid()}.{threading.get_ident()}"
+            )
+            try:
+                with tmp_path.open("wb") as f:
+                    torch.save(payload, f, pickle_module=dill)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, path)
+            finally:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
+
         if use_thread:
-            self._saving_thread = threading.Thread(
-                target=lambda: torch.save(payload, path.open("wb"), pickle_module=dill))
+            self._saving_thread = threading.Thread(target=atomic_torch_save)
             self._saving_thread.start()
         else:
-            torch.save(payload, path.open("wb"), pickle_module=dill)
+            atomic_torch_save()
         return str(path.absolute())
 
     def get_checkpoint_path(self, tag="latest"):
