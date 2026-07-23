@@ -8,6 +8,10 @@ read -r -a tasks <<< "${PHASE2_TASKS:-place_container_plate dump_bin_bigbin}"
 read -r -a variants <<< "${PHASE2_VARIANTS:-expert_only uniform_mixed anchored_70 anchored_50 anchored_70_weighted}"
 read -r -a train_seeds <<< "${PHASE2_TRAIN_SEEDS:-0}"
 read -r -a gpu_ids <<< "${PHASE2_GPU_IDS:-0 1 2 3 4 5 6 7}"
+extra_args=()
+if [[ "${PHASE2_RETRY_FAILED:-0}" == "1" ]]; then
+  extra_args+=(--retry-failed)
+fi
 
 exec python experiments/phase2/orchestrate.py \
   --tasks "${tasks[@]}" \
@@ -19,5 +23,8 @@ exec python experiments/phase2/orchestrate.py \
   --checkpoint-every "${PHASE2_CHECKPOINT_EVERY:-10}" \
   --learning-rate "${PHASE2_LR:-1e-5}" \
   --max-retries "${PHASE2_MAX_RETRIES:-3}" \
+  --retry-backoff "${PHASE2_RETRY_BACKOFF:-60}" \
+  --max-train-gpus "${PHASE2_MAX_TRAIN_GPUS:-${#gpu_ids[@]}}" \
   --poll-interval "${PHASE2_POLL_INTERVAL:-5}" \
-  --state-path "${PHASE2_STATE_PATH:-experiments/phase2/run_state.json}"
+  --state-path "${PHASE2_STATE_PATH:-experiments/phase2/run_state.json}" \
+  "${extra_args[@]}"

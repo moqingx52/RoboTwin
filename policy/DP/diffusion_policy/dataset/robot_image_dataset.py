@@ -29,6 +29,7 @@ class RobotImageDataset(BaseImageDataset):
         val_ratio=0.0,
         batch_size=128,
         max_train_episodes=None,
+        load_to_memory=True,
     ):
 
         super().__init__()
@@ -49,11 +50,16 @@ class RobotImageDataset(BaseImageDataset):
         if "sample_weight" in zarr_root["data"]:
             replay_keys.append("sample_weight")
 
-        self.replay_buffer = ReplayBuffer.copy_from_path(
-            zarr_path,
-            # keys=['head_camera', 'front_camera', 'left_camera', 'right_camera', 'state', 'action'],
-            keys=replay_keys,
-        )
+        if load_to_memory:
+            self.replay_buffer = ReplayBuffer.copy_from_path(
+                zarr_path,
+                # keys=['head_camera', 'front_camera', 'left_camera', 'right_camera', 'state', 'action'],
+                keys=replay_keys,
+            )
+        else:
+            print(f"Opening replay buffer on disk to limit host RAM: {zarr_path}")
+            self.replay_buffer = ReplayBuffer.create_from_path(zarr_path, mode="r")
+        self.load_to_memory = bool(load_to_memory)
 
         val_mask = get_val_mask(n_episodes=self.replay_buffer.n_episodes, val_ratio=val_ratio, seed=seed)
         train_mask = ~val_mask
@@ -154,13 +160,22 @@ class RobotImageDataset(BaseImageDataset):
         elif isinstance(idx, np.ndarray):
             assert len(idx) == self.batch_size
             for k, v in self.sampler.replay_buffer.items():
-                batch_sample_sequence(
-                    self.buffers[k],
-                    v,
-                    self.sampler.indices,
-                    idx,
-                    self.sampler.sequence_length,
-                )
+                if self.load_to_memory:
+                    batch_sample_sequence(
+                        self.buffers[k],
+                        v,
+                        self.sampler.indices,
+                        idx,
+                        self.sampler.sequence_length,
+                    )
+                else:
+                    batch_sample_sequence_from_disk(
+                        self.buffers[k],
+                        v,
+                        self.sampler.indices,
+                        idx,
+                        self.sampler.sequence_length,
+                    )
             return self.buffers_torch
         else:
             raise ValueError(idx)
@@ -220,3 +235,23 @@ def batch_sample_sequence(
         _batch_sample_sequence_parallel(data, input_arr, indices, idx, sequence_length)
     else:
         _batch_sample_sequence_sequential(data, input_arr, indices, idx, sequence_length)
+
+
+def batch_sample_sequence_from_disk(
+    data: np.ndarray,
+    input_arr,
+    indices: np.ndarray,
+    idx: np.ndarray,
+    sequence_length: int,
+):
+    """Batch sampling path for zarr arrays that Numba cannot type directly."""
+    batch_size = len(idx)
+    assert data.shape == (batch_size, sequence_length, *input_arr.shape[1:])
+    for i, sample_idx in enumerate(idx):
+        buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = indices[sample_idx]
+        sample = np.asarray(input_arr[buffer_start_idx:buffer_end_idx])
+        data[i, sample_start_idx:sample_end_idx] = sample
+        if sample_start_idx > 0:
+            data[i, :sample_start_idx] = sample[0]
+        if sample_end_idx < sequence_length:
+            data[i, sample_end_idx:] = sample[-1]

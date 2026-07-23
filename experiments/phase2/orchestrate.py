@@ -135,6 +135,8 @@ class Scheduler:
             "batch_size": args.batch_size,
             "max_retries": args.max_retries,
             "expected_eval_episodes": args.expected_eval_episodes,
+            "max_train_gpus": args.max_train_gpus,
+            "retry_backoff": args.retry_backoff,
         }
         self.state = self._load_or_create_state()
         self._prepare_base_results()
@@ -149,6 +151,16 @@ class Scheduler:
                     f"State config differs from this run: {self.state_path}. "
                     "Use the original configuration or a different PHASE2_STATE_PATH."
                 )
+            if self.args.retry_failed:
+                for job in state["jobs"].values():
+                    if job["status"] == "failed":
+                        job["status"] = "pending"
+                        job["attempts"] = 0
+                        job["message"] = "Manually re-queued by --retry-failed"
+                for group in state["groups"].values():
+                    if group["status"] == "failed":
+                        group["status"] = "pending"
+                        group["attempts"] = 0
             live_pids = []
             for job in state["jobs"].values():
                 if job["status"] == "running":
@@ -447,6 +459,7 @@ class Scheduler:
             job["message"] = "stopped with scheduler; resumable artifact retained"
         elif job["attempts"] < self.args.max_retries:
             job["status"] = "pending"
+            job["not_before"] = time.time() + self.args.retry_backoff * job["attempts"]
             job["message"] = f"exit={returncode}; queued for retry"
             self._event(f"Retrying {job_id} after exit {returncode}")
         else:
@@ -468,7 +481,9 @@ class Scheduler:
         return [
             job
             for job in self.state["jobs"].values()
-            if job["kind"] == "train" and job["status"] == "pending"
+            if job["kind"] == "train"
+            and job["status"] == "pending"
+            and float(job.get("not_before", 0)) <= time.time()
         ]
 
     def _pending_eval(self):
@@ -479,12 +494,14 @@ class Scheduler:
             and job["status"] == "pending"
             and self._dependency_complete(job)
             and self.state["groups"][job["group"]]["status"] != "completed"
+            and float(job.get("not_before", 0)) <= time.time()
         ]
 
     def _schedule(self):
         pending_train = self._pending_train()
         pending_eval = self._pending_eval()
         assignments = self._gpu_assignments()
+        active_train = sum(1 for value in assignments.values() if value["mode"] == "train")
         for gpu in self.gpus:
             current = assignments[str(gpu)]
             if current["mode"] == "train":
@@ -497,8 +514,9 @@ class Scheduler:
 
             # A completely idle GPU prefers training. Once the train queue is
             # exhausted, it switches to evaluation mode with up to N workers.
-            if pending_train:
+            if pending_train and active_train < self.args.max_train_gpus:
                 self._start_job(pending_train.pop(0), gpu)
+                active_train += 1
             else:
                 for _ in range(min(self.args.eval_per_gpu, len(pending_eval))):
                     self._start_job(pending_eval.pop(0), gpu)
@@ -597,7 +615,7 @@ class Scheduler:
                 check=True,
             )
 
-    def stop(self):
+    def stop(self, final_status="interrupted"):
         if self.stopping:
             return
         self.stopping = True
@@ -619,7 +637,7 @@ class Scheduler:
         while self.processes:
             self._poll()
             time.sleep(0.1)
-        self.state["status"] = "interrupted"
+        self.state["status"] = final_status
         self._save_state()
 
     def run(self):
@@ -656,12 +674,19 @@ def parse_args():
     parser.add_argument("--learning-rate", type=float, default=1e-5)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--max-retries", type=int, default=3)
+    parser.add_argument("--retry-backoff", type=float, default=60.0)
+    parser.add_argument("--max-train-gpus", type=int)
+    parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument("--poll-interval", type=float, default=5.0)
     parser.add_argument("--expected-eval-episodes", type=int, default=760)
     parser.add_argument("--state-path", type=Path, default=PHASE2 / "run_state.json")
     args = parser.parse_args()
     if args.eval_per_gpu < 1:
         parser.error("--eval-per-gpu must be at least 1")
+    if args.max_train_gpus is None:
+        args.max_train_gpus = len(args.gpus)
+    if not 1 <= args.max_train_gpus <= len(args.gpus):
+        parser.error("--max-train-gpus must be between 1 and the number of configured GPUs")
     if args.epochs < 1 or args.checkpoint_every < 1:
         parser.error("--epochs and --checkpoint-every must be positive")
     return args
@@ -685,7 +710,11 @@ def main():
 
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
-    scheduler.run()
+    try:
+        scheduler.run()
+    except BaseException:
+        scheduler.stop(final_status="failed")
+        raise
 
 
 if __name__ == "__main__":

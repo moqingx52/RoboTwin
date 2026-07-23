@@ -51,6 +51,15 @@ As training jobs finish and the remaining train queue is exhausted, released GPU
 switch to three-way evaluation. This pipelines tasks across GPUs without violating
 the per-card constraint.
 
+Phase 2 opens the zarr replay buffer on disk instead of copying a private full
+dataset into every training process. This prevents eight concurrent trainers from
+multiplying host RAM usage. If the storage system becomes the bottleneck, cap the
+number of simultaneous training GPUs; idle cards will evaluate ready checkpoints:
+
+```bash
+PHASE2_MAX_TRAIN_GPUS=2 bash experiments/phase2/run_all.sh
+```
+
 ## Resume and interruption
 
 Runtime state is atomically stored in:
@@ -102,7 +111,9 @@ PHASE2_CHECKPOINT_EVERY=10
 PHASE2_LR=5e-5
 PHASE2_GPU_IDS="0 1 2 3 4 5 6 7"
 PHASE2_EVAL_PER_GPU=3
+PHASE2_MAX_TRAIN_GPUS=8
 PHASE2_MAX_RETRIES=3
+PHASE2_RETRY_BACKOFF=60
 ```
 
 ## Outputs
@@ -112,4 +123,3 @@ PHASE2_MAX_RETRIES=3
 - Per-seed evaluation: `experiments/phase2/eval_results/train_seed_<seed>/`
 - Aggregate: `experiments/phase2/eval_results/summary.json`
 - Scheduler state: `experiments/phase2/run_state.json`
-

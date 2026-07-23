@@ -47,6 +47,7 @@ train_args=(
   python train.py --config-name="robot_dp_${action_dim}.yaml"
   task.name="${task_name}"
   task.dataset.zarr_path="${dataset_path}"
+  task.dataset.load_to_memory=False
   training.debug=False
   training.seed="${train_seed}"
   training.device="cuda:0"
