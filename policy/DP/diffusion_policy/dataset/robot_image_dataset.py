@@ -159,6 +159,10 @@ class RobotImageDataset(BaseImageDataset):
             return sample
         elif isinstance(idx, np.ndarray):
             assert len(idx) == self.batch_size
+            if self.sample_sources is not None:
+                self.buffers_torch["sample_source"] = torch.from_numpy(
+                    self.sample_sources[idx].astype(np.int64, copy=False)
+                )
             for k, v in self.sampler.replay_buffer.items():
                 if self.load_to_memory:
                     batch_sample_sequence(
@@ -199,6 +203,8 @@ class RobotImageDataset(BaseImageDataset):
         }
         if "sample_weight" in samples:
             data["sample_weight"] = samples["sample_weight"].to(device, non_blocking=True).float()
+        if "sample_source" in samples:
+            data["sample_source"] = samples["sample_source"].to(device, non_blocking=True).long()
         return data
 
 

@@ -29,6 +29,87 @@ from diffusion_policy.model.common.lr_scheduler import get_scheduler
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 
+def _masked_mean(values, mask, weights=None):
+    if not bool(mask.any()):
+        return None
+    selected = values[mask]
+    if weights is not None:
+        selected_weights = weights[mask]
+        return (selected * selected_weights).sum() / selected_weights.sum().clamp_min(1e-6)
+    return selected.mean()
+
+
+def aggregate_training_loss(model, batch, cfg):
+    loss_mode = OmegaConf.select(cfg, "training.loss_mode", default="pooled")
+    per_sample_loss = model.compute_loss(batch, per_sample=True)
+    sample_weight = batch.get("sample_weight")
+    if sample_weight is not None:
+        if sample_weight.ndim > 1:
+            sample_weight = sample_weight.float().mean(dim=tuple(range(1, sample_weight.ndim)))
+        sample_weight = sample_weight.to(device=per_sample_loss.device, dtype=per_sample_loss.dtype)
+
+    if loss_mode == "pooled":
+        if sample_weight is not None:
+            loss = (per_sample_loss * sample_weight).sum() / sample_weight.sum().clamp_min(1e-6)
+        else:
+            loss = per_sample_loss.mean()
+        return loss, {}
+
+    if loss_mode != "source_separated":
+        raise ValueError(f"Unsupported training.loss_mode: {loss_mode}")
+
+    sample_source = batch.get("sample_source")
+    if sample_source is None:
+        raise ValueError("training.loss_mode=source_separated requires batch['sample_source'].")
+
+    expert_mask = sample_source == 0
+    rollout_mask = sample_source == 1
+    expert_loss = _masked_mean(per_sample_loss, expert_mask, sample_weight)
+    rollout_loss = _masked_mean(per_sample_loss, rollout_mask, sample_weight)
+
+    lambda_expert = float(OmegaConf.select(cfg, "training.lambda_expert", default=1.0))
+    lambda_rollout = float(OmegaConf.select(cfg, "training.lambda_rollout", default=0.0))
+
+    if expert_loss is None and rollout_loss is None:
+        raise ValueError("source_separated loss received an empty batch.")
+    if expert_loss is None:
+        raise ValueError("source_separated loss requires expert samples in the batch.")
+    if rollout_loss is None and lambda_rollout > 0:
+        raise ValueError("source_separated loss requires rollout samples when lambda_rollout > 0.")
+
+    if rollout_loss is None:
+        loss = lambda_expert * expert_loss
+    else:
+        loss = lambda_expert * expert_loss + lambda_rollout * rollout_loss
+
+    aux = {
+        "expert_count": int(expert_mask.sum().item()),
+        "rollout_count": int(rollout_mask.sum().item()),
+        "expert_loss": float(expert_loss.detach().item()),
+        "rollout_loss": float(rollout_loss.detach().item()) if rollout_loss is not None else None,
+        "weighted_expert_contrib": float((lambda_expert * expert_loss).detach().item()),
+        "weighted_rollout_contrib": (
+            float((lambda_rollout * rollout_loss).detach().item()) if rollout_loss is not None else 0.0
+        ),
+        "lambda_expert": lambda_expert,
+        "lambda_rollout": lambda_rollout,
+    }
+    return loss, aux
+
+
+def apply_normalizer_from_config(model, ema_model, dataset, cfg):
+    source = OmegaConf.select(cfg, "training.normalizer_source", default="dataset")
+    if source == "dataset":
+        normalizer = dataset.get_normalizer()
+        model.set_normalizer(normalizer)
+        if ema_model is not None:
+            ema_model.set_normalizer(normalizer)
+        return "dataset"
+    if source == "checkpoint":
+        return "checkpoint"
+    raise ValueError(f"Unsupported training.normalizer_source: {source}")
+
+
 class RobotWorkspace(BaseWorkspace):
     include_keys = ["global_step", "epoch"]
 
@@ -94,15 +175,17 @@ class RobotWorkspace(BaseWorkspace):
         dataset = hydra.utils.instantiate(cfg.task.dataset)
         assert isinstance(dataset, BaseImageDataset)
         train_dataloader = create_dataloader(dataset, **cfg.dataloader)
-        normalizer = dataset.get_normalizer()
+        normalizer_source = apply_normalizer_from_config(
+            self.model,
+            self.ema_model if cfg.training.use_ema else None,
+            dataset,
+            cfg,
+        )
+        print(f"Using normalizer_source={normalizer_source}")
 
         # configure validation dataset
         val_dataset = dataset.get_validation_dataset()
         val_dataloader = create_dataloader(val_dataset, **cfg.val_dataloader)
-
-        self.model.set_normalizer(normalizer)
-        if cfg.training.use_ema:
-            self.ema_model.set_normalizer(normalizer)
 
         # configure lr scheduler
         lr_scheduler = get_scheduler(
@@ -166,6 +249,10 @@ class RobotWorkspace(BaseWorkspace):
 
         # training loop
         log_path = os.path.join(self.output_dir, "logs.json.txt")
+        log_source_loss_every = int(OmegaConf.select(cfg, "training.log_source_loss_every", default=0) or 0)
+        log_source_grad_norm_every = int(
+            OmegaConf.select(cfg, "training.log_source_grad_norm_every", default=0) or 0
+        )
 
         with JsonLogger(log_path) as json_logger:
             for local_epoch_idx in range(self.epoch, cfg.training.num_epochs):
@@ -187,12 +274,22 @@ class RobotWorkspace(BaseWorkspace):
                         if train_sampling_batch is None:
                             train_sampling_batch = batch
                         # compute loss
-                        raw_loss = self.model.compute_loss(batch)
+                        raw_loss, loss_aux = aggregate_training_loss(self.model, batch, cfg)
                         loss = raw_loss / cfg.training.gradient_accumulate_every
                         loss.backward()
 
                         # step optimizer
                         if (self.global_step % cfg.training.gradient_accumulate_every == 0):
+                            if (
+                                log_source_grad_norm_every > 0
+                                and loss_aux
+                                and (self.global_step % log_source_grad_norm_every == 0)
+                            ):
+                                total_norm = 0.0
+                                for param in self.model.parameters():
+                                    if param.grad is not None:
+                                        total_norm += float(param.grad.data.norm(2).item() ** 2)
+                                loss_aux["grad_norm_total"] = float(total_norm ** 0.5)
                             self.optimizer.step()
                             self.optimizer.zero_grad()
                             lr_scheduler.step()
@@ -210,7 +307,12 @@ class RobotWorkspace(BaseWorkspace):
                             "global_step": self.global_step,
                             "epoch": self.epoch,
                             "lr": lr_scheduler.get_last_lr()[0],
+                            "normalizer_source": normalizer_source,
                         }
+                        if loss_aux and (
+                            log_source_loss_every > 0 and self.global_step % log_source_loss_every == 0
+                        ):
+                            step_log.update(loss_aux)
 
                         is_last_batch = batch_idx == (len(train_dataloader) - 1)
                         if not is_last_batch:

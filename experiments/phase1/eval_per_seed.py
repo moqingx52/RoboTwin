@@ -20,13 +20,18 @@ from common import (
 sys.path.append(str(repo_path()))
 
 
-def load_dp_model(ckpt_path, action_dim):
+def load_dp_model(ckpt_path, action_dim, normalizer_zarr_path=None):
     from policy.DP.dp_model import DP
 
     config_path = repo_path("policy", "DP", "diffusion_policy", "config", f"robot_dp_{action_dim}.yaml")
     with config_path.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-    return DP(str(ckpt_path), n_obs_steps=cfg["n_obs_steps"], n_action_steps=cfg["n_action_steps"])
+    return DP(
+        str(ckpt_path),
+        n_obs_steps=cfg["n_obs_steps"],
+        n_action_steps=cfg["n_action_steps"],
+        normalizer_zarr_path=str(normalizer_zarr_path) if normalizer_zarr_path else None,
+    )
 
 
 def evaluate_once(task_name, env_args, model, env_seed, policy_seed):
@@ -199,20 +204,14 @@ def main():
     parser.add_argument(
         "--variant",
         required=True,
-        choices=(
-            "base",
-            "expert_only",
-            "success",
-            "seed_balanced",
-            "difficulty_weighted",
-            "uniform_mixed",
-            "anchored_70",
-            "anchored_50",
-            "anchored_70_weighted",
-        ),
     )
     parser.add_argument("--ckpt-path", type=Path, required=True)
+    parser.add_argument("--normalizer-zarr", type=Path, help="Optional zarr path to override checkpoint normalizer.")
     parser.add_argument("--seeds-file", type=Path)
+    parser.add_argument("--id-seed-count", type=int, help="Use only the first N ID-heldout seeds.")
+    parser.add_argument("--train-seed-count", type=int, help="Use only the first N train-seen seeds.")
+    parser.add_argument("--hard-seed-count", type=int, help="Use only the first N hard seeds.")
+    parser.add_argument("--include-hard", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument(
         "--hard-seeds-file",
         type=Path,
@@ -247,6 +246,12 @@ def main():
 
     seeds_file = args.seeds_file or repo_path("experiments", "phase1", "seeds", f"{args.task_name}_seeds.json")
     seed_payload = read_json(seeds_file)
+    if args.id_seed_count is not None:
+        seed_payload = dict(seed_payload)
+        seed_payload["eval_id"] = list(seed_payload["eval_id"])[: args.id_seed_count]
+    if args.train_seed_count is not None:
+        seed_payload = dict(seed_payload)
+        seed_payload["train_rollout"] = list(seed_payload["train_rollout"])[: args.train_seed_count]
     seed_stats_path = args.rollout_dir / args.task_name / "seed_stats.json"
     seed_stats = read_json(seed_stats_path) if seed_stats_path.exists() else {}
     if args.hard_seeds_file:
@@ -257,6 +262,11 @@ def main():
     else:
         hard_seeds = hard_seeds_from_stats(seed_stats) if seed_stats else seed_payload["train_rollout"][:20]
         hard_seed_source = "train_rollout_seed_stats"
+    if args.hard_seed_count is not None:
+        hard_seeds = hard_seeds[: args.hard_seed_count]
+    if not args.include_hard:
+        hard_seeds = []
+        args.hard_repeats = 0
 
     work_items = build_work_items(
         seed_payload, hard_seeds, args.id_repeats, args.train_repeats, args.hard_repeats
@@ -329,7 +339,7 @@ def main():
         env_args["need_plan"] = False
         env_args["save_data"] = False
         env_args["render_freq"] = 0
-        model = load_dp_model(args.ckpt_path, args.action_dim)
+        model = load_dp_model(args.ckpt_path, args.action_dim, normalizer_zarr_path=args.normalizer_zarr)
         for split, env_seed, repeat in work_items:
             key = work_item_key(split, env_seed, repeat)
             if key in completed_keys:

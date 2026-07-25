@@ -106,6 +106,14 @@ training:
   resume_from_ckpt: null
   resume_training_ckpt: null
   checkpoint_name: null
+  # dataset: refit normalizer from zarr; checkpoint: keep normalizer from loaded ckpt
+  normalizer_source: dataset
+  # pooled: batch mean (or sample_weight); source_separated: lambda_expert*LE + lambda_rollout*LR
+  loss_mode: pooled
+  lambda_expert: 1.0
+  lambda_rollout: 0.0
+  log_source_loss_every: 50
+  log_source_grad_norm_every: 0
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 500

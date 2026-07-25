@@ -190,7 +190,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
     def set_normalizer(self, normalizer: LinearNormalizer):
         self.normalizer.load_state_dict(normalizer.state_dict())
 
-    def compute_loss(self, batch):
+    def compute_loss(self, batch, per_sample=False):
         # normalize input
         assert "valid_mask" not in batch
         nobs = self.normalizer.normalize(batch["obs"])
@@ -258,6 +258,9 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         # per batch sample. Keeping a flattened [B, T*Da] tensor here makes a
         # [B] weight align with the action dimension under PyTorch broadcasting.
         loss = reduce(loss, "b ... -> b", "mean")
+        if per_sample:
+            return loss
+
         sample_weight = batch.get("sample_weight")
         if sample_weight is not None:
             if sample_weight.ndim > 1:
