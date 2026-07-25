@@ -79,6 +79,10 @@ dataloader:
   num_batches: null
   # Optional exact fraction of expert-source sequences in every training batch.
   expert_ratio: null
+  # Phase 3 CPST: fixed non-expert chunk budget per batch (overrides expert_ratio).
+  rollout_per_batch: null
+  prefix_per_batch: null
+  group_stratified_rollout: false
   num_workers: 0
   shuffle: True
   pin_memory: True
@@ -112,6 +116,7 @@ training:
   loss_mode: pooled
   lambda_expert: 1.0
   lambda_rollout: 0.0
+  lambda_prefix: 0.0
   log_source_loss_every: 50
   log_source_grad_norm_every: 0
   # optimization

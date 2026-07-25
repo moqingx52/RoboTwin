@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -46,7 +47,7 @@ def make_model_args(task_name, task_config, ckpt_setting, expert_data_num, train
     }
 
 
-def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_root):
+def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_root, save_failures=False):
     from policy.DP.deploy_policy import encode_obs
 
     episode_name = f"episode_{env_seed}_{rollout_id}"
@@ -96,12 +97,19 @@ def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_r
 
         raw_episode = tmp_dir / "data" / f"episode{episode_idx}.hdf5"
         success_path = None
+        failure_path = None
         if success:
             env.merge_pkl_to_hdf5_video()
             success_dir = save_root / "successes"
             success_dir.mkdir(parents=True, exist_ok=True)
             success_path = success_dir / f"{episode_name}.hdf5"
             shutil.move(str(raw_episode), str(success_path))
+        elif save_failures and raw_episode.is_file():
+            env.merge_pkl_to_hdf5_video()
+            failure_dir = save_root / "failures"
+            failure_dir.mkdir(parents=True, exist_ok=True)
+            failure_path = failure_dir / f"{episode_name}.hdf5"
+            shutil.move(str(raw_episode), str(failure_path))
 
         return {
             "env_seed": int(env_seed),
@@ -110,6 +118,7 @@ def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_r
             "episode_idx": int(episode_idx),
             "success": bool(success),
             "hdf5_path": path_for_manifest(success_path) if success_path else None,
+            "failure_hdf5_path": path_for_manifest(failure_path) if failure_path else None,
             "steps": int(env.take_action_cnt),
         }
     finally:
@@ -154,6 +163,30 @@ def iter_manifest(path):
     return rows
 
 
+def write_manifest_atomic(path, rows):
+    """Replace a canonical JSONL manifest without exposing a partial file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    try:
+        with tmp_path.open("w", encoding="utf-8") as f:
+            for row in rows:
+                f.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+def manifest_path_exists(path_value):
+    if not path_value:
+        return False
+    path = Path(path_value)
+    if not path.is_absolute():
+        path = repo_path(path_value)
+    return path.is_file()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Collect DP policy rollouts for phase1 success-filtered SFT.")
     add_common_args(parser)
@@ -168,6 +201,7 @@ def main():
     parser.add_argument("--shard-id", type=int, default=0)
     parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--save-failures", action="store_true", help="Persist failed rollout HDF5 under failures/.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -184,10 +218,21 @@ def main():
         stats_path = save_root / "seed_stats.json"
     save_root.mkdir(parents=True, exist_ok=True)
 
+    existing_rows = iter_manifest(manifest_path)
     done = set()
+    failure_backfill_indices = {}
     if args.resume and manifest_path.exists():
-        for row in iter_manifest(manifest_path):
-            done.add((row["env_seed"], row["rollout_id"]))
+        for idx, row in enumerate(existing_rows):
+            key = (row["env_seed"], row["rollout_id"])
+            needs_failure_backfill = (
+                args.save_failures
+                and not row.get("success", False)
+                and not manifest_path_exists(row.get("failure_hdf5_path"))
+            )
+            if needs_failure_backfill:
+                failure_backfill_indices[key] = idx
+            else:
+                done.add(key)
 
     if args.dry_run:
         for env_seed in seeds:
@@ -222,17 +267,33 @@ def main():
     )
     model = get_model(model_args)
 
-    episode_idx = len(iter_manifest(manifest_path))
+    episode_idx = len(existing_rows)
     for env_seed in seeds:
         for rollout_id in range(args.rollouts_per_seed):
             key = (env_seed, rollout_id)
             if key in done:
                 continue
             env = make_task_env(args.task_name)
-            row = rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_root)
-            append_jsonl(manifest_path, row)
-            print(f"[{args.task_name}] seed={env_seed} rollout={rollout_id} success={row['success']}")
-            episode_idx += 1
+            backfill_idx = failure_backfill_indices.get(key)
+            run_episode_idx = (
+                int(existing_rows[backfill_idx].get("episode_idx", episode_idx))
+                if backfill_idx is not None
+                else episode_idx
+            )
+            row = rollout_once(
+                env, model, env_args, env_seed, rollout_id, run_episode_idx, save_root, args.save_failures
+            )
+            if backfill_idx is not None:
+                existing_rows[backfill_idx] = row
+                write_manifest_atomic(manifest_path, existing_rows)
+            else:
+                append_jsonl(manifest_path, row)
+                existing_rows.append(row)
+                episode_idx += 1
+            print(
+                f"[{args.task_name}] seed={env_seed} rollout={rollout_id} "
+                f"success={row['success']} backfill={backfill_idx is not None}"
+            )
 
     write_json(stats_path, summarize_manifest([manifest_path], seeds, args.rollouts_per_seed))
     print(f"Wrote {manifest_path}")
@@ -241,4 +302,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

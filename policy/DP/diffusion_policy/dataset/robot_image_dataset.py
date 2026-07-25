@@ -46,6 +46,17 @@ class RobotImageDataset(BaseImageDataset):
             self.frame_sources = np.repeat(episode_sources, frame_counts)
         else:
             self.frame_sources = None
+        if "episode_env_seed" in zarr_root["meta"]:
+            episode_env_seed = np.asarray(zarr_root["meta/episode_env_seed"][:], dtype=np.int64)
+            if episode_env_seed.shape != episode_ends.shape:
+                raise ValueError(
+                    f"episode_env_seed shape {episode_env_seed.shape} does not match "
+                    f"episode_ends shape {episode_ends.shape}"
+                )
+            frame_counts = np.diff(np.concatenate(([0], episode_ends)))
+            self.frame_env_seed = np.repeat(episode_env_seed, frame_counts)
+        else:
+            self.frame_env_seed = None
         replay_keys = ["head_camera", "state", "action"]
         if "sample_weight" in zarr_root["data"]:
             replay_keys.append("sample_weight")
@@ -104,6 +115,7 @@ class RobotImageDataset(BaseImageDataset):
     def _refresh_sample_sources(self):
         if self.frame_sources is None:
             self.sample_sources = None
+            self.sample_groups = None
             return
         # SequenceSampler indices are
         # (buffer_start, buffer_end, sample_start, sample_end). Every sequence
@@ -112,6 +124,13 @@ class RobotImageDataset(BaseImageDataset):
             [self.frame_sources[int(row[0])] for row in self.sampler.indices],
             dtype=np.int64,
         )
+        if self.frame_env_seed is not None:
+            self.sample_groups = np.asarray(
+                [self.frame_env_seed[int(row[0])] for row in self.sampler.indices],
+                dtype=np.int64,
+            )
+        else:
+            self.sample_groups = None
 
     def get_normalizer(self, mode="limits", **kwargs):
         data = {

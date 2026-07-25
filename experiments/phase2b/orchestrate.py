@@ -806,10 +806,68 @@ class Scheduler:
             if rc is not None:
                 self._finish_process(job_id, rc)
 
-    def _dependency_complete(self, job):
+    def _should_skip_job(self, job):
         dependency = job.get("dependency")
-        if dependency and self.state["jobs"][dependency]["status"] != "completed":
+        if dependency:
+            dep_status = self.state["jobs"][dependency]["status"]
+            if dep_status == "skipped":
+                return True
+        blocked_by = job.get("blocked_by")
+        if blocked_by:
+            promo = self.state["promotions"].get(blocked_by, {})
+            if promo.get("status") == "eliminated":
+                return True
+            blocked_group = self.state["groups"].get(blocked_by)
+            if blocked_group and blocked_group.get("status") == "skipped":
+                return True
+            if blocked_group:
+                train_dep = blocked_group.get("dependency")
+                if train_dep and self.state["jobs"][train_dep]["status"] == "skipped":
+                    return True
+        depends_on_group = job.get("depends_on_group")
+        if depends_on_group:
+            group = self.state["groups"].get(depends_on_group)
+            if group and group.get("status") == "skipped":
+                return True
+        return False
+
+    def _propagate_skips(self):
+        changed = True
+        while changed:
+            changed = False
+            for group in self.state["groups"].values():
+                if group["status"] != "pending":
+                    continue
+                dependency = group.get("dependency")
+                if dependency and self.state["jobs"][dependency]["status"] == "skipped":
+                    group["status"] = "skipped"
+                    changed = True
+            for job in self.state["jobs"].values():
+                if job["status"] != "pending":
+                    continue
+                if self._should_skip_job(job):
+                    job["status"] = "skipped"
+                    changed = True
+            for group in self.state["groups"].values():
+                if group["status"] != "pending":
+                    continue
+                shard_jobs = [
+                    job for job in self.state["jobs"].values() if job.get("group") == group["id"]
+                ]
+                if shard_jobs and all(job["status"] == "skipped" for job in shard_jobs):
+                    group["status"] = "skipped"
+                    changed = True
+
+    def _dependency_complete(self, job):
+        if job["status"] == "skipped":
             return False
+        dependency = job.get("dependency")
+        if dependency:
+            dep_status = self.state["jobs"][dependency]["status"]
+            if dep_status == "skipped":
+                return False
+            if dep_status != "completed":
+                return False
         blocked_by = job.get("blocked_by")
         if blocked_by:
             promo = self.state["promotions"].get(blocked_by, {})
@@ -973,8 +1031,10 @@ class Scheduler:
         subprocess.run(command, cwd=REPO_ROOT, check=True)
 
     def _all_complete(self):
-        return all(job["status"] == "completed" for job in self.state["jobs"].values()) and all(
-            group["status"] == "completed" for group in self.state["groups"].values()
+        terminal_job = {"completed", "skipped"}
+        terminal_group = {"completed", "skipped"}
+        return all(job["status"] in terminal_job for job in self.state["jobs"].values()) and all(
+            group["status"] in terminal_group for group in self.state["groups"].values()
         )
 
     def stop(self, final_status="interrupted"):
@@ -1000,6 +1060,7 @@ class Scheduler:
             self._refresh_from_artifacts()
             self._merge_ready_groups()
             self._process_gates()
+            self._propagate_skips()
             if any(job["status"] == "failed" for job in self.state["jobs"].values()):
                 self.state["status"] = "failed"
                 self._save_state()

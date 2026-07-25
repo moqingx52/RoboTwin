@@ -64,35 +64,47 @@ def aggregate_training_loss(model, batch, cfg):
 
     expert_mask = sample_source == 0
     rollout_mask = sample_source == 1
+    prefix_mask = sample_source == 2
     expert_loss = _masked_mean(per_sample_loss, expert_mask, sample_weight)
     rollout_loss = _masked_mean(per_sample_loss, rollout_mask, sample_weight)
+    prefix_loss = _masked_mean(per_sample_loss, prefix_mask, sample_weight)
 
     lambda_expert = float(OmegaConf.select(cfg, "training.lambda_expert", default=1.0))
     lambda_rollout = float(OmegaConf.select(cfg, "training.lambda_rollout", default=0.0))
+    lambda_prefix = float(OmegaConf.select(cfg, "training.lambda_prefix", default=0.0))
 
-    if expert_loss is None and rollout_loss is None:
+    if expert_loss is None and rollout_loss is None and prefix_loss is None:
         raise ValueError("source_separated loss received an empty batch.")
     if expert_loss is None:
         raise ValueError("source_separated loss requires expert samples in the batch.")
     if rollout_loss is None and lambda_rollout > 0:
         raise ValueError("source_separated loss requires rollout samples when lambda_rollout > 0.")
+    if prefix_loss is None and lambda_prefix > 0:
+        raise ValueError("source_separated loss requires prefix samples when lambda_prefix > 0.")
 
-    if rollout_loss is None:
-        loss = lambda_expert * expert_loss
-    else:
-        loss = lambda_expert * expert_loss + lambda_rollout * rollout_loss
+    loss = lambda_expert * expert_loss
+    if rollout_loss is not None:
+        loss = loss + lambda_rollout * rollout_loss
+    if prefix_loss is not None:
+        loss = loss + lambda_prefix * prefix_loss
 
     aux = {
         "expert_count": int(expert_mask.sum().item()),
         "rollout_count": int(rollout_mask.sum().item()),
+        "prefix_count": int(prefix_mask.sum().item()),
         "expert_loss": float(expert_loss.detach().item()),
         "rollout_loss": float(rollout_loss.detach().item()) if rollout_loss is not None else None,
+        "prefix_loss": float(prefix_loss.detach().item()) if prefix_loss is not None else None,
         "weighted_expert_contrib": float((lambda_expert * expert_loss).detach().item()),
         "weighted_rollout_contrib": (
             float((lambda_rollout * rollout_loss).detach().item()) if rollout_loss is not None else 0.0
         ),
+        "weighted_prefix_contrib": (
+            float((lambda_prefix * prefix_loss).detach().item()) if prefix_loss is not None else 0.0
+        ),
         "lambda_expert": lambda_expert,
         "lambda_rollout": lambda_rollout,
+        "lambda_prefix": lambda_prefix,
     }
     return loss, aux
 
@@ -415,6 +427,10 @@ class BatchSampler:
         num_batches: int = None,
         sample_sources: np.ndarray = None,
         expert_ratio: float = None,
+        rollout_per_batch: int = None,
+        prefix_per_batch: int = None,
+        sample_groups: np.ndarray = None,
+        group_stratified_rollout: bool = False,
     ):
         assert drop_last
         self.data_size = data_size
@@ -432,9 +448,38 @@ class BatchSampler:
         self.shuffle = shuffle
         self.rng = np.random.default_rng(seed) if shuffle else None
         self.expert_ratio = expert_ratio
+        self.rollout_per_batch = rollout_per_batch
+        self.prefix_per_batch = prefix_per_batch or 0
+        self.group_stratified_rollout = group_stratified_rollout
         self.expert_indices = None
         self.rollout_indices = None
-        if expert_ratio is not None:
+        self.prefix_indices = None
+        self.rollout_group_ids = None
+        self._rollout_group_cursor = 0
+
+        if rollout_per_batch is not None:
+            if sample_sources is None or len(sample_sources) != data_size:
+                raise ValueError("rollout_per_batch requires sample_sources aligned with dataset indices.")
+            self.expert_indices = np.flatnonzero(np.asarray(sample_sources) == 0)
+            self.rollout_indices = np.flatnonzero(np.asarray(sample_sources) == 1)
+            self.prefix_indices = np.flatnonzero(np.asarray(sample_sources) == 2)
+            self.expert_per_batch = batch_size - int(rollout_per_batch) - int(self.prefix_per_batch)
+            if self.expert_per_batch < 0:
+                raise ValueError("rollout_per_batch + prefix_per_batch exceeds batch_size.")
+            if self.expert_per_batch and len(self.expert_indices) == 0:
+                raise ValueError("Requested expert samples but the dataset has no expert indices.")
+            if rollout_per_batch and len(self.rollout_indices) == 0:
+                raise ValueError("Requested rollout samples but the dataset has no rollout indices.")
+            if self.prefix_per_batch and len(self.prefix_indices) == 0:
+                raise ValueError("Requested prefix samples but the dataset has no prefix indices.")
+            if group_stratified_rollout and sample_groups is not None:
+                self.rollout_group_ids = np.asarray(sample_groups)[self.rollout_indices]
+            print(
+                "Using fixed source budget batches: "
+                f"expert={self.expert_per_batch}, rollout={rollout_per_batch}, "
+                f"prefix={self.prefix_per_batch}, group_stratified_rollout={group_stratified_rollout}"
+            )
+        elif expert_ratio is not None:
             if not 0.0 <= float(expert_ratio) <= 1.0:
                 raise ValueError(f"expert_ratio must be in [0, 1], got {expert_ratio}.")
             if sample_sources is None or len(sample_sources) != data_size:
@@ -455,8 +500,28 @@ class BatchSampler:
                 f"expert_pool={len(self.expert_indices)}, rollout_pool={len(self.rollout_indices)}"
             )
 
+    def _sample_stratified_rollout(self, rng, size: int):
+        if self.rollout_group_ids is None or len(self.rollout_indices) == 0:
+            return rng.choice(
+                self.rollout_indices,
+                size=size,
+                replace=len(self.rollout_indices) < size,
+            )
+        unique_groups = np.unique(self.rollout_group_ids)
+        picks = []
+        group_cursor = self._rollout_group_cursor
+        while len(picks) < size:
+            group = unique_groups[group_cursor % len(unique_groups)]
+            group_cursor += 1
+            pool = self.rollout_indices[self.rollout_group_ids == group]
+            if len(pool) == 0:
+                continue
+            picks.append(rng.choice(pool))
+        self._rollout_group_cursor = group_cursor
+        return np.asarray(picks, dtype=np.int64)
+
     def __iter__(self):
-        if self.expert_ratio is not None:
+        if self.rollout_per_batch is not None and self.expert_indices is not None:
             rng = self.rng if self.rng is not None else np.random.default_rng(0)
             for _ in range(self.num_batch):
                 parts = []
@@ -469,11 +534,22 @@ class BatchSampler:
                         )
                     )
                 if self.rollout_per_batch:
+                    if self.group_stratified_rollout:
+                        parts.append(self._sample_stratified_rollout(rng, self.rollout_per_batch))
+                    else:
+                        parts.append(
+                            rng.choice(
+                                self.rollout_indices,
+                                size=self.rollout_per_batch,
+                                replace=len(self.rollout_indices) < self.rollout_per_batch,
+                            )
+                        )
+                if self.prefix_per_batch:
                     parts.append(
                         rng.choice(
-                            self.rollout_indices,
-                            size=self.rollout_per_batch,
-                            replace=len(self.rollout_indices) < self.rollout_per_batch,
+                            self.prefix_indices,
+                            size=self.prefix_per_batch,
+                            replace=len(self.prefix_indices) < self.prefix_per_batch,
                         )
                     )
                 batch = np.concatenate(parts).astype(np.int64, copy=False)
@@ -514,6 +590,9 @@ def create_dataloader(
     seed: int = 0,
     num_batches: int = None,
     expert_ratio: float = None,
+    rollout_per_batch: int = None,
+    prefix_per_batch: int = None,
+    group_stratified_rollout: bool = False,
 ):
     batch_sampler = BatchSampler(
         len(dataset),
@@ -524,6 +603,10 @@ def create_dataloader(
         num_batches=num_batches,
         sample_sources=getattr(dataset, "sample_sources", None),
         expert_ratio=expert_ratio,
+        rollout_per_batch=rollout_per_batch,
+        prefix_per_batch=prefix_per_batch,
+        sample_groups=getattr(dataset, "sample_groups", None),
+        group_stratified_rollout=group_stratified_rollout,
     )
 
     def collate(x):
