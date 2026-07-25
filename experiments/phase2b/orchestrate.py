@@ -687,7 +687,8 @@ class Scheduler:
                 self._event(f"Completed {job['id']}")
             else:
                 job["status"] = "failed"
-                self._event(f"FAILED {job['id']}")
+                job["message"] = f"exit={result.returncode}"
+                self._event(f"FAILED {job['id']} (exit={result.returncode}); see {log_path}")
             return
 
         command = [str(gpu) if token == "{gpu}" else token for token in job["command"]]

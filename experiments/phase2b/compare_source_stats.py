@@ -98,8 +98,8 @@ def normalizer_summary(normalizer):
     for key in ("action", "agent_pos"):
         field = normalizer[key]
         out[key] = {
-            "scale": field.scale.detach().cpu().numpy().tolist(),
-            "offset": field.offset.detach().cpu().numpy().tolist(),
+            "scale": field.params_dict["scale"].detach().cpu().numpy().tolist(),
+            "offset": field.params_dict["offset"].detach().cpu().numpy().tolist(),
         }
     return out
 
@@ -153,8 +153,8 @@ def summarize_task(task, gripper_indices):
             "rollout": action_delta_stats(actions, episode_ends, episode_sources, 1),
         },
         "episode_length": {
-            "expert": stats_1d(np.asarray(episode_lengths[0], dtype=np.int64)),
-            "rollout": stats_1d(np.asarray(episode_lengths[1], dtype=np.int64)),
+            "expert": stats_1d(np.asarray(episode_lengths.get(0, []), dtype=np.int64)),
+            "rollout": stats_1d(np.asarray(episode_lengths.get(1, []), dtype=np.int64)),
         },
         "gripper_action_stats": gripper,
         "normalizer": {
