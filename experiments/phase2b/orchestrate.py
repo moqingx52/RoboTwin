@@ -154,6 +154,41 @@ class Scheduler:
             "expected_episodes": 760,
         }
 
+    def _shard_result_is_complete(self, path):
+        if not Path(path).is_file():
+            return False
+        try:
+            payload = read_json(path)
+            progress = payload.get("progress", {})
+            return bool(progress.get("complete")) and int(progress.get("completed_episodes", -1)) == len(
+                payload.get("rows", [])
+            )
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return False
+
+    def _refresh_diagnose_job_commands(self, state):
+        """Rebuild eval commands/artifacts so resumed runs use the current output layout."""
+        output_dir = PHASE2B / "diagnose" / "eval"
+        protocol = self._eval_protocol()
+        for job in state["jobs"].values():
+            if job.get("kind") != "eval":
+                continue
+            task = job["task"]
+            variant = job["variant"]
+            shard = int(job["shard"])
+            ckpt = diagnose_ckpt_path(task, variant)
+            job["command"] = self._eval_command(task, variant, ckpt, shard, output_dir)
+            job["artifact"] = str(
+                output_dir / task / f"{variant}_shard_{shard:02d}_of_{self.eval_shards:02d}.json"
+            )
+            job["expected_episodes"] = protocol["expected_episodes"]
+            job["num_shards"] = self.eval_shards
+            group = state["groups"][job["group"]]
+            group["output_dir"] = str(output_dir)
+            group["artifact"] = str(output_dir / task / f"{variant}.json")
+            group["checkpoint"] = str(ckpt)
+            group["expected_episodes"] = protocol["expected_episodes"]
+
     def _load_or_create_state(self):
         if self.state_path.exists():
             state = read_json(self.state_path)
@@ -162,6 +197,8 @@ class Scheduler:
                     f"State config differs from this run: {self.state_path}. "
                     "Use the original configuration or a different PHASE2B_STATE_PATH."
                 )
+            if self.stage == "diagnose":
+                self._refresh_diagnose_job_commands(state)
             if self.args.retry_failed:
                 for job in state["jobs"].values():
                     if job["status"] == "failed":
@@ -618,10 +655,12 @@ class Scheduler:
             if job["kind"] != "eval":
                 continue
             target = Path(job["artifact"])
-            if target.is_file():
+            if self._shard_result_is_complete(target):
                 continue
             legacy = self._legacy_diagnose_eval_path(target)
             if legacy is None or not legacy.is_file():
+                continue
+            if not self._shard_result_is_complete(legacy):
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(legacy, target)
