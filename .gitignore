@@ -26,12 +26,50 @@ envs/curobo/*
 .vscode
 /config.json
 
-# Phase 2 runtime artifacts
+# Experiment runtime artifacts (scripts/README under experiments/ stay tracked)
+experiments/**/.tmp/
+
+# Phase 1
+experiments/phase1/seeds/
+experiments/phase1/rollouts/
+experiments/phase1/rollouts_200/
+experiments/phase1/eval_results/
+experiments/phase1/eval_results_200/
+experiments/phase1/figures/
+experiments/phase1/figures_200/
+experiments/phase1/logs/
+experiments/phase1/logs_200/
+experiments/phase1/.tmp_seed_check/
+
+# Phase 2
 experiments/phase2/logs/
 experiments/phase2/eval_results/
 experiments/phase2/figures/
 experiments/phase2/run_state*.json
 experiments/phase2/run_state*.json.lock
+
+# Phase 2b
+experiments/phase2b/logs/
+experiments/phase2b/eval_results/
+experiments/phase2b/figures/
+experiments/phase2b/diagnose/
+experiments/phase2b/promotions/
+experiments/phase2b/run_state*.json
+experiments/phase2b/run_state*.json.lock
+
+# Phase 3
+experiments/phase3/logs/
+experiments/phase3/prefix_candidates/
+experiments/phase3/prefix_audit/
+experiments/phase3/budgets/
+experiments/phase3/rollouts_iter*/
+experiments/phase3/run_state*.json
+experiments/phase3/run_state*.json.lock
+
+# DP datasets built from rollouts (checkpoints already ignored above)
+policy/DP/data/
+policy/DP/data_phase1_200/
+policy/DP/data_phase3/
 
 /*.json*
 /*.txt
