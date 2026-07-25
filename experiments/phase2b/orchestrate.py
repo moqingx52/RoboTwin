@@ -6,6 +6,7 @@ import copy
 import fcntl
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -271,7 +272,7 @@ class Scheduler:
             for variant in DIAGNOSE_VARIANTS:
                 ckpt = diagnose_ckpt_path(task, variant)
                 group_id = f"eval:{task}:{variant}"
-                output_dir = PHASE2B / "diagnose" / "eval" / task
+                output_dir = PHASE2B / "diagnose" / "eval"
                 groups[group_id] = {
                     "id": group_id,
                     "task": task,
@@ -280,7 +281,7 @@ class Scheduler:
                     "status": "pending",
                     "attempts": 0,
                     "output_dir": str(output_dir),
-                    "artifact": str(output_dir / f"{variant}.json"),
+                    "artifact": str(output_dir / task / f"{variant}.json"),
                     "checkpoint": str(ckpt),
                     "expected_episodes": protocol["expected_episodes"],
                 }
@@ -300,7 +301,7 @@ class Scheduler:
                         "pid": None,
                         "attempts": 0,
                         "artifact": str(
-                            output_dir / f"{variant}_shard_{shard:02d}_of_{self.eval_shards:02d}.json"
+                            output_dir / task / f"{variant}_shard_{shard:02d}_of_{self.eval_shards:02d}.json"
                         ),
                         "log": str(self.log_dir / f"eval_{task}_{variant}_shard{shard:02d}.log"),
                         "command": self._eval_command(task, variant, ckpt, shard, output_dir),
@@ -603,7 +604,31 @@ class Scheduler:
         self.state["events"] = self.state["events"][-200:]
         print(f"[{now()}] {message}", flush=True)
 
+    def _legacy_diagnose_eval_path(self, artifact_path):
+        path = Path(artifact_path)
+        legacy = path.parent / path.parent.name / path.name
+        if legacy == path:
+            return None
+        return legacy
+
+    def _migrate_legacy_eval_artifacts(self):
+        if self.stage != "diagnose":
+            return
+        for job in self.state["jobs"].values():
+            if job["kind"] != "eval":
+                continue
+            target = Path(job["artifact"])
+            if target.is_file():
+                continue
+            legacy = self._legacy_diagnose_eval_path(target)
+            if legacy is None or not legacy.is_file():
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy, target)
+            self._event(f"Migrated legacy eval artifact {legacy} -> {target}")
+
     def _refresh_from_artifacts(self):
+        self._migrate_legacy_eval_artifacts()
         for group in self.state["groups"].values():
             expected = group.get("expected_episodes", self.args.expected_eval_episodes)
             merged = Path(group["artifact"])
