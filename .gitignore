@@ -73,3 +73,6 @@ policy/DP/data_phase3/
 
 /*.json*
 /*.txt
+
+# Experiment reports and paper drafts
+docs/
