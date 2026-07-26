@@ -36,6 +36,10 @@ python experiments/phase1/collect_rollouts.py \
 ## Prep pipeline
 
 ```bash
+# 8 GPUs x 3 processes/GPU; two tasks receive 12 independent shards each.
+PHASE3_ROLLOUT_WORKERS_PER_GPU=3 \
+bash experiments/phase3/collect_failures_parallel.sh
+
 # Initialize state files
 bash experiments/phase3/run_all.sh init
 

@@ -18,6 +18,11 @@ def main():
     parser.add_argument("--rollout-dir", type=Path, required=True)
     parser.add_argument("--rollouts-per-seed", type=int, default=8)
     parser.add_argument("--num-shards", type=int, default=2)
+    parser.add_argument(
+        "--require-failures",
+        action="store_true",
+        help="Require every failed row to reference a readable failure HDF5.",
+    )
     args = parser.parse_args()
 
     import h5py
@@ -42,13 +47,12 @@ def main():
         successes = [row for row in rows if row.get("success")]
         invalid_paths = []
         inconsistent_rows = 0
-        for row in rows:
-            has_path = row.get("hdf5_path") is not None
-            if has_path != bool(row.get("success")):
-                inconsistent_rows += 1
-            if not row.get("success"):
-                continue
-            path = Path(row["hdf5_path"])
+
+        def verify_episode_path(path_value, label):
+            if not path_value:
+                invalid_paths.append(f"{label}: missing path")
+                return
+            path = Path(path_value)
             if not path.is_absolute():
                 path = repo_path(path)
             try:
@@ -58,7 +62,17 @@ def main():
                     if root["/observation/head_camera/rgb"].shape[0] <= 1:
                         raise ValueError("empty head-camera trajectory")
             except Exception as exc:
-                invalid_paths.append(f"{path}: {exc}")
+                invalid_paths.append(f"{label} {path}: {exc}")
+
+        for row in rows:
+            has_path = row.get("hdf5_path") is not None
+            if has_path != bool(row.get("success")):
+                inconsistent_rows += 1
+            label = f"seed={row['env_seed']} rollout={row['rollout_id']}"
+            if row.get("success"):
+                verify_episode_path(row.get("hdf5_path"), f"success {label}")
+            elif args.require_failures:
+                verify_episode_path(row.get("failure_hdf5_path"), f"failure {label}")
 
         ok = (
             len(shards) == args.num_shards
