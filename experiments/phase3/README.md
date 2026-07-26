@@ -1,8 +1,12 @@
-# Phase 3: CPST Absorption Framework
+# Phase 3: CPST Baseline Pipeline
 
-ReGuide improves **how** recovery trajectories are generated. Phase 3 studies **how**
-outcome-filtered trajectories should be **absorbed** without coverage relocation,
-incorrect chunk credit, or mode collapse.
+> Status after the paper-route revision: this directory remains the U0--U4 baseline
+> implementation. Do not start the full A0--A4 cloud sweep before completing the BRACE
+> prefix-replay audit. The authoritative sequence is
+> `docs/brace_cloud_experiment_plan.md`.
+
+These jobs provide outcome-filtered absorption baselines for the revised BRACE paper.
+They are not the new B1--B3 implementation.
 
 ## Positioning
 

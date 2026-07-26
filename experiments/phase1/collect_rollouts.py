@@ -104,12 +104,15 @@ def rollout_once(env, model, env_args, env_seed, rollout_id, episode_idx, save_r
             success_dir.mkdir(parents=True, exist_ok=True)
             success_path = success_dir / f"{episode_name}.hdf5"
             shutil.move(str(raw_episode), str(success_path))
-        elif save_failures and raw_episode.is_file():
+        elif save_failures:
+            # Merge must run before the existence check: HDF5 is created here, not
+            # during rollout (only PKL cache is written while stepping).
             env.merge_pkl_to_hdf5_video()
-            failure_dir = save_root / "failures"
-            failure_dir.mkdir(parents=True, exist_ok=True)
-            failure_path = failure_dir / f"{episode_name}.hdf5"
-            shutil.move(str(raw_episode), str(failure_path))
+            if raw_episode.is_file():
+                failure_dir = save_root / "failures"
+                failure_dir.mkdir(parents=True, exist_ok=True)
+                failure_path = failure_dir / f"{episode_name}.hdf5"
+                shutil.move(str(raw_episode), str(failure_path))
 
         return {
             "env_seed": int(env_seed),
