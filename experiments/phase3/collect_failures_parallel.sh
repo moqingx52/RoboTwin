@@ -65,6 +65,7 @@ for task in "${tasks[@]}"; do
     "${task_dir}"/seed_stats_shard_*_of_*.json
   )
   for path in "${candidates[@]}"; do
+    [[ -e "${path}" ]] || continue
     name="$(basename "${path}")"
     if [[ "${name}" == *_of_$(printf '%02d' "${shards_per_task}").* ]]; then
       continue
