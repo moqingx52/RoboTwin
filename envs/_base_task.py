@@ -442,6 +442,7 @@ class Base_Task(gym.Env):
             "pointcloud": [],
             "joint_action": {},
             "endpose": {},
+            "task_object_pose": {},
         }
 
         pkl_dic["observation"] = self.cameras.get_config()
@@ -492,12 +493,25 @@ class Base_Task(gym.Env):
             pkl_dic["joint_action"]["right_arm"] = right_jointstate[:-1]
             pkl_dic["joint_action"]["right_gripper"] = right_jointstate[-1]
             pkl_dic["joint_action"]["vector"] = np.array(left_jointstate + right_jointstate)
+        # Task-specific dynamic actors used by deterministic replay audits.
+        # Static targets are intentionally omitted: recreating them from the env
+        # seed is sufficient, while the manipulated actor state is not.
+        if self.data_type.get("task_object_pose", False):
+            for object_name, actor in self.get_task_object_actors().items():
+                pose = actor.get_pose()
+                pkl_dic["task_object_pose"][object_name] = np.concatenate(
+                    (np.asarray(pose.p), np.asarray(pose.q))
+                )
         # pointcloud
         if self.data_type.get("pointcloud", False):
             pkl_dic["pointcloud"] = self.cameras.get_pcd(self.data_type.get("conbine", False))
 
         self.now_obs = deepcopy(pkl_dic)
         return pkl_dic
+
+    def get_task_object_actors(self):
+        """Return dynamic task actors whose pose must survive HDF5 export."""
+        return {}
 
     def save_camera_rgb(self, save_path, camera_name='head_camera'):
         self._update_render()

@@ -42,6 +42,12 @@ bash experiments/brace/run_all.sh init
 Before `audit`, replace every `FREEZE_BEFORE_RUN` value in
 `experiments/brace/protocol.json` and change its status to `frozen`.
 
+The replay gate requires `/joint_action/vector`, both `/endpose/*_endpose`
+datasets, and `/task_object_pose/<name>` in every sampled HDF5. The latter is
+recorded by the current `demo_clean` config for the two BRACE tasks. Rollouts
+collected before that field was added must be recollected; the audit deliberately
+reports them as an incomplete no-go instead of falling back to a robot-only check.
+
 ```bash
 bash experiments/brace/run_all.sh audit
 bash experiments/brace/run_all.sh branch

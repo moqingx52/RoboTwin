@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "status": "template_not_frozen",
+  "status": "frozen",
+  "frozen_on": "2026-07-27",
   "tasks": [
     "place_container_plate",
     "dump_bin_bigbin"
@@ -25,11 +26,11 @@
   },
   "replay_gate": {
     "minimum_pass_rate": 0.95,
-    "joint_max_error": "FREEZE_BEFORE_RUN",
-    "end_effector_translation_error": "FREEZE_BEFORE_RUN",
-    "end_effector_rotation_error": "FREEZE_BEFORE_RUN",
-    "object_translation_error": "FREEZE_BEFORE_RUN",
-    "object_rotation_error": "FREEZE_BEFORE_RUN"
+    "joint_max_error": 0.01,
+    "end_effector_translation_error": 0.005,
+    "end_effector_rotation_error": 0.05,
+    "object_translation_error": 0.005,
+    "object_rotation_error": 0.05
   },
   "promotion": {
     "id_fraction_of_base": 0.8,

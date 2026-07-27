@@ -9,6 +9,9 @@ class dump_bin_bigbin(Base_Task):
     def setup_demo(self, **kwags):
         super()._init_task_env_(table_xy_bias=[0.3, 0], **kwags)
 
+    def get_task_object_actors(self):
+        return {"deskbin": self.deskbin}
+
     def load_actors(self):
         self.dustbin = create_actor(
             self,

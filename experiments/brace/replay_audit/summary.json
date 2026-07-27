@@ -1,0 +1,69 @@
+{
+  "artifacts": {
+    "checks": "checks.jsonl",
+    "diagnostics": "diagnostics.jsonl",
+    "failures": "failures.jsonl"
+  },
+  "complete": false,
+  "expected_checkpoints": 120,
+  "failed_checkpoints": 0,
+  "git_commit": "ec1dd2e6fdd77fea2ef00c319aaed0830fe2b6a5",
+  "metric_errors": {},
+  "minimum_pass_rate": 0.95,
+  "pass_rate": 0.0,
+  "passed": false,
+  "passed_checkpoints": 0,
+  "preflight_errors": [
+    "place_container_plate: missing task rollout directory: /home/gsy/work/RoboTwin/experiments/phase1/rollouts_200/place_container_plate",
+    "place_container_plate: need 20 trajectories, found 0 with readable HDF5",
+    "dump_bin_bigbin: missing task rollout directory: /home/gsy/work/RoboTwin/experiments/phase1/rollouts_200/dump_bin_bigbin",
+    "dump_bin_bigbin: need 20 trajectories, found 0 with readable HDF5"
+  ],
+  "protocol_path": "/home/gsy/work/RoboTwin/experiments/brace/protocol.json",
+  "protocol_sha256": "9baadcd399fe16ec527866a98637a0ec4d60d29f6850b9478d333dcc53f03026",
+  "schema_version": 1,
+  "tasks": {
+    "dump_bin_bigbin": {
+      "available_failures": 0,
+      "available_successes": 0,
+      "available_trajectories": 0,
+      "checkpoints_per_trajectory": 3,
+      "pass_rate": 0.0,
+      "passed_checkpoints": 0,
+      "preflight_errors": [
+        "missing task rollout directory: /home/gsy/work/RoboTwin/experiments/phase1/rollouts_200/dump_bin_bigbin",
+        "need 20 trajectories, found 0 with readable HDF5"
+      ],
+      "requested_trajectories": 20,
+      "selected_failures": 0,
+      "selected_successes": 0,
+      "selected_trajectories": 0,
+      "total_checkpoints": 0
+    },
+    "place_container_plate": {
+      "available_failures": 0,
+      "available_successes": 0,
+      "available_trajectories": 0,
+      "checkpoints_per_trajectory": 3,
+      "pass_rate": 0.0,
+      "passed_checkpoints": 0,
+      "preflight_errors": [
+        "missing task rollout directory: /home/gsy/work/RoboTwin/experiments/phase1/rollouts_200/place_container_plate",
+        "need 20 trajectories, found 0 with readable HDF5"
+      ],
+      "requested_trajectories": 20,
+      "selected_failures": 0,
+      "selected_successes": 0,
+      "selected_trajectories": 0,
+      "total_checkpoints": 0
+    }
+  },
+  "thresholds": {
+    "end_effector_rotation_error": 0.05,
+    "end_effector_translation_error": 0.005,
+    "joint_max_error": 0.01,
+    "object_rotation_error": 0.05,
+    "object_translation_error": 0.005
+  },
+  "total_checkpoints": 0
+}

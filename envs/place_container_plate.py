@@ -8,6 +8,9 @@ class place_container_plate(Base_Task):
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)
 
+    def get_task_object_actors(self):
+        return {"container": self.container}
+
     def load_actors(self):
         container_pose = rand_pose(
             xlim=[-0.28, 0.28],
