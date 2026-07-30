@@ -174,6 +174,7 @@ case "${stage}" in
       --protocol "${protocol}" \
       --rollout-dir "${rollout_dir}" \
       --output-dir "${brace_dir}/replay_audit" \
+      --gpus "${gpu_ids[@]}" \
       "$@"
     ;;
 

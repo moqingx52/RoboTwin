@@ -14,10 +14,13 @@ import argparse
 import hashlib
 import json
 import math
+import multiprocessing
 import os
+import queue as queue_module
 import random
 import subprocess
 import sys
+import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -424,6 +427,111 @@ def replay_candidate(
     return rows
 
 
+def replay_worker(
+    gpu: int,
+    jobs: Any,
+    results: Any,
+) -> None:
+    """Replay queued trajectories in a simulator process pinned to one GPU."""
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    while True:
+        job = jobs.get()
+        if job is None:
+            return
+        job_index, candidate, points, thresholds = job
+        try:
+            episode = load_episode(candidate.path)
+            rows = replay_candidate(candidate, episode, points, thresholds)
+            results.put((job_index, rows, None))
+        except BaseException as exc:
+            results.put(
+                (
+                    job_index,
+                    [],
+                    f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
+                )
+            )
+
+
+def replay_candidates_parallel(
+    work: list[tuple[Candidate, list[int]]],
+    thresholds: dict[str, float],
+    gpus: list[int],
+) -> tuple[list[dict[str, Any]], list[tuple[Candidate, str]]]:
+    """Replay trajectories in stable input order using one process per GPU."""
+    if not work:
+        return [], []
+    if not gpus:
+        raise ValueError("at least one GPU is required")
+    if len(set(gpus)) != len(gpus):
+        raise ValueError(f"GPU IDs must be unique, got {gpus}")
+
+    context = multiprocessing.get_context("spawn")
+    result_queue = context.Queue()
+    worker_count = min(len(gpus), len(work))
+    job_queues = [context.Queue() for _ in range(worker_count)]
+    workers = [
+        context.Process(
+            target=replay_worker,
+            args=(gpus[index], job_queues[index], result_queue),
+            name=f"replay-audit-gpu-{gpus[index]}",
+        )
+        for index in range(worker_count)
+    ]
+    for worker in workers:
+        worker.start()
+
+    try:
+        for job_index, (candidate, points) in enumerate(work):
+            job_queues[job_index % worker_count].put(
+                (job_index, candidate, points, thresholds)
+            )
+        for job_queue in job_queues:
+            job_queue.put(None)
+
+        completed: dict[int, tuple[list[dict[str, Any]], str | None]] = {}
+        while len(completed) < len(work):
+            try:
+                job_index, rows, error = result_queue.get(timeout=5)
+            except queue_module.Empty:
+                crashed = [
+                    f"{worker.name} exitcode={worker.exitcode}"
+                    for worker in workers
+                    if worker.exitcode not in (None, 0)
+                ]
+                if crashed:
+                    raise RuntimeError(
+                        "replay worker exited before returning its result: "
+                        + ", ".join(crashed)
+                    )
+                continue
+            completed[job_index] = (rows, error)
+            print(
+                f"Replay audit trajectory {len(completed)}/{len(work)} completed",
+                flush=True,
+            )
+    except BaseException:
+        for worker in workers:
+            if worker.is_alive():
+                worker.terminate()
+        raise
+    finally:
+        for worker in workers:
+            worker.join()
+        for job_queue in job_queues:
+            job_queue.close()
+        result_queue.close()
+
+    checks: list[dict[str, Any]] = []
+    errors: list[tuple[Candidate, str]] = []
+    for job_index, (candidate, _) in enumerate(work):
+        rows, error = completed[job_index]
+        checks.extend(rows)
+        if error is not None:
+            errors.append((candidate, error))
+    return checks, errors
+
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -501,6 +609,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--rollout-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--gpus", nargs="+", type=int, default=list(range(8)))
     return parser.parse_args()
 
 
@@ -583,24 +692,27 @@ def main() -> int:
                 task_summaries[task]["preflight_errors"].append(message)
 
     if not preflight_errors:
+        work: list[tuple[Candidate, list[int]]] = []
         for task in protocol["tasks"]:
             for candidate in selected_by_task[task]:
                 episode = episodes[(task, candidate.env_seed, candidate.rollout_id)]
                 points = checkpoint_indices(episode.length, checkpoint_count)
-                try:
-                    checks.extend(
-                        replay_candidate(candidate, episode, points, thresholds)
-                    )
-                except Exception as exc:
-                    message = (
-                        f"{task}: replay failed seed={candidate.env_seed} "
-                        f"rollout={candidate.rollout_id}: {type(exc).__name__}: {exc}"
-                    )
-                    preflight_errors.append(message)
-                    task_summaries[task]["preflight_errors"].append(message)
-                    break
-            if preflight_errors:
-                break
+                work.append((candidate, points))
+        try:
+            checks, replay_errors = replay_candidates_parallel(
+                work, thresholds, args.gpus
+            )
+            for candidate, error in replay_errors:
+                message = (
+                    f"{candidate.task}: replay failed seed={candidate.env_seed} "
+                    f"rollout={candidate.rollout_id}: {error}"
+                )
+                preflight_errors.append(message)
+                task_summaries[candidate.task]["preflight_errors"].append(message)
+        except Exception as exc:
+            preflight_errors.append(
+                f"parallel replay failed: {type(exc).__name__}: {exc}"
+            )
 
     for task, task_summary in task_summaries.items():
         task_checks = [row for row in checks if row["task"] == task]
