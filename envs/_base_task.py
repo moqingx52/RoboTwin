@@ -97,6 +97,15 @@ class Base_Task(gym.Env):
 
         self.now_obs = {}
         self.take_action_cnt = 0
+        self.physics_step = 0
+        self.record_control_trace = bool(
+            self.data_type.get("record_control_trace", False) if self.data_type else False
+        )
+        self._control_trace_steps = []
+        self._policy_chunks = []
+        self._current_policy_chunk_index = -1
+        self._policy_step_counter = 0
+        self._n_action_steps = int(kwags.get("n_action_steps", 6))
         self.eval_video_path = kwags.get("eval_video_save_dir", None)
 
         self.save_freq = kwags.get("save_freq")
@@ -512,6 +521,114 @@ class Base_Task(gym.Env):
     def get_task_object_actors(self):
         """Return dynamic task actors whose pose must survive HDF5 export."""
         return {}
+
+    def get_dynamic_actors(self):
+        """Return all dynamic actors required for BRACE snapshot restore."""
+        return self.get_task_object_actors()
+
+    def reset_brace_trace_buffers(self):
+        self.physics_step = 0
+        self._control_trace_steps = []
+        self._policy_chunks = []
+        self._current_policy_chunk_index = -1
+        self._policy_step_counter = 0
+
+    def record_policy_chunk(self, action, chunk_index: int):
+        if not self.record_control_trace:
+            return
+        self._current_policy_chunk_index = int(chunk_index)
+        self._policy_chunks.append(
+            {
+                "chunk_index": int(chunk_index),
+                "policy_step": int(self._policy_step_counter),
+                "physics_step": int(self.physics_step),
+                "action": np.asarray(action, dtype=np.float64),
+            }
+        )
+        self._policy_step_counter += 1
+
+    def _brace_robot_state_snapshot(self):
+        from experiments.brace.control_trace import robot_state_dict
+
+        return robot_state_dict(self)
+
+    def _record_control_trace_step(
+        self,
+        *,
+        left_arm_pos,
+        left_arm_vel,
+        right_arm_pos,
+        right_arm_vel,
+        left_gripper,
+        right_gripper,
+    ):
+        if not self.record_control_trace:
+            return
+        self._control_trace_steps.append(
+            {
+                "physics_step": int(self.physics_step),
+                "policy_chunk_index": int(self._current_policy_chunk_index),
+                "left_arm_pos": np.asarray(left_arm_pos, dtype=np.float64),
+                "left_arm_vel": np.asarray(left_arm_vel, dtype=np.float64),
+                "right_arm_pos": np.asarray(right_arm_pos, dtype=np.float64),
+                "right_arm_vel": np.asarray(right_arm_vel, dtype=np.float64),
+                "left_gripper": float(left_gripper),
+                "right_gripper": float(right_gripper),
+                "robot_state": self._brace_robot_state_snapshot(),
+            }
+        )
+        self.physics_step += 1
+
+    def replay_control_step(self, step: dict):
+        """Replay one recorded physics step without TOPP replanning."""
+        from experiments.brace.control_trace import replay_control_step as _replay_control_step
+
+        _replay_control_step(self, step)
+
+    def restore_branch_snapshot(self, snapshot: dict):
+        from experiments.brace.control_trace import restore_robot_state
+
+        restore_robot_state(self, snapshot["robot_state"], settle=False)
+
+    def build_branch_snapshots(self, snapshots_per_trajectory: int):
+        from experiments.brace.control_trace import snapshot_indices
+
+        if not self._control_trace_steps:
+            return []
+        buffer_indices = snapshot_indices(len(self._control_trace_steps), snapshots_per_trajectory)
+        branch_snapshots = []
+        for snapshot_id, buffer_index in enumerate(buffer_indices):
+            step = self._control_trace_steps[buffer_index]
+            branch_snapshots.append(
+                {
+                    "snapshot_id": snapshot_id,
+                    "physics_step": int(step["physics_step"]),
+                    "control_trace_offset": int(step["physics_step"]),
+                    "robot_state": step["robot_state"],
+                    "observation_joint_vector": np.asarray(step["robot_state"]["joints"], dtype=np.float64),
+                }
+            )
+        return branch_snapshots
+
+    def finalize_brace_trace_to_hdf5(self, hdf5_path, snapshots_per_trajectory: int = 3):
+        from experiments.brace.control_trace import append_brace_trace_to_hdf5
+
+        if not self.record_control_trace:
+            return
+        branch_snapshots = self.build_branch_snapshots(snapshots_per_trajectory)
+        append_brace_trace_to_hdf5(
+            Path(hdf5_path),
+            policy_chunks=self._policy_chunks,
+            control_steps=self._control_trace_steps,
+            branch_snapshots=branch_snapshots,
+            meta={
+                "schema_version": 2,
+                "physics_timestep": float(self.scene.get_timestep()),
+                "save_freq": int(self.save_freq) if self.save_freq is not None else -1,
+                "n_action_steps": int(self._n_action_steps),
+                "physics_steps": int(self.physics_step),
+            },
+        )
 
     def save_camera_rgb(self, save_path, camera_name='head_camera'):
         self._update_render()
@@ -1671,6 +1788,18 @@ class Base_Task(gym.Env):
                 self.robot.set_gripper(right_gripper[now_right_id], "right")
 
                 now_right_id += 1
+
+            if self.record_control_trace:
+                left_index = min(max(now_left_id - 1, 0), left_n_step - 1)
+                right_index = min(max(now_right_id - 1, 0), right_n_step - 1)
+                self._record_control_trace_step(
+                    left_arm_pos=left_result["position"][left_index] if topp_left_flag else left_path[-1],
+                    left_arm_vel=left_result["velocity"][left_index] if topp_left_flag else np.zeros_like(left_path[-1]),
+                    right_arm_pos=right_result["position"][right_index] if topp_right_flag else right_path[-1],
+                    right_arm_vel=right_result["velocity"][right_index] if topp_right_flag else np.zeros_like(right_path[-1]),
+                    left_gripper=left_gripper[left_index],
+                    right_gripper=right_gripper[right_index],
+                )
 
             self.scene.step()
             self._update_render()

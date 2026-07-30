@@ -11,8 +11,10 @@ read -r -a tasks <<< "${BRACE_TASKS:-place_container_plate dump_bin_bigbin}"
 read -r -a gpu_ids <<< "${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
 
 rollout_dir=${BRACE_ROLLOUT_DIR:-experiments/phase1/rollouts_200}
+traced_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/rollouts_traced}
 brace_dir=${BRACE_OUTPUT_DIR:-experiments/brace}
 protocol=${BRACE_PROTOCOL_PATH:-${brace_dir}/protocol.json}
+protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.json}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
 
@@ -28,8 +30,13 @@ Stages:
   collect  Start/resume failure-HDF5 collection through the existing Phase 3 collector.
   verify   Strictly verify all shards and rebuild canonical manifests.
   init     Create BRACE directories and a local protocol.json from the template.
-  audit    Run deterministic prefix-replay audit (requires replay_audit.py).
-  branch   Collect matched-continuation branches (requires passed replay audit).
+  audit    Run v1 waypoint-replay audit (historical baseline).
+  audit-v2 Run snapshot + control-trace audit (requires protocol.v2.json).
+  collect-trace-smoke  Collect 2-4 traced rollouts per task for schema smoke.
+  collect-trace-audit  Collect traced rollouts for the v2 audit sample.
+  collect-trace-pilot  Collect traced rollouts for Stage-2 pilot seeds.
+  verify-traced        Verify traced rollout shards and schema v2 HDF5.
+  branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
 
@@ -178,10 +185,77 @@ case "${stage}" in
       "$@"
     ;;
 
+  audit-v2)
+    if [[ ! -s "${protocol_v2}" ]]; then
+      echo "Missing ${protocol_v2}" >&2
+      exit 2
+    fi
+    if rg -q "FREEZE_BEFORE_RUN|template_not_frozen" "${protocol_v2}"; then
+      echo "Protocol v2 is not frozen: ${protocol_v2}" >&2
+      exit 2
+    fi
+    if [[ ! -f experiments/brace/replay_audit_v2.py ]]; then
+      echo "replay_audit_v2.py is not implemented yet." >&2
+      exit 2
+    fi
+    exec python experiments/brace/replay_audit_v2.py \
+      --protocol "${protocol_v2}" \
+      --rollout-dir "${traced_rollout_dir}" \
+      --output-dir "${brace_dir}/replay_audit_v2" \
+      "$@"
+    ;;
+
+  collect-trace-smoke)
+    export BRACE_TRACED_ROLLOUT_DIR="${traced_rollout_dir}"
+    export BRACE_TRACE_MAX_TRAJECTORIES="${BRACE_TRACE_MAX_TRAJECTORIES:-4}"
+    export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
+    export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+    exec bash experiments/brace/collect_traced_parallel.sh "$@"
+    ;;
+
+  collect-trace-audit)
+    export BRACE_TRACED_ROLLOUT_DIR="${traced_rollout_dir}"
+    unset BRACE_TRACE_MAX_TRAJECTORIES || true
+    export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
+    export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+    exec bash experiments/brace/collect_traced_parallel.sh "$@"
+    ;;
+
+  collect-trace-pilot)
+    export BRACE_TRACED_ROLLOUT_DIR="${traced_rollout_dir}"
+    export BRACE_TRACE_ENV_SEEDS="${BRACE_TRACE_ENV_SEEDS:?Set BRACE_TRACE_ENV_SEEDS for pilot collection}"
+    export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
+    export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+    exec bash experiments/brace/collect_traced_parallel.sh "$@"
+    ;;
+
+  verify-traced)
+    if pgrep -af "experiments/brace/collect_traced_rollouts.py" >/dev/null 2>&1; then
+      echo "Traced collection is still running." >&2
+      exit 2
+    fi
+    for task in "${tasks[@]}"; do
+      python experiments/brace/verify_traced_rollouts.py \
+        --tasks "${task}" \
+        --rollout-dir "${traced_rollout_dir}" \
+        --rollouts-per-seed "${rollouts_per_seed}" \
+        --num-shards "${num_shards}" \
+        --require-failures
+
+      python experiments/phase1/merge_rollout_shards.py \
+        --task "${task}" \
+        --task-config demo_brace_trace \
+        --seeds-file "experiments/phase1/seeds/${task}_seeds.json" \
+        --rollouts-per-seed "${rollouts_per_seed}" \
+        --rollout-dir "${traced_rollout_dir}"
+    done
+    echo "Traced rollouts verified."
+    ;;
+
   branch)
     freeze_guard
-    require_gate "${brace_dir}/replay_audit/summary.json" \
-      "Replay audit gate has not passed"
+    require_gate "${brace_dir}/replay_audit_v2/summary.json" \
+      "Replay audit v2 gate has not passed"
     if [[ ! -f experiments/brace/collect_branches.py ]]; then
       echo "collect_branches.py is not implemented yet; branch collection cannot start." >&2
       exit 2
@@ -196,8 +270,8 @@ case "${stage}" in
 
   screen)
     freeze_guard
-    require_gate "${brace_dir}/replay_audit/summary.json" \
-      "Replay audit gate has not passed"
+    require_gate "${brace_dir}/replay_audit_v2/summary.json" \
+      "Replay audit v2 gate has not passed"
     require_gate "${brace_dir}/branches/summary.json" \
       "Branch-quality gate has not passed"
     require_gate "${brace_dir}/anchor_smoke/summary.json" \

@@ -12,6 +12,12 @@ class dump_bin_bigbin(Base_Task):
     def get_task_object_actors(self):
         return {"deskbin": self.deskbin}
 
+    def get_dynamic_actors(self):
+        actors = {"deskbin": self.deskbin}
+        for index, sphere in enumerate(self.sphere_lst):
+            actors[f"garbage_{index}"] = sphere
+        return actors
+
     def load_actors(self):
         self.dustbin = create_actor(
             self,

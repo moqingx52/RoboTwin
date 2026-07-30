@@ -1,0 +1,364 @@
+"""BRACE schema v2: control trace and branch snapshot HDF5 helpers."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+SCHEMA_VERSION = 2
+REQUIRED_GROUPS = (
+    "meta",
+    "policy_chunks",
+    "control_trace",
+    "branch_snapshots",
+)
+
+
+def snapshot_indices(total_steps: int, count: int) -> list[int]:
+    """Interior quartile physics-step indices for branch snapshots."""
+    if total_steps < 2:
+        raise ValueError("need at least two physics steps for snapshots")
+    if count < 1:
+        raise ValueError("snapshot count must be positive")
+    available = total_steps
+    if available < count:
+        raise ValueError(f"only {available} physics steps for {count} snapshots")
+    values = np.linspace(0, total_steps - 1, count + 2, dtype=np.int64)[1:-1]
+    indices = sorted(set(int(value) for value in values))
+    if len(indices) != count:
+        indices = [int(value) for value in np.linspace(0, total_steps - 1, count, dtype=np.int64)]
+    if len(set(indices)) != count:
+        raise ValueError(f"cannot choose {count} unique snapshots from {total_steps} steps")
+    return indices
+
+
+def _actor_velocity(actor: Any) -> tuple[np.ndarray, np.ndarray]:
+    import sapien
+
+    component = actor.find_component_by_type(sapien.physx.PhysxRigidDynamicComponent)
+    if component is None:
+        return np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)
+    return (
+        np.asarray(component.linear_velocity, dtype=np.float64),
+        np.asarray(component.angular_velocity, dtype=np.float64),
+    )
+
+
+def actor_pose_vector(actor: Any) -> np.ndarray:
+    pose = actor.get_pose()
+    return np.concatenate((np.asarray(pose.p, dtype=np.float64), np.asarray(pose.q, dtype=np.float64)))
+
+
+def set_actor_pose_velocity(actor: Any, pose: np.ndarray, linear_velocity: np.ndarray, angular_velocity: np.ndarray) -> None:
+    import sapien
+
+    actor.set_pose(sapien.Pose(pose[:3], pose[3:7]))
+    component = actor.find_component_by_type(sapien.physx.PhysxRigidDynamicComponent)
+    if component is not None:
+        component.set_linear_velocity(linear_velocity)
+        component.set_angular_velocity(angular_velocity)
+
+
+def robot_state_dict(env: Any) -> dict[str, np.ndarray]:
+    left_qpos = np.asarray(env.robot.left_entity.get_qpos(), dtype=np.float64)
+    left_qvel = np.asarray(env.robot.left_entity.get_qvel(), dtype=np.float64)
+    right_qpos = np.asarray(env.robot.right_entity.get_qpos(), dtype=np.float64)
+    right_qvel = np.asarray(env.robot.right_entity.get_qvel(), dtype=np.float64)
+    joints = np.asarray(
+        env.robot.get_left_arm_jointState() + env.robot.get_right_arm_jointState(),
+        dtype=np.float64,
+    )
+    end_effectors = {
+        "left_endpose": np.asarray(env.get_arm_pose("left"), dtype=np.float64),
+        "right_endpose": np.asarray(env.get_arm_pose("right"), dtype=np.float64),
+    }
+    objects: dict[str, np.ndarray] = {}
+    for name, actor in env.get_dynamic_actors().items():
+        pose = actor_pose_vector(actor)
+        linear_velocity, angular_velocity = _actor_velocity(actor)
+        objects[name] = {
+            "pose": pose,
+            "linear_velocity": linear_velocity,
+            "angular_velocity": angular_velocity,
+        }
+    return {
+        "left_qpos": left_qpos,
+        "left_qvel": left_qvel,
+        "right_qpos": right_qpos,
+        "right_qvel": right_qvel,
+        "joints": joints,
+        "left_endpose": end_effectors["left_endpose"],
+        "right_endpose": end_effectors["right_endpose"],
+        "dynamic_actors": objects,
+    }
+
+
+def restore_robot_state(env: Any, state: dict[str, Any], *, settle: bool = False) -> None:
+    env.robot.left_entity.set_qpos(np.asarray(state["left_qpos"], dtype=np.float64))
+    env.robot.left_entity.set_qvel(np.asarray(state["left_qvel"], dtype=np.float64))
+    env.robot.right_entity.set_qpos(np.asarray(state["right_qpos"], dtype=np.float64))
+    env.robot.right_entity.set_qvel(np.asarray(state["right_qvel"], dtype=np.float64))
+    for name, payload in state["dynamic_actors"].items():
+        actor = env.get_dynamic_actors()[name]
+        set_actor_pose_velocity(
+            actor,
+            np.asarray(payload["pose"], dtype=np.float64),
+            np.asarray(payload["linear_velocity"], dtype=np.float64),
+            np.asarray(payload["angular_velocity"], dtype=np.float64),
+        )
+    env._update_render()
+    if settle:
+        env.scene.step()
+
+
+def replay_control_step(env: Any, step: dict[str, Any]) -> None:
+    """Replay one recorded physics step without TOPP replanning."""
+    env.robot.set_arm_joints(step["left_arm_pos"], step["left_arm_vel"], "left")
+    env.robot.set_arm_joints(step["right_arm_pos"], step["right_arm_vel"], "right")
+    env.robot.set_gripper(step["left_gripper"], "left")
+    env.robot.set_gripper(step["right_gripper"], "right")
+    env.scene.step()
+    env._update_render()
+
+
+def append_brace_trace_to_hdf5(
+    hdf5_path: Path,
+    *,
+    policy_chunks: list[dict[str, Any]],
+    control_steps: list[dict[str, Any]],
+    branch_snapshots: list[dict[str, Any]],
+    meta: dict[str, Any],
+) -> None:
+    import h5py
+
+    hdf5_path = Path(hdf5_path)
+    if not hdf5_path.is_file():
+        raise FileNotFoundError(hdf5_path)
+
+    with h5py.File(hdf5_path, "a") as root:
+        for group_name in REQUIRED_GROUPS:
+            if group_name in root:
+                del root[group_name]
+
+        root.attrs["brace_schema_version"] = SCHEMA_VERSION
+        meta_group = root.create_group("meta")
+        for key, value in meta.items():
+            if isinstance(value, (str, int, float, bool)):
+                meta_group.attrs[key] = value
+            else:
+                meta_group.attrs[key] = json.dumps(value)
+
+        chunks = root.create_group("policy_chunks")
+        if policy_chunks:
+            chunks.create_dataset("chunk_index", data=np.asarray([row["chunk_index"] for row in policy_chunks], dtype=np.int64))
+            chunks.create_dataset("policy_step", data=np.asarray([row["policy_step"] for row in policy_chunks], dtype=np.int64))
+            chunks.create_dataset("physics_step", data=np.asarray([row["physics_step"] for row in policy_chunks], dtype=np.int64))
+            chunks.create_dataset("action", data=np.asarray([row["action"] for row in policy_chunks], dtype=np.float64))
+
+        trace = root.create_group("control_trace")
+        if control_steps:
+            trace.create_dataset("physics_step", data=np.asarray([row["physics_step"] for row in control_steps], dtype=np.int64))
+            trace.create_dataset("policy_chunk_index", data=np.asarray([row["policy_chunk_index"] for row in control_steps], dtype=np.int64))
+            trace.create_dataset("left_arm_pos", data=np.asarray([row["left_arm_pos"] for row in control_steps], dtype=np.float64))
+            trace.create_dataset("left_arm_vel", data=np.asarray([row["left_arm_vel"] for row in control_steps], dtype=np.float64))
+            trace.create_dataset("right_arm_pos", data=np.asarray([row["right_arm_pos"] for row in control_steps], dtype=np.float64))
+            trace.create_dataset("right_arm_vel", data=np.asarray([row["right_arm_vel"] for row in control_steps], dtype=np.float64))
+            trace.create_dataset("left_gripper", data=np.asarray([row["left_gripper"] for row in control_steps], dtype=np.float64))
+            trace.create_dataset("right_gripper", data=np.asarray([row["right_gripper"] for row in control_steps], dtype=np.float64))
+
+            robot = trace.create_group("robot_state")
+            robot.create_dataset("left_qpos", data=np.asarray([row["robot_state"]["left_qpos"] for row in control_steps], dtype=np.float64))
+            robot.create_dataset("left_qvel", data=np.asarray([row["robot_state"]["left_qvel"] for row in control_steps], dtype=np.float64))
+            robot.create_dataset("right_qpos", data=np.asarray([row["robot_state"]["right_qpos"] for row in control_steps], dtype=np.float64))
+            robot.create_dataset("right_qvel", data=np.asarray([row["robot_state"]["right_qvel"] for row in control_steps], dtype=np.float64))
+            robot.create_dataset("joints", data=np.asarray([row["robot_state"]["joints"] for row in control_steps], dtype=np.float64))
+            robot.create_dataset("left_endpose", data=np.asarray([row["robot_state"]["left_endpose"] for row in control_steps], dtype=np.float64))
+            robot.create_dataset("right_endpose", data=np.asarray([row["robot_state"]["right_endpose"] for row in control_steps], dtype=np.float64))
+
+            actor_names = sorted(control_steps[0]["robot_state"]["dynamic_actors"].keys())
+            actors = trace.create_group("dynamic_actors")
+            for actor_name in actor_names:
+                group = actors.create_group(actor_name)
+                group.create_dataset(
+                    "pose",
+                    data=np.asarray(
+                        [row["robot_state"]["dynamic_actors"][actor_name]["pose"] for row in control_steps],
+                        dtype=np.float64,
+                    ),
+                )
+                group.create_dataset(
+                    "linear_velocity",
+                    data=np.asarray(
+                        [row["robot_state"]["dynamic_actors"][actor_name]["linear_velocity"] for row in control_steps],
+                        dtype=np.float64,
+                    ),
+                )
+                group.create_dataset(
+                    "angular_velocity",
+                    data=np.asarray(
+                        [row["robot_state"]["dynamic_actors"][actor_name]["angular_velocity"] for row in control_steps],
+                        dtype=np.float64,
+                    ),
+                )
+
+        snaps = root.create_group("branch_snapshots")
+        if branch_snapshots:
+            snaps.create_dataset("snapshot_id", data=np.asarray([row["snapshot_id"] for row in branch_snapshots], dtype=np.int64))
+            snaps.create_dataset("physics_step", data=np.asarray([row["physics_step"] for row in branch_snapshots], dtype=np.int64))
+            snaps.create_dataset("control_trace_offset", data=np.asarray([row["control_trace_offset"] for row in branch_snapshots], dtype=np.int64))
+
+            snap_robot = snaps.create_group("robot_state")
+            snap_robot.create_dataset("left_qpos", data=np.asarray([row["robot_state"]["left_qpos"] for row in branch_snapshots], dtype=np.float64))
+            snap_robot.create_dataset("left_qvel", data=np.asarray([row["robot_state"]["left_qvel"] for row in branch_snapshots], dtype=np.float64))
+            snap_robot.create_dataset("right_qpos", data=np.asarray([row["robot_state"]["right_qpos"] for row in branch_snapshots], dtype=np.float64))
+            snap_robot.create_dataset("right_qvel", data=np.asarray([row["robot_state"]["right_qvel"] for row in branch_snapshots], dtype=np.float64))
+            snap_robot.create_dataset("joints", data=np.asarray([row["robot_state"]["joints"] for row in branch_snapshots], dtype=np.float64))
+            snap_robot.create_dataset("left_endpose", data=np.asarray([row["robot_state"]["left_endpose"] for row in branch_snapshots], dtype=np.float64))
+            snap_robot.create_dataset("right_endpose", data=np.asarray([row["robot_state"]["right_endpose"] for row in branch_snapshots], dtype=np.float64))
+
+            snap_actor_names = sorted(branch_snapshots[0]["robot_state"]["dynamic_actors"].keys())
+            snap_actors = snaps.create_group("dynamic_actors")
+            for actor_name in snap_actor_names:
+                group = snap_actors.create_group(actor_name)
+                group.create_dataset(
+                    "pose",
+                    data=np.asarray(
+                        [row["robot_state"]["dynamic_actors"][actor_name]["pose"] for row in branch_snapshots],
+                        dtype=np.float64,
+                    ),
+                )
+                group.create_dataset(
+                    "linear_velocity",
+                    data=np.asarray(
+                        [row["robot_state"]["dynamic_actors"][actor_name]["linear_velocity"] for row in branch_snapshots],
+                        dtype=np.float64,
+                    ),
+                )
+                group.create_dataset(
+                    "angular_velocity",
+                    data=np.asarray(
+                        [row["robot_state"]["dynamic_actors"][actor_name]["angular_velocity"] for row in branch_snapshots],
+                        dtype=np.float64,
+                    ),
+                )
+
+            if branch_snapshots[0].get("observation_joint_vector") is not None:
+                snaps.create_dataset(
+                    "observation_joint_vector",
+                    data=np.asarray([row["observation_joint_vector"] for row in branch_snapshots], dtype=np.float64),
+                )
+
+
+def load_brace_trace(hdf5_path: Path) -> dict[str, Any]:
+    import h5py
+
+    with h5py.File(hdf5_path, "r") as root:
+        if root.attrs.get("brace_schema_version", 0) != SCHEMA_VERSION:
+            raise ValueError(f"missing or unsupported brace_schema_version in {hdf5_path}")
+        for group_name in REQUIRED_GROUPS:
+            if group_name not in root:
+                raise ValueError(f"missing /{group_name} in {hdf5_path}")
+
+        trace = root["control_trace"]
+        actor_names = sorted(root["control_trace"]["dynamic_actors"].keys())
+        control_steps = []
+        step_count = int(trace["physics_step"].shape[0])
+        for index in range(step_count):
+            dynamic_actors = {}
+            for actor_name in actor_names:
+                actor_group = trace["dynamic_actors"][actor_name]
+                dynamic_actors[actor_name] = {
+                    "pose": np.asarray(actor_group["pose"][index], dtype=np.float64),
+                    "linear_velocity": np.asarray(actor_group["linear_velocity"][index], dtype=np.float64),
+                    "angular_velocity": np.asarray(actor_group["angular_velocity"][index], dtype=np.float64),
+                }
+            control_steps.append(
+                {
+                    "physics_step": int(trace["physics_step"][index]),
+                    "policy_chunk_index": int(trace["policy_chunk_index"][index]),
+                    "left_arm_pos": np.asarray(trace["left_arm_pos"][index], dtype=np.float64),
+                    "left_arm_vel": np.asarray(trace["left_arm_vel"][index], dtype=np.float64),
+                    "right_arm_pos": np.asarray(trace["right_arm_pos"][index], dtype=np.float64),
+                    "right_arm_vel": np.asarray(trace["right_arm_vel"][index], dtype=np.float64),
+                    "left_gripper": float(trace["left_gripper"][index]),
+                    "right_gripper": float(trace["right_gripper"][index]),
+                    "robot_state": {
+                        "left_qpos": np.asarray(trace["robot_state"]["left_qpos"][index], dtype=np.float64),
+                        "left_qvel": np.asarray(trace["robot_state"]["left_qvel"][index], dtype=np.float64),
+                        "right_qpos": np.asarray(trace["robot_state"]["right_qpos"][index], dtype=np.float64),
+                        "right_qvel": np.asarray(trace["robot_state"]["right_qvel"][index], dtype=np.float64),
+                        "joints": np.asarray(trace["robot_state"]["joints"][index], dtype=np.float64),
+                        "left_endpose": np.asarray(trace["robot_state"]["left_endpose"][index], dtype=np.float64),
+                        "right_endpose": np.asarray(trace["robot_state"]["right_endpose"][index], dtype=np.float64),
+                        "dynamic_actors": dynamic_actors,
+                    },
+                }
+            )
+
+        snaps = root["branch_snapshots"]
+        snap_actor_names = sorted(snaps["dynamic_actors"].keys())
+        branch_snapshots = []
+        snap_count = int(snaps["physics_step"].shape[0])
+        for index in range(snap_count):
+            dynamic_actors = {}
+            for actor_name in snap_actor_names:
+                actor_group = snaps["dynamic_actors"][actor_name]
+                dynamic_actors[actor_name] = {
+                    "pose": np.asarray(actor_group["pose"][index], dtype=np.float64),
+                    "linear_velocity": np.asarray(actor_group["linear_velocity"][index], dtype=np.float64),
+                    "angular_velocity": np.asarray(actor_group["angular_velocity"][index], dtype=np.float64),
+                }
+            branch_snapshots.append(
+                {
+                    "snapshot_id": int(snaps["snapshot_id"][index]),
+                    "physics_step": int(snaps["physics_step"][index]),
+                    "control_trace_offset": int(snaps["control_trace_offset"][index]),
+                    "robot_state": {
+                        "left_qpos": np.asarray(snaps["robot_state"]["left_qpos"][index], dtype=np.float64),
+                        "left_qvel": np.asarray(snaps["robot_state"]["left_qvel"][index], dtype=np.float64),
+                        "right_qpos": np.asarray(snaps["robot_state"]["right_qpos"][index], dtype=np.float64),
+                        "right_qvel": np.asarray(snaps["robot_state"]["right_qvel"][index], dtype=np.float64),
+                        "joints": np.asarray(snaps["robot_state"]["joints"][index], dtype=np.float64),
+                        "left_endpose": np.asarray(snaps["robot_state"]["left_endpose"][index], dtype=np.float64),
+                        "right_endpose": np.asarray(snaps["robot_state"]["right_endpose"][index], dtype=np.float64),
+                        "dynamic_actors": dynamic_actors,
+                    },
+                    "observation_joint_vector": (
+                        np.asarray(snaps["observation_joint_vector"][index], dtype=np.float64)
+                        if "observation_joint_vector" in snaps
+                        else None
+                    ),
+                }
+            )
+
+        chunks = root["policy_chunks"]
+        policy_chunks = []
+        for index in range(int(chunks["chunk_index"].shape[0])):
+            policy_chunks.append(
+                {
+                    "chunk_index": int(chunks["chunk_index"][index]),
+                    "policy_step": int(chunks["policy_step"][index]),
+                    "physics_step": int(chunks["physics_step"][index]),
+                    "action": np.asarray(chunks["action"][index], dtype=np.float64),
+                }
+            )
+
+        meta = {key: root["meta"].attrs[key] for key in root["meta"].attrs.keys()}
+        return {
+            "meta": meta,
+            "policy_chunks": policy_chunks,
+            "control_steps": control_steps,
+            "branch_snapshots": branch_snapshots,
+        }
+
+
+def validate_schema_v2(hdf5_path: Path) -> list[str]:
+    errors: list[str] = []
+    try:
+        load_brace_trace(hdf5_path)
+    except Exception as exc:
+        errors.append(f"{hdf5_path}: {type(exc).__name__}: {exc}")
+    return errors
