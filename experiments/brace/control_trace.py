@@ -35,15 +35,41 @@ def snapshot_indices(total_steps: int, count: int) -> list[int]:
     return indices
 
 
-def _actor_velocity(actor: Any) -> tuple[np.ndarray, np.ndarray]:
+def _resolve_entity(actor: Any) -> Any:
+    """Return the underlying SAPIEN entity for Actor wrappers or raw entities."""
+    wrapped = getattr(actor, "actor", None)
+    if wrapped is not None and hasattr(wrapped, "get_components"):
+        return wrapped
+    return actor
+
+
+def _rigid_dynamic_component(actor: Any):
     import sapien
 
-    component = actor.find_component_by_type(sapien.physx.PhysxRigidDynamicComponent)
+    entity = _resolve_entity(actor)
+    if hasattr(entity, "find_component_by_type"):
+        component = entity.find_component_by_type(sapien.physx.PhysxRigidDynamicComponent)
+        if component is not None:
+            return component
+    for component in entity.get_components():
+        if isinstance(component, sapien.physx.PhysxRigidDynamicComponent):
+            return component
+    return None
+
+
+def _actor_velocity(actor: Any) -> tuple[np.ndarray, np.ndarray]:
+    component = _rigid_dynamic_component(actor)
     if component is None:
         return np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)
+    linear = getattr(component, "linear_velocity", None)
+    angular = getattr(component, "angular_velocity", None)
+    if linear is None and hasattr(component, "get_linear_velocity"):
+        linear = component.get_linear_velocity()
+    if angular is None and hasattr(component, "get_angular_velocity"):
+        angular = component.get_angular_velocity()
     return (
-        np.asarray(component.linear_velocity, dtype=np.float64),
-        np.asarray(component.angular_velocity, dtype=np.float64),
+        np.asarray(linear if linear is not None else np.zeros(3), dtype=np.float64),
+        np.asarray(angular if angular is not None else np.zeros(3), dtype=np.float64),
     )
 
 
@@ -55,11 +81,17 @@ def actor_pose_vector(actor: Any) -> np.ndarray:
 def set_actor_pose_velocity(actor: Any, pose: np.ndarray, linear_velocity: np.ndarray, angular_velocity: np.ndarray) -> None:
     import sapien
 
-    actor.set_pose(sapien.Pose(pose[:3], pose[3:7]))
-    component = actor.find_component_by_type(sapien.physx.PhysxRigidDynamicComponent)
-    if component is not None:
+    entity = _resolve_entity(actor)
+    entity.set_pose(sapien.Pose(pose[:3], pose[3:7]))
+    component = _rigid_dynamic_component(actor)
+    if component is None:
+        return
+    if hasattr(component, "set_linear_velocity"):
         component.set_linear_velocity(linear_velocity)
         component.set_angular_velocity(angular_velocity)
+    else:
+        component.linear_velocity = linear_velocity
+        component.angular_velocity = angular_velocity
 
 
 def robot_state_dict(env: Any) -> dict[str, np.ndarray]:

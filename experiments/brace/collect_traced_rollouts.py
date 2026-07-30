@@ -48,6 +48,25 @@ def _read_n_action_steps(action_dim: int) -> int:
     return int(payload["n_action_steps"])
 
 
+def load_traced_task_args(task_name: str, task_config: str) -> dict:
+    """Load task args for BRACE traced collection.
+
+    Prefer ``task_config/<name>.yml`` when present; otherwise fall back to
+    ``demo_clean`` with the trace-specific ``data_type`` flags injected.
+    """
+    config_path = repo_path("task_config", f"{task_config}.yml")
+    if config_path.is_file():
+        return load_task_args(task_name, task_config)
+
+    env_args = load_task_args(task_name, "demo_clean")
+    data_type = dict(env_args.get("data_type") or {})
+    data_type["task_object_pose"] = True
+    data_type["record_control_trace"] = True
+    env_args["data_type"] = data_type
+    env_args["task_config"] = task_config
+    return env_args
+
+
 def make_model_args(task_name, task_config, ckpt_setting, expert_data_num, train_seed, checkpoint_num, action_dim):
     arm_dim = (action_dim - 2) // 2
     return {
@@ -296,7 +315,7 @@ def main():
         work_items = work_items[: args.max_trajectories]
 
     os.chdir(repo_path())
-    env_args = load_task_args(args.task_name, args.task_config)
+    env_args = load_traced_task_args(args.task_name, args.task_config)
     from policy.DP.deploy_policy import get_model
 
     model_args = make_model_args(
