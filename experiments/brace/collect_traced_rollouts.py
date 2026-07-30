@@ -228,10 +228,10 @@ def summarize_manifest(manifest_paths, seeds, rollouts_per_seed):
 def main():
     parser = argparse.ArgumentParser(description="Collect BRACE traced rollouts (schema v2 HDF5).")
     add_common_args(parser)
+    parser.set_defaults(task_config="demo_brace_trace")
     parser.add_argument("--seeds-file", type=Path)
     parser.add_argument("--rollouts-per-seed", type=int, default=8)
     parser.add_argument("--ckpt-setting", default="demo_clean")
-    parser.add_argument("--task-config", default="demo_brace_trace")
     parser.add_argument("--expert-data-num", type=int, default=200)
     parser.add_argument("--train-seed", type=int, default=0)
     parser.add_argument("--checkpoint-num", type=int, default=600)
