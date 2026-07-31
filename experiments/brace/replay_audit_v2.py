@@ -21,7 +21,7 @@ for import_path in (REPO_ROOT, PHASE1_DIR):
     if str(import_path) not in sys.path:
         sys.path.insert(0, str(import_path))
 
-from experiments.brace.control_trace import load_brace_trace, robot_state_dict, validate_schema_v2
+from experiments.brace.control_trace import load_brace_trace, robot_state_dict
 from experiments.brace.replay_audit import (
     METRIC_TO_THRESHOLD,
     Candidate,
@@ -215,89 +215,19 @@ def audit_candidate_snapshots(
     return rows
 
 
-def _preflight_work_item(payload: tuple[Candidate, int]) -> tuple[str, Candidate, Any]:
-    candidate, snapshot_count = payload
-    schema_errors = validate_schema_v2(candidate.path)
-    if schema_errors:
-        return (
-            "error",
-            candidate,
-            f"invalid trace seed={candidate.env_seed} rollout={candidate.rollout_id}: {schema_errors[0]}",
-        )
-    trace = load_brace_trace(candidate.path)
-    snapshots = trace["branch_snapshots"][:snapshot_count]
-    if len(snapshots) < snapshot_count:
-        return (
-            "error",
-            candidate,
-            (
-                f"seed={candidate.env_seed} rollout={candidate.rollout_id} "
-                f"has {len(snapshots)} snapshots, need {snapshot_count}"
-            ),
-        )
-    return ("ok", candidate, snapshots)
-
-
-def build_audit_work(
-    selected_by_task: dict[str, list[Candidate]],
-    tasks: list[str],
-    snapshot_count: int,
-    workers: int,
-    task_summaries: dict[str, Any],
-) -> tuple[list[tuple[Candidate, list[dict[str, Any]]]], list[str]]:
-    candidates = [candidate for task in tasks for candidate in selected_by_task[task]]
-    worker_count = min(max(workers, 1), max(len(candidates), 1))
-    print(
-        f"Preflight validating {len(candidates)} trajectories with workers={worker_count}",
-        flush=True,
-    )
-
-    work: list[tuple[Candidate, list[dict[str, Any]]]] = []
-    preflight_errors: list[str] = []
-    completed = 0
-
-    if worker_count <= 1 or len(candidates) <= 1:
-        for candidate in candidates:
-            status, item, payload = _preflight_work_item((candidate, snapshot_count))
-            completed += 1
-            if completed == 1 or completed % 5 == 0 or completed == len(candidates):
-                print(f"  preflight {completed}/{len(candidates)} trajectories", flush=True)
-            if status == "error":
-                message = f"{candidate.task}: {payload}"
-                preflight_errors.append(message)
-                task_summaries[candidate.task]["preflight_errors"].append(message)
-                continue
-            work.append((item, payload))
-        return work, preflight_errors
-
-    context = multiprocessing.get_context("spawn")
-    with ProcessPoolExecutor(max_workers=worker_count, mp_context=context) as pool:
-        futures = {
-            pool.submit(_preflight_work_item, (candidate, snapshot_count)): candidate
-            for candidate in candidates
-        }
-        for future in as_completed(futures):
-            candidate = futures[future]
-            status, item, payload = future.result()
-            completed += 1
-            if completed == 1 or completed % 5 == 0 or completed == len(candidates):
-                print(f"  preflight {completed}/{len(candidates)} trajectories", flush=True)
-            if status == "error":
-                message = f"{candidate.task}: {payload}"
-                preflight_errors.append(message)
-                task_summaries[candidate.task]["preflight_errors"].append(message)
-                continue
-            work.append((item, payload))
-    return work, preflight_errors
-
-
 def _audit_work_item(
-    payload: tuple[int, Candidate, list[dict[str, Any]], dict[str, float], int, int, str],
+    payload: tuple[int, int, Candidate, int, dict[str, float], int, int, str],
 ) -> tuple[int, list[dict[str, Any]], str | None]:
-    job_index, candidate, snapshots, thresholds, restore_repeat_count, horizon, task_config = payload
-    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+    job_index, gpu_id, candidate, snapshot_count, thresholds, restore_repeat_count, horizon, task_config = payload
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     try:
         trace = load_brace_trace(candidate.path)
+        snapshots = trace["branch_snapshots"][:snapshot_count]
+        if len(snapshots) < snapshot_count:
+            raise ValueError(
+                f"seed={candidate.env_seed} rollout={candidate.rollout_id} "
+                f"has {len(snapshots)} snapshots, need {snapshot_count}"
+            )
         rows = audit_candidate_snapshots(
             candidate,
             snapshots,
@@ -313,33 +243,39 @@ def _audit_work_item(
 
 
 def audit_candidates_parallel(
-    work: list[tuple[Candidate, list[dict[str, Any]]]],
+    work: list[Candidate],
     thresholds: dict[str, float],
     workers: int,
+    gpu_ids: list[int],
     *,
+    snapshot_count: int,
     restore_repeat_count: int,
     horizon: int,
     task_config: str,
 ) -> tuple[list[dict[str, Any]], list[tuple[Candidate, str]]]:
     if not work:
         return [], []
+    if not gpu_ids:
+        raise ValueError("at least one GPU id is required for simulator import (curobo)")
 
     worker_count = min(max(workers, 1), len(work))
     print(
-        f"Starting replay audit v2 on {len(work)} trajectories with workers={worker_count}",
+        f"Starting replay audit v2 on {len(work)} trajectories with "
+        f"workers={worker_count} gpus={gpu_ids} (one HDF5 load per trajectory)",
         flush=True,
     )
     payloads = [
         (
             job_index,
+            gpu_ids[job_index % len(gpu_ids)],
             candidate,
-            snapshots,
+            snapshot_count,
             thresholds,
             restore_repeat_count,
             horizon,
             task_config,
         )
-        for job_index, (candidate, snapshots) in enumerate(work)
+        for job_index, candidate in enumerate(work)
     ]
     completed: dict[int, tuple[list[dict[str, Any]], str | None]] = {}
 
@@ -365,7 +301,7 @@ def audit_candidates_parallel(
 
     checks: list[dict[str, Any]] = []
     errors: list[tuple[Candidate, str]] = []
-    for job_index, (candidate, _) in enumerate(work):
+    for job_index, candidate in enumerate(work):
         rows, error = completed[job_index]
         checks.extend(rows)
         if error is not None:
@@ -384,6 +320,13 @@ def parse_args() -> argparse.Namespace:
         default=96,
         help="Parallel CPU workers for preflight HDF5 validation and simulator replay.",
     )
+    parser.add_argument(
+        "--gpus",
+        nargs="+",
+        type=int,
+        default=list(range(8)),
+        help="GPU ids assigned round-robin to workers (required for curobo import).",
+    )
     return parser.parse_args()
 
 
@@ -391,6 +334,10 @@ def main() -> int:
     args = parse_args()
     if args.workers < 1:
         raise SystemExit("--workers must be >= 1")
+    if not args.gpus:
+        raise SystemExit("at least one --gpus id is required")
+    if len(set(args.gpus)) != len(args.gpus):
+        raise SystemExit("--gpus ids must be unique")
     protocol_path = repo_path(args.protocol)
     rollout_dir = repo_path(args.rollout_dir)
     output_dir = repo_path(args.output_dir)
@@ -451,20 +398,14 @@ def main() -> int:
         }
 
     if not preflight_errors:
-        work, schema_errors = build_audit_work(
-            selected_by_task,
-            protocol["tasks"],
-            snapshot_count,
-            args.workers,
-            task_summaries,
-        )
-        preflight_errors.extend(schema_errors)
-
-        if not preflight_errors and work:
+        work = [candidate for task in protocol["tasks"] for candidate in selected_by_task[task]]
+        if work:
             parallel_checks, audit_errors = audit_candidates_parallel(
                 work,
                 thresholds,
                 args.workers,
+                args.gpus,
+                snapshot_count=snapshot_count,
                 restore_repeat_count=restore_repeat_count,
                 horizon=horizon,
                 task_config=task_config,

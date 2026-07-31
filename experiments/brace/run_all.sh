@@ -205,6 +205,7 @@ case "${stage}" in
       --rollout-dir "${traced_rollout_dir}" \
       --output-dir "${brace_dir}/replay_audit_v2" \
       --workers "${audit_workers}" \
+      --gpus "${gpu_ids[@]}" \
       "$@"
     ;;
 
