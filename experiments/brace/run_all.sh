@@ -17,6 +17,7 @@ protocol=${BRACE_PROTOCOL_PATH:-${brace_dir}/protocol.json}
 protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.json}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
+verify_workers=${BRACE_VERIFY_WORKERS:-1}
 
 usage() {
   cat <<'EOF'
@@ -240,7 +241,8 @@ case "${stage}" in
         --rollout-dir "${traced_rollout_dir}" \
         --rollouts-per-seed "${rollouts_per_seed}" \
         --num-shards "${num_shards}" \
-        --require-failures
+        --require-failures \
+        --workers "${verify_workers}"
 
       python experiments/phase1/merge_rollout_shards.py \
         --task "${task}" \
