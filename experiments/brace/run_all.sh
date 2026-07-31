@@ -18,7 +18,8 @@ protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.json}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
 verify_workers=${BRACE_VERIFY_WORKERS:-96}
-audit_workers=${BRACE_AUDIT_WORKERS:-96}
+audit_workers_per_gpu=${BRACE_AUDIT_WORKERS_PER_GPU:-3}
+audit_workers=${BRACE_AUDIT_WORKERS:-$(( ${#gpu_ids[@]} * audit_workers_per_gpu ))}
 
 usage() {
   cat <<'EOF'
@@ -205,6 +206,7 @@ case "${stage}" in
       --rollout-dir "${traced_rollout_dir}" \
       --output-dir "${brace_dir}/replay_audit_v2" \
       --workers "${audit_workers}" \
+      --workers-per-gpu "${audit_workers_per_gpu}" \
       --gpus "${gpu_ids[@]}" \
       "$@"
     ;;
