@@ -111,8 +111,12 @@ def load_env_seeds_from_json(payload: dict[str, Any]) -> list[int]:
 
 
 def iter_manifest_rows(task_dir: Path) -> Iterable[dict[str, Any]]:
-    canonical = task_dir / "manifest.jsonl"
-    paths = [canonical] if canonical.is_file() else sorted(task_dir.glob("manifest_shard_*_of_*.jsonl"))
+    shards = sorted(task_dir.glob("manifest_shard_*_of_*.jsonl"))
+    if shards:
+        paths = shards
+    else:
+        canonical = task_dir / "manifest.jsonl"
+        paths = [canonical] if canonical.is_file() else []
     seen: set[tuple[int, int]] = set()
     for path in paths:
         with path.open("r", encoding="utf-8") as handle:

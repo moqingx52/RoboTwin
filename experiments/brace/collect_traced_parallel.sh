@@ -37,7 +37,7 @@ for task in "${tasks[@]}"; do
       echo "Missing pilot seeds file: ${seeds_file}. Run select-pilot-seeds first." >&2
       exit 2
     fi
-    unset env_seeds || true
+    env_seeds=""
   fi
   for ((shard=0; shard<shards_per_task; shard++)); do
     gpu="${gpu_ids[job_index % ${#gpu_ids[@]}]}"

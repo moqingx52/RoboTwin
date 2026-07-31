@@ -242,15 +242,13 @@ case "${stage}" in
 
   collect-trace-pilot)
     export BRACE_TRACED_ROLLOUT_DIR="${pilot_rollout_dir}"
-    if [[ -z "${BRACE_TRACE_ENV_SEEDS:-}" ]]; then
-      seeds_file="${brace_dir}/seeds/${tasks[0]}_pilot_seeds.json"
-      if [[ -s "${seeds_file}" ]]; then
-        export BRACE_TRACE_ENV_SEEDS="$(jq -r '.seeds | join(" ")' "${seeds_file}")"
-      else
+    for task in "${tasks[@]}"; do
+      seeds_file="${brace_dir}/seeds/${task}_pilot_seeds.json"
+      if [[ ! -s "${seeds_file}" ]]; then
         echo "Missing ${seeds_file}. Run select-pilot-seeds first." >&2
         exit 2
       fi
-    fi
+    done
     export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
     export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
     exec bash experiments/brace/collect_traced_parallel.sh "$@"
@@ -312,6 +310,7 @@ case "${stage}" in
       --protocol "${protocol_v2}" \
       --rollout-dir "${branch_rollout_dir}" \
       --output-dir "${brace_dir}/branches" \
+      --tasks "${tasks[@]}" \
       --workers "${audit_workers}" \
       --workers-per-gpu "${audit_workers_per_gpu}" \
       --gpus "${gpu_ids[@]}" \
