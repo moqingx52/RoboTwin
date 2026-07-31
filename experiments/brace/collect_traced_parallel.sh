@@ -97,7 +97,7 @@ for task in "${tasks[@]}"; do
     --rollouts-per-seed "${rollouts_per_seed}" \
     --num-shards "${shards_per_task}" \
     --require-failures \
-    --workers "${BRACE_VERIFY_WORKERS:-1}"
+    --workers "${BRACE_VERIFY_WORKERS:-96}"
 
   python experiments/phase1/merge_rollout_shards.py \
     --task "${task}" \

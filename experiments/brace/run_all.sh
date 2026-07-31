@@ -17,7 +17,7 @@ protocol=${BRACE_PROTOCOL_PATH:-${brace_dir}/protocol.json}
 protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.json}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
-verify_workers=${BRACE_VERIFY_WORKERS:-1}
+verify_workers=${BRACE_VERIFY_WORKERS:-96}
 
 usage() {
   cat <<'EOF'
