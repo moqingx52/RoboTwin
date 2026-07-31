@@ -6,8 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import multiprocessing
 import os
+import queue as queue_module
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -165,7 +168,7 @@ def audit_snapshot(
 
         env.setup_demo(now_ep_num=0, seed=candidate.env_seed, is_test=True, **run_args)
         env.restore_branch_snapshot(snapshot)
-        for step in trace["control_steps"][start_index + 1 : end_index + 1]:
+        for step in trace["control_steps"][start_index:end_index]:
             env.replay_control_step(step)
 
         expected_state = trace["control_steps"][end_index]["robot_state"]
@@ -187,11 +190,165 @@ def audit_snapshot(
     return rows
 
 
+def audit_candidate_snapshots(
+    candidate: Candidate,
+    snapshots: list[dict[str, Any]],
+    trace: dict[str, Any],
+    thresholds: dict[str, float],
+    *,
+    restore_repeat_count: int,
+    horizon: int,
+    task_config: str,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for snapshot in snapshots:
+        rows.extend(
+            audit_snapshot(
+                candidate,
+                snapshot,
+                trace,
+                thresholds,
+                restore_repeat_count=restore_repeat_count,
+                horizon=horizon,
+                task_config=task_config,
+            )
+        )
+    return rows
+
+
+def audit_worker(gpu: int, jobs: Any, results: Any) -> None:
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    while True:
+        job = jobs.get()
+        if job is None:
+            return
+        (
+            job_index,
+            candidate,
+            snapshots,
+            thresholds,
+            restore_repeat_count,
+            horizon,
+            task_config,
+        ) = job
+        try:
+            trace = load_brace_trace(candidate.path)
+            rows = audit_candidate_snapshots(
+                candidate,
+                snapshots,
+                trace,
+                thresholds,
+                restore_repeat_count=restore_repeat_count,
+                horizon=horizon,
+                task_config=task_config,
+            )
+            results.put((job_index, rows, None))
+        except BaseException as exc:
+            results.put(
+                (
+                    job_index,
+                    [],
+                    f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
+                )
+            )
+
+
+def audit_candidates_parallel(
+    work: list[tuple[Candidate, list[dict[str, Any]]]],
+    thresholds: dict[str, float],
+    gpus: list[int],
+    *,
+    restore_repeat_count: int,
+    horizon: int,
+    task_config: str,
+) -> tuple[list[dict[str, Any]], list[tuple[Candidate, str]]]:
+    if not work:
+        return [], []
+    if not gpus:
+        raise ValueError("at least one GPU is required")
+    if len(set(gpus)) != len(gpus):
+        raise ValueError(f"GPU IDs must be unique, got {gpus}")
+
+    context = multiprocessing.get_context("spawn")
+    result_queue = context.Queue()
+    worker_count = min(len(gpus), len(work))
+    job_queues = [context.Queue() for _ in range(worker_count)]
+    workers = [
+        context.Process(
+            target=audit_worker,
+            args=(gpus[index], job_queues[index], result_queue),
+            name=f"replay-audit-v2-gpu-{gpus[index]}",
+        )
+        for index in range(worker_count)
+    ]
+    for worker in workers:
+        worker.start()
+
+    try:
+        for job_index, (candidate, snapshots) in enumerate(work):
+            job_queues[job_index % worker_count].put(
+                (
+                    job_index,
+                    candidate,
+                    snapshots,
+                    thresholds,
+                    restore_repeat_count,
+                    horizon,
+                    task_config,
+                )
+            )
+        for job_queue in job_queues:
+            job_queue.put(None)
+
+        completed: dict[int, tuple[list[dict[str, Any]], str | None]] = {}
+        while len(completed) < len(work):
+            try:
+                job_index, rows, error = result_queue.get(timeout=5)
+            except queue_module.Empty:
+                crashed = [
+                    f"{worker.name} exitcode={worker.exitcode}"
+                    for worker in workers
+                    if worker.exitcode not in (None, 0)
+                ]
+                if crashed:
+                    raise RuntimeError(
+                        "replay audit v2 worker exited before returning its result: "
+                        + ", ".join(crashed)
+                    )
+                continue
+            completed[job_index] = (rows, error)
+            print(
+                f"Replay audit v2 trajectory {len(completed)}/{len(work)} completed",
+                flush=True,
+            )
+    except BaseException:
+        for worker in workers:
+            if worker.is_alive():
+                worker.terminate()
+        raise
+    finally:
+        for worker in workers:
+            worker.join()
+        for job_queue in job_queues:
+            job_queue.close()
+        result_queue.close()
+
+    checks: list[dict[str, Any]] = []
+    errors: list[tuple[Candidate, str]] = []
+    for job_index, (candidate, _) in enumerate(work):
+        rows, error = completed[job_index]
+        checks.extend(rows)
+        if error is not None:
+            errors.append((candidate, error))
+    return checks, errors
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--rollout-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--gpus", nargs="+", type=int, default=list(range(8)))
     return parser.parse_args()
 
 
@@ -257,6 +414,7 @@ def main() -> int:
         }
 
     if not preflight_errors:
+        work: list[tuple[Candidate, list[dict[str, Any]]]] = []
         for task in protocol["tasks"]:
             for candidate in selected_by_task[task]:
                 schema_errors = validate_schema_v2(candidate.path)
@@ -275,27 +433,25 @@ def main() -> int:
                     preflight_errors.append(message)
                     task_summaries[task]["preflight_errors"].append(message)
                     continue
-                try:
-                    checks.extend(
-                        audit_snapshot(
-                            candidate,
-                            snapshot,
-                            trace,
-                            thresholds,
-                            restore_repeat_count=restore_repeat_count,
-                            horizon=horizon,
-                            task_config=task_config,
-                        )
-                        for snapshot in snapshots
-                    )
-                except Exception as exc:
-                    message = (
-                        f"{task}: audit failed seed={candidate.env_seed} "
-                        f"rollout={candidate.rollout_id}: {type(exc).__name__}: {exc}"
-                    )
-                    preflight_errors.append(message)
-                    task_summaries[task]["preflight_errors"].append(message)
-                    break
+                work.append((candidate, snapshots))
+
+        if not preflight_errors and work:
+            parallel_checks, audit_errors = audit_candidates_parallel(
+                work,
+                thresholds,
+                args.gpus,
+                restore_repeat_count=restore_repeat_count,
+                horizon=horizon,
+                task_config=task_config,
+            )
+            checks.extend(parallel_checks)
+            for candidate, error in audit_errors:
+                message = (
+                    f"{candidate.task}: audit failed seed={candidate.env_seed} "
+                    f"rollout={candidate.rollout_id}: {error}"
+                )
+                preflight_errors.append(message)
+                task_summaries[candidate.task]["preflight_errors"].append(message)
 
     for task, task_summary in task_summaries.items():
         task_checks = [row for row in checks if row["task"] == task]
