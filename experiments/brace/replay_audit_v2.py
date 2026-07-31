@@ -5,12 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import multiprocessing
 import os
-import queue as queue_module
 import sys
 import traceback
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -216,12 +215,121 @@ def audit_candidate_snapshots(
     return rows
 
 
-def audit_worker(gpu: int, jobs: Any, results: Any) -> None:
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
-    while True:
-        job = jobs.get()
-        if job is None:
-            return
+def _preflight_work_item(payload: tuple[Candidate, int]) -> tuple[str, Candidate, Any]:
+    candidate, snapshot_count = payload
+    schema_errors = validate_schema_v2(candidate.path)
+    if schema_errors:
+        return (
+            "error",
+            candidate,
+            f"invalid trace seed={candidate.env_seed} rollout={candidate.rollout_id}: {schema_errors[0]}",
+        )
+    trace = load_brace_trace(candidate.path)
+    snapshots = trace["branch_snapshots"][:snapshot_count]
+    if len(snapshots) < snapshot_count:
+        return (
+            "error",
+            candidate,
+            (
+                f"seed={candidate.env_seed} rollout={candidate.rollout_id} "
+                f"has {len(snapshots)} snapshots, need {snapshot_count}"
+            ),
+        )
+    return ("ok", candidate, snapshots)
+
+
+def build_audit_work(
+    selected_by_task: dict[str, list[Candidate]],
+    tasks: list[str],
+    snapshot_count: int,
+    workers: int,
+    task_summaries: dict[str, Any],
+) -> tuple[list[tuple[Candidate, list[dict[str, Any]]]], list[str]]:
+    candidates = [candidate for task in tasks for candidate in selected_by_task[task]]
+    worker_count = min(max(workers, 1), max(len(candidates), 1))
+    print(
+        f"Preflight validating {len(candidates)} trajectories with workers={worker_count}",
+        flush=True,
+    )
+
+    work: list[tuple[Candidate, list[dict[str, Any]]]] = []
+    preflight_errors: list[str] = []
+    completed = 0
+
+    if worker_count <= 1 or len(candidates) <= 1:
+        for candidate in candidates:
+            status, item, payload = _preflight_work_item((candidate, snapshot_count))
+            completed += 1
+            if completed == 1 or completed % 5 == 0 or completed == len(candidates):
+                print(f"  preflight {completed}/{len(candidates)} trajectories", flush=True)
+            if status == "error":
+                message = f"{candidate.task}: {payload}"
+                preflight_errors.append(message)
+                task_summaries[candidate.task]["preflight_errors"].append(message)
+                continue
+            work.append((item, payload))
+        return work, preflight_errors
+
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=worker_count, mp_context=context) as pool:
+        futures = {
+            pool.submit(_preflight_work_item, (candidate, snapshot_count)): candidate
+            for candidate in candidates
+        }
+        for future in as_completed(futures):
+            candidate = futures[future]
+            status, item, payload = future.result()
+            completed += 1
+            if completed == 1 or completed % 5 == 0 or completed == len(candidates):
+                print(f"  preflight {completed}/{len(candidates)} trajectories", flush=True)
+            if status == "error":
+                message = f"{candidate.task}: {payload}"
+                preflight_errors.append(message)
+                task_summaries[candidate.task]["preflight_errors"].append(message)
+                continue
+            work.append((item, payload))
+    return work, preflight_errors
+
+
+def _audit_work_item(
+    payload: tuple[int, Candidate, list[dict[str, Any]], dict[str, float], int, int, str],
+) -> tuple[int, list[dict[str, Any]], str | None]:
+    job_index, candidate, snapshots, thresholds, restore_repeat_count, horizon, task_config = payload
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+    try:
+        trace = load_brace_trace(candidate.path)
+        rows = audit_candidate_snapshots(
+            candidate,
+            snapshots,
+            trace,
+            thresholds,
+            restore_repeat_count=restore_repeat_count,
+            horizon=horizon,
+            task_config=task_config,
+        )
+        return job_index, rows, None
+    except BaseException as exc:
+        return job_index, [], f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
+
+
+def audit_candidates_parallel(
+    work: list[tuple[Candidate, list[dict[str, Any]]]],
+    thresholds: dict[str, float],
+    workers: int,
+    *,
+    restore_repeat_count: int,
+    horizon: int,
+    task_config: str,
+) -> tuple[list[dict[str, Any]], list[tuple[Candidate, str]]]:
+    if not work:
+        return [], []
+
+    worker_count = min(max(workers, 1), len(work))
+    print(
+        f"Starting replay audit v2 on {len(work)} trajectories with workers={worker_count}",
+        flush=True,
+    )
+    payloads = [
         (
             job_index,
             candidate,
@@ -230,108 +338,30 @@ def audit_worker(gpu: int, jobs: Any, results: Any) -> None:
             restore_repeat_count,
             horizon,
             task_config,
-        ) = job
-        try:
-            trace = load_brace_trace(candidate.path)
-            rows = audit_candidate_snapshots(
-                candidate,
-                snapshots,
-                trace,
-                thresholds,
-                restore_repeat_count=restore_repeat_count,
-                horizon=horizon,
-                task_config=task_config,
-            )
-            results.put((job_index, rows, None))
-        except BaseException as exc:
-            results.put(
-                (
-                    job_index,
-                    [],
-                    f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
-                )
-            )
-
-
-def audit_candidates_parallel(
-    work: list[tuple[Candidate, list[dict[str, Any]]]],
-    thresholds: dict[str, float],
-    gpus: list[int],
-    *,
-    restore_repeat_count: int,
-    horizon: int,
-    task_config: str,
-) -> tuple[list[dict[str, Any]], list[tuple[Candidate, str]]]:
-    if not work:
-        return [], []
-    if not gpus:
-        raise ValueError("at least one GPU is required")
-    if len(set(gpus)) != len(gpus):
-        raise ValueError(f"GPU IDs must be unique, got {gpus}")
-
-    context = multiprocessing.get_context("spawn")
-    result_queue = context.Queue()
-    worker_count = min(len(gpus), len(work))
-    job_queues = [context.Queue() for _ in range(worker_count)]
-    workers = [
-        context.Process(
-            target=audit_worker,
-            args=(gpus[index], job_queues[index], result_queue),
-            name=f"replay-audit-v2-gpu-{gpus[index]}",
         )
-        for index in range(worker_count)
+        for job_index, (candidate, snapshots) in enumerate(work)
     ]
-    for worker in workers:
-        worker.start()
+    completed: dict[int, tuple[list[dict[str, Any]], str | None]] = {}
 
-    try:
-        for job_index, (candidate, snapshots) in enumerate(work):
-            job_queues[job_index % worker_count].put(
-                (
-                    job_index,
-                    candidate,
-                    snapshots,
-                    thresholds,
-                    restore_repeat_count,
-                    horizon,
-                    task_config,
-                )
-            )
-        for job_queue in job_queues:
-            job_queue.put(None)
-
-        completed: dict[int, tuple[list[dict[str, Any]], str | None]] = {}
-        while len(completed) < len(work):
-            try:
-                job_index, rows, error = result_queue.get(timeout=5)
-            except queue_module.Empty:
-                crashed = [
-                    f"{worker.name} exitcode={worker.exitcode}"
-                    for worker in workers
-                    if worker.exitcode not in (None, 0)
-                ]
-                if crashed:
-                    raise RuntimeError(
-                        "replay audit v2 worker exited before returning its result: "
-                        + ", ".join(crashed)
-                    )
-                continue
+    if worker_count <= 1:
+        for payload in payloads:
+            job_index, rows, error = _audit_work_item(payload)
             completed[job_index] = (rows, error)
             print(
-                f"Replay audit v2 trajectory {len(completed)}/{len(work)} completed",
+                f"  audited {len(completed)}/{len(work)} trajectories",
                 flush=True,
             )
-    except BaseException:
-        for worker in workers:
-            if worker.is_alive():
-                worker.terminate()
-        raise
-    finally:
-        for worker in workers:
-            worker.join()
-        for job_queue in job_queues:
-            job_queue.close()
-        result_queue.close()
+    else:
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=worker_count, mp_context=context) as pool:
+            futures = {pool.submit(_audit_work_item, payload): payload[0] for payload in payloads}
+            for future in as_completed(futures):
+                job_index, rows, error = future.result()
+                completed[job_index] = (rows, error)
+                print(
+                    f"  audited {len(completed)}/{len(work)} trajectories",
+                    flush=True,
+                )
 
     checks: list[dict[str, Any]] = []
     errors: list[tuple[Candidate, str]] = []
@@ -348,12 +378,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--rollout-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--gpus", nargs="+", type=int, default=list(range(8)))
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=96,
+        help="Parallel CPU workers for preflight HDF5 validation and simulator replay.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.workers < 1:
+        raise SystemExit("--workers must be >= 1")
     protocol_path = repo_path(args.protocol)
     rollout_dir = repo_path(args.rollout_dir)
     output_dir = repo_path(args.output_dir)
@@ -414,32 +451,20 @@ def main() -> int:
         }
 
     if not preflight_errors:
-        work: list[tuple[Candidate, list[dict[str, Any]]]] = []
-        for task in protocol["tasks"]:
-            for candidate in selected_by_task[task]:
-                schema_errors = validate_schema_v2(candidate.path)
-                if schema_errors:
-                    message = f"{task}: invalid trace seed={candidate.env_seed} rollout={candidate.rollout_id}"
-                    preflight_errors.append(message)
-                    task_summaries[task]["preflight_errors"].append(message)
-                    continue
-                trace = load_brace_trace(candidate.path)
-                snapshots = trace["branch_snapshots"][:snapshot_count]
-                if len(snapshots) < snapshot_count:
-                    message = (
-                        f"{task}: seed={candidate.env_seed} rollout={candidate.rollout_id} "
-                        f"has {len(snapshots)} snapshots, need {snapshot_count}"
-                    )
-                    preflight_errors.append(message)
-                    task_summaries[task]["preflight_errors"].append(message)
-                    continue
-                work.append((candidate, snapshots))
+        work, schema_errors = build_audit_work(
+            selected_by_task,
+            protocol["tasks"],
+            snapshot_count,
+            args.workers,
+            task_summaries,
+        )
+        preflight_errors.extend(schema_errors)
 
         if not preflight_errors and work:
             parallel_checks, audit_errors = audit_candidates_parallel(
                 work,
                 thresholds,
-                args.gpus,
+                args.workers,
                 restore_repeat_count=restore_repeat_count,
                 horizon=horizon,
                 task_config=task_config,
