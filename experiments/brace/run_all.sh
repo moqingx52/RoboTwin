@@ -14,7 +14,7 @@ rollout_dir=${BRACE_ROLLOUT_DIR:-experiments/phase1/rollouts_200}
 traced_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/rollouts_traced}
 brace_dir=${BRACE_OUTPUT_DIR:-experiments/brace}
 protocol=${BRACE_PROTOCOL_PATH:-${brace_dir}/protocol.json}
-protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.json}
+protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.1.json}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
 verify_workers=${BRACE_VERIFY_WORKERS:-96}
@@ -34,7 +34,7 @@ Stages:
   verify   Strictly verify all shards and rebuild canonical manifests.
   init     Create BRACE directories and a local protocol.json from the template.
   audit    Run v1 waypoint-replay audit (historical baseline).
-  audit-v2 Run snapshot + control-trace audit (requires protocol.v2.json).
+  audit-v2 Run snapshot + control-trace audit (requires protocol.v2.1.json).
   collect-trace-smoke  Collect 2-4 traced rollouts per task for schema smoke.
   collect-trace-audit  Collect traced rollouts for the v2 audit sample.
   collect-trace-pilot  Collect traced rollouts for Stage-2 pilot seeds.
@@ -110,6 +110,17 @@ require_gate() {
     echo "${message}: ${path}" >&2
     exit 2
   fi
+}
+
+require_task_replay_gates() {
+  local path=$1
+  local task
+  for task in "${tasks[@]}"; do
+    if [[ "$(jq -r --arg task "${task}" '.tasks[$task].replay_gate_passed // false' "${path}")" != "true" ]]; then
+      echo "Replay audit v2 per-task gate has not passed for ${task}: ${path}" >&2
+      exit 2
+    fi
+  done
 }
 
 case "${stage}" in
@@ -261,8 +272,7 @@ case "${stage}" in
 
   branch)
     freeze_guard
-    require_gate "${brace_dir}/replay_audit_v2/summary.json" \
-      "Replay audit v2 gate has not passed"
+    require_task_replay_gates "${brace_dir}/replay_audit_v2/summary.json"
     if [[ ! -f experiments/brace/collect_branches.py ]]; then
       echo "collect_branches.py is not implemented yet; branch collection cannot start." >&2
       exit 2

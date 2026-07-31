@@ -14,10 +14,17 @@ docs/brace_audit_v2_design.md
 | Version | Script | Protocol | Purpose |
 |---------|--------|----------|---------|
 | v1 (archived) | `replay_audit.py` | `archive/protocol.v1.frozen.json` | Waypoint replay baseline (80% NO-GO) |
-| **v2 (current)** | `replay_audit_v2.py` | `protocol.v2.json` | Snapshot restore + exact control-trace replay |
+| **v2.1 (current)** | `replay_audit_v2.py` | `protocol.v2.1.json` | Separate restore + replay gates |
+| v2.0 (diagnostic) | `replay_audit_v2.py` | `protocol.v2.json` | Mixed pass-rate gate (superseded) |
 
 v1 results are archived under `experiments/brace/archive/replay_audit_v1_no_go/`.
-Do not overwrite them. `branch` requires **v2** `replay_audit_v2/summary.json` with `passed=true`.
+The first v2.0 mixed-gate run is documented under
+`experiments/brace/archive/replay_audit_v2_mixed_gate_diagnostic/`.
+
+`branch` requires each task in `BRACE_TASKS` to have
+`replay_audit_v2/summary.json` → `tasks.<task>.replay_gate_passed=true`.
+For a single-task pilot, set `BRACE_TASKS=place_container_plate` after re-running
+`audit-v2` under protocol v2.1.
 
 ## Unified cloud entry
 

@@ -420,6 +420,120 @@ def audit_candidates_parallel(
     return checks, errors
 
 
+def summarize_check_type(checks: list[dict[str, Any]], check_type: str) -> dict[str, Any]:
+    subset = [row for row in checks if row.get("check_type") == check_type]
+    passed_checks = sum(bool(row["passed"]) for row in subset)
+    total_checks = len(subset)
+    return {
+        "passed_checks": passed_checks,
+        "total_checks": total_checks,
+        "failed_checks": total_checks - passed_checks,
+        "pass_rate": passed_checks / total_checks if total_checks else 0.0,
+    }
+
+
+def replay_gate_requirements(protocol: dict[str, Any]) -> dict[str, float]:
+    gate = protocol["replay_gate"]
+    replay_required = float(
+        gate.get(
+            "control_trace_replay_minimum_pass_rate",
+            gate.get("minimum_pass_rate", 0.95),
+        )
+    )
+    return {
+        "restore_determinism_pass_rate": float(gate.get("restore_determinism_pass_rate", 1.0)),
+        "control_trace_replay_minimum_pass_rate": replay_required,
+        "per_task_control_trace_replay_minimum_pass_rate": float(
+            gate.get("per_task_control_trace_replay_minimum_pass_rate", replay_required)
+        ),
+    }
+
+
+def evaluate_task_replay_gate(
+    checks: list[dict[str, Any]],
+    task: str,
+    requirements: dict[str, float],
+) -> dict[str, Any]:
+    restore = summarize_check_type(
+        [row for row in checks if row["task"] == task],
+        "restore_determinism",
+    )
+    replay = summarize_check_type(
+        [row for row in checks if row["task"] == task],
+        "control_trace_replay",
+    )
+    restore_passed = (
+        restore["total_checks"] > 0
+        and restore["pass_rate"] >= requirements["restore_determinism_pass_rate"]
+        and restore["failed_checks"] == 0
+    )
+    replay_passed = (
+        replay["total_checks"] > 0
+        and replay["pass_rate"] >= requirements["per_task_control_trace_replay_minimum_pass_rate"]
+    )
+    return {
+        "restore_determinism": {**restore, "passed": restore_passed},
+        "control_trace_replay": {**replay, "passed": replay_passed},
+        "replay_gate_passed": restore_passed and replay_passed,
+    }
+
+
+def evaluate_replay_gate(
+    checks: list[dict[str, Any]],
+    tasks: list[str],
+    protocol: dict[str, Any],
+    *,
+    complete: bool,
+    preflight_errors: list[str],
+) -> dict[str, Any]:
+    requirements = replay_gate_requirements(protocol)
+    restore_stats = summarize_check_type(checks, "restore_determinism")
+    replay_stats = summarize_check_type(checks, "control_trace_replay")
+
+    restore_passed = (
+        restore_stats["total_checks"] > 0
+        and restore_stats["pass_rate"] >= requirements["restore_determinism_pass_rate"]
+        and restore_stats["failed_checks"] == 0
+    )
+    replay_passed = (
+        replay_stats["total_checks"] > 0
+        and replay_stats["pass_rate"] >= requirements["control_trace_replay_minimum_pass_rate"]
+    )
+
+    per_task: dict[str, Any] = {}
+    for task in tasks:
+        per_task[task] = evaluate_task_replay_gate(checks, task, requirements)
+
+    per_task_passed = all(task_stats["replay_gate_passed"] for task_stats in per_task.values()) if per_task else False
+    passed = complete and not preflight_errors and restore_passed and replay_passed and per_task_passed
+
+    passed_checks = sum(bool(row["passed"]) for row in checks)
+    total_checks = len(checks)
+    return {
+        "passed": passed,
+        "complete": complete,
+        "preflight_errors": preflight_errors,
+        "restore_determinism": {
+            **restore_stats,
+            "passed": restore_passed,
+            "required_pass_rate": requirements["restore_determinism_pass_rate"],
+        },
+        "control_trace_replay": {
+            **replay_stats,
+            "passed": replay_passed,
+            "required_pass_rate": requirements["control_trace_replay_minimum_pass_rate"],
+        },
+        "per_task_control_trace_replay_minimum_pass_rate": requirements[
+            "per_task_control_trace_replay_minimum_pass_rate"
+        ],
+        "per_task": per_task,
+        "mixed_pass_rate": passed_checks / total_checks if total_checks else 0.0,
+        "passed_checks": passed_checks,
+        "total_checks": total_checks,
+        "failed_checks": total_checks - passed_checks,
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--protocol", type=Path, required=True)
@@ -544,22 +658,32 @@ def main() -> int:
     for task, task_summary in task_summaries.items():
         task_checks = [row for row in checks if row["task"] == task]
         task_passed = sum(bool(row["passed"]) for row in task_checks)
+        task_gate = evaluate_task_replay_gate(checks, task, replay_gate_requirements(protocol))
         task_summary.update(
             {
                 "total_checks": len(task_checks),
                 "passed_checks": task_passed,
                 "pass_rate": task_passed / len(task_checks) if task_checks else 0.0,
+                "restore_determinism": task_gate["restore_determinism"],
+                "control_trace_replay": task_gate["control_trace_replay"],
+                "replay_gate_passed": task_gate["replay_gate_passed"],
             }
         )
 
     expected_checks = (
         sum(int(task["requested_trajectories"]) * int(task["snapshots_per_trajectory"]) * 2 for task in task_summaries.values())
     )
-    passed_checks = sum(bool(row["passed"]) for row in checks)
-    total_checks = len(checks)
-    pass_rate = passed_checks / total_checks if total_checks else 0.0
-    complete = total_checks == expected_checks and not preflight_errors
-    passed = complete and pass_rate >= float(protocol["replay_gate"]["minimum_pass_rate"])
+    expected_restore_checks = expected_checks // 2
+    expected_replay_checks = expected_checks // 2
+    complete = len(checks) == expected_checks and not preflight_errors
+    gate_summary = evaluate_replay_gate(
+        checks,
+        protocol["tasks"],
+        protocol,
+        complete=complete,
+        preflight_errors=preflight_errors,
+    )
+    passed = gate_summary["passed"]
     metric_errors = {
         metric: {
             "maximum": max(values),
@@ -571,14 +695,22 @@ def main() -> int:
     }
     summary = {
         "schema_version": 2,
+        "protocol_revision": protocol.get("protocol_revision", "2.0"),
         "passed": passed,
         "complete": complete,
-        "pass_rate": pass_rate,
-        "minimum_pass_rate": float(protocol["replay_gate"]["minimum_pass_rate"]),
-        "passed_checks": passed_checks,
-        "total_checks": total_checks,
+        "pass_rate": gate_summary["mixed_pass_rate"],
+        "minimum_pass_rate": float(protocol["replay_gate"].get("minimum_pass_rate", 0.95)),
+        "passed_checks": gate_summary["passed_checks"],
+        "total_checks": gate_summary["total_checks"],
         "expected_checks": expected_checks,
-        "failed_checks": total_checks - passed_checks,
+        "expected_restore_checks": expected_restore_checks,
+        "expected_replay_checks": expected_replay_checks,
+        "failed_checks": gate_summary["failed_checks"],
+        "restore_determinism": gate_summary["restore_determinism"],
+        "control_trace_replay": gate_summary["control_trace_replay"],
+        "per_task_control_trace_replay_minimum_pass_rate": gate_summary[
+            "per_task_control_trace_replay_minimum_pass_rate"
+        ],
         "protocol_path": str(protocol_path),
         "protocol_sha256": file_sha256(protocol_path),
         "git_commit": git_commit(),
@@ -598,8 +730,12 @@ def main() -> int:
     write_json_atomic(output_dir / "summary.json", summary)
     print(
         f"Replay audit v2 passed={summary['passed']} complete={summary['complete']} "
-        f"passed_checks={summary['passed_checks']}/{summary['total_checks']} "
-        f"expected_checks={summary['expected_checks']} summary={output_dir / 'summary.json'}"
+        f"restore={summary['restore_determinism']['passed_checks']}/"
+        f"{summary['restore_determinism']['total_checks']} "
+        f"replay={summary['control_trace_replay']['passed_checks']}/"
+        f"{summary['control_trace_replay']['total_checks']} "
+        f"(mixed={summary['passed_checks']}/{summary['total_checks']}) "
+        f"summary={output_dir / 'summary.json'}"
     )
     if preflight_errors:
         print(preflight_errors[0], file=sys.stderr)

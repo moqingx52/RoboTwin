@@ -1,6 +1,8 @@
 {
   "schema_version": 2,
-  "status": "template_not_frozen",
+  "protocol_revision": "2.1",
+  "status": "frozen",
+  "frozen_on": "2026-07-31",
   "tasks": [
     "place_container_plate",
     "dump_bin_bigbin"
@@ -14,7 +16,7 @@
     "trajectories_per_task": 20,
     "snapshots_per_trajectory": 3,
     "snapshot_rule": "interior_quartiles_on_physics_step",
-    "continuation_horizon_physics_steps": "FREEZE_BEFORE_RUN",
+    "continuation_horizon_physics_steps": 50,
     "restore_repeat_count": 3,
     "selection_seed": 0,
     "require_success_and_failure": true,
@@ -32,11 +34,11 @@
     "restore_determinism_pass_rate": 1.0,
     "control_trace_replay_minimum_pass_rate": 0.95,
     "per_task_control_trace_replay_minimum_pass_rate": 0.95,
-    "joint_max_error": "FREEZE_BEFORE_RUN",
-    "end_effector_translation_error": "FREEZE_BEFORE_RUN",
-    "end_effector_rotation_error": "FREEZE_BEFORE_RUN",
-    "object_translation_error": "FREEZE_BEFORE_RUN",
-    "object_rotation_error": "FREEZE_BEFORE_RUN"
+    "joint_max_error": 0.01,
+    "end_effector_translation_error": 0.005,
+    "end_effector_rotation_error": 0.05,
+    "object_translation_error": 0.005,
+    "object_rotation_error": 0.05
   },
   "promotion": {
     "id_fraction_of_base": 0.8,

@@ -5,7 +5,10 @@ from unittest import mock
 from experiments.brace.replay_audit import Candidate
 from experiments.brace.replay_audit_v2 import (
     audit_candidates_parallel,
+    evaluate_replay_gate,
+    evaluate_task_replay_gate,
     job_worker_index,
+    replay_gate_requirements,
     resolve_worker_count,
     run_audit_job,
     worker_gpu_assignments,
@@ -130,6 +133,66 @@ class ReplayAuditV2SchedulerTest(unittest.TestCase):
                     horizon=1,
                     task_config="demo_brace_trace",
                 )
+
+
+class ReplayAuditV2GateTest(unittest.TestCase):
+    def _protocol(self) -> dict:
+        return {
+            "tasks": ["place_container_plate", "dump_bin_bigbin"],
+            "replay_gate": {
+                "minimum_pass_rate": 0.95,
+                "restore_determinism_pass_rate": 1.0,
+                "control_trace_replay_minimum_pass_rate": 0.95,
+                "per_task_control_trace_replay_minimum_pass_rate": 0.95,
+            },
+        }
+
+    def _task_checks(self, task: str, replay_passed: int) -> list[dict]:
+        checks: list[dict] = []
+        for _ in range(60):
+            checks.append({"task": task, "check_type": "restore_determinism", "passed": True})
+        for _ in range(replay_passed):
+            checks.append(
+                {
+                    "task": task,
+                    "check_type": "control_trace_replay",
+                    "passed": True,
+                    "errors": {"object_rotation_error": 0.01},
+                }
+            )
+        for _ in range(60 - replay_passed):
+            checks.append(
+                {
+                    "task": task,
+                    "check_type": "control_trace_replay",
+                    "passed": False,
+                    "errors": {"object_rotation_error": 0.1},
+                }
+            )
+        return checks
+
+    def test_mixed_pass_rate_masks_replay_failure(self):
+        checks = self._task_checks("place_container_plate", 59) + self._task_checks("dump_bin_bigbin", 47)
+        gate = evaluate_replay_gate(
+            checks,
+            self._protocol()["tasks"],
+            self._protocol(),
+            complete=True,
+            preflight_errors=[],
+        )
+        self.assertAlmostEqual(gate["mixed_pass_rate"], 226 / 240)
+        self.assertEqual(gate["control_trace_replay"]["passed_checks"], 106)
+        self.assertFalse(gate["passed"])
+
+    def test_per_task_gate_place_passes_dump_fails(self):
+        checks = self._task_checks("place_container_plate", 59) + self._task_checks("dump_bin_bigbin", 47)
+        requirements = replay_gate_requirements(self._protocol())
+        place = evaluate_task_replay_gate(checks, "place_container_plate", requirements)
+        dump = evaluate_task_replay_gate(checks, "dump_bin_bigbin", requirements)
+        self.assertTrue(place["replay_gate_passed"])
+        self.assertFalse(dump["replay_gate_passed"])
+        self.assertEqual(place["control_trace_replay"]["passed_checks"], 59)
+        self.assertEqual(dump["control_trace_replay"]["passed_checks"], 47)
 
 
 if __name__ == "__main__":
