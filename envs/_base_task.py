@@ -533,16 +533,19 @@ class Base_Task(gym.Env):
         self._current_policy_chunk_index = -1
         self._policy_step_counter = 0
 
-    def record_policy_chunk(self, action, chunk_index: int):
+    def record_policy_chunk(self, actions, chunk_index: int):
         if not self.record_control_trace:
             return
         self._current_policy_chunk_index = int(chunk_index)
+        action_array = np.asarray(actions, dtype=np.float64)
+        if action_array.ndim == 1:
+            action_array = action_array[None, :]
         self._policy_chunks.append(
             {
                 "chunk_index": int(chunk_index),
                 "policy_step": int(self._policy_step_counter),
                 "physics_step": int(self.physics_step),
-                "action": np.asarray(action, dtype=np.float64),
+                "action": action_array,
             }
         )
         self._policy_step_counter += 1

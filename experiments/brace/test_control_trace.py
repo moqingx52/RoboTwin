@@ -71,17 +71,68 @@ class ControlTraceTest(unittest.TestCase):
                         "chunk_index": 0,
                         "policy_step": 0,
                         "physics_step": 0,
-                        "action": np.zeros(14),
+                        "action": np.zeros((6, 14)),
                     }
                 ],
                 control_steps=control_steps,
                 branch_snapshots=branch_snapshots,
-                meta={"schema_version": 2, "physics_steps": 5},
+                meta={"schema_version": 2, "physics_steps": 5, "n_action_steps": 6},
             )
             self.assertEqual(validate_schema_v2(path), [])
             payload = load_brace_trace(path)
             self.assertEqual(len(payload["control_steps"]), 5)
             self.assertEqual(len(payload["branch_snapshots"]), 1)
+            self.assertEqual(payload["policy_chunks"][0]["action"].shape, (6, 14))
+
+    def test_legacy_single_step_policy_chunk_still_loads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy.hdf5"
+            with h5py.File(path, "w") as root:
+                root.create_dataset("placeholder", data=1)
+            control_steps = [
+                {
+                    "physics_step": 0,
+                    "policy_chunk_index": 0,
+                    "left_arm_pos": np.zeros(6),
+                    "left_arm_vel": np.zeros(6),
+                    "right_arm_pos": np.zeros(6),
+                    "right_arm_vel": np.zeros(6),
+                    "left_gripper": 0.0,
+                    "right_gripper": 0.0,
+                    "robot_state": {
+                        "left_qpos": np.zeros(7),
+                        "left_qvel": np.zeros(7),
+                        "right_qpos": np.zeros(7),
+                        "right_qvel": np.zeros(7),
+                        "joints": np.zeros(14),
+                        "left_endpose": np.zeros(7),
+                        "right_endpose": np.zeros(7),
+                        "dynamic_actors": {
+                            "container": {
+                                "pose": np.zeros(7),
+                                "linear_velocity": np.zeros(3),
+                                "angular_velocity": np.zeros(3),
+                            }
+                        },
+                    },
+                }
+            ]
+            append_brace_trace_to_hdf5(
+                path,
+                policy_chunks=[
+                    {
+                        "chunk_index": 0,
+                        "policy_step": 0,
+                        "physics_step": 0,
+                        "action": np.zeros(14),
+                    }
+                ],
+                control_steps=control_steps,
+                branch_snapshots=[],
+                meta={"schema_version": 2, "physics_steps": 1, "n_action_steps": 1},
+            )
+            payload = load_brace_trace(path)
+            self.assertEqual(payload["policy_chunks"][0]["action"].shape, (1, 14))
 
     def test_replay_control_step_does_not_call_topp(self):
         from experiments.brace.control_trace import replay_control_step

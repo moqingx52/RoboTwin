@@ -1,0 +1,19 @@
+{
+  "task": "place_container_plate",
+  "selection_seed": 0,
+  "requested_count": 10,
+  "note": "Regenerate with: bash experiments/brace/run_all.sh select-pilot-seeds (requires phase1 rollouts manifest).",
+  "seeds": [
+    100001,
+    100002,
+    100003,
+    100004,
+    100005,
+    100006,
+    100007,
+    100008,
+    100009,
+    100010
+  ],
+  "source_rollout_dir": "experiments/phase1/rollouts_200"
+}

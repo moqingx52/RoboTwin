@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "protocol_revision": "2.1",
+  "passed": false,
+  "complete": true,
+  "pass_rate": 0.9416666666666667,
+  "minimum_pass_rate": 0.95,
+  "passed_checks": 226,
+  "total_checks": 240,
+  "expected_checks": 240,
+  "expected_restore_checks": 120,
+  "expected_replay_checks": 120,
+  "failed_checks": 14,
+  "restore_determinism": {
+    "passed_checks": 120,
+    "total_checks": 120,
+    "failed_checks": 0,
+    "pass_rate": 1.0,
+    "passed": true,
+    "required_pass_rate": 1.0
+  },
+  "control_trace_replay": {
+    "passed_checks": 106,
+    "total_checks": 120,
+    "failed_checks": 14,
+    "pass_rate": 0.8833333333333333,
+    "passed": false,
+    "required_pass_rate": 0.95
+  },
+  "per_task_control_trace_replay_minimum_pass_rate": 0.95,
+  "tasks": {
+    "place_container_plate": {
+      "replay_gate_passed": true,
+      "control_trace_replay": {
+        "passed_checks": 59,
+        "total_checks": 60,
+        "pass_rate": 0.9833333333333333
+      }
+    },
+    "dump_bin_bigbin": {
+      "replay_gate_passed": false,
+      "control_trace_replay": {
+        "passed_checks": 47,
+        "total_checks": 60,
+        "pass_rate": 0.7833333333333333
+      }
+    }
+  },
+  "note": "Archived summary reconstructed from cloud run logs; copy full checks.jsonl from server if available."
+}

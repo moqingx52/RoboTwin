@@ -313,6 +313,16 @@ def compare_state(
     episode: Episode,
     index: int,
 ) -> dict[str, float]:
+    return compare_state_detailed(actual, episode, index, include_actor_errors=False)
+
+
+def compare_state_detailed(
+    actual: tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndarray]],
+    episode: Episode,
+    index: int,
+    *,
+    include_actor_errors: bool = True,
+) -> dict[str, Any]:
     joints, end_effectors, objects = actual
     if joints.shape != episode.joints[index].shape:
         raise ValueError(
@@ -334,13 +344,22 @@ def compare_state(
         pose_errors(objects[name], episode.objects[name][index])
         for name in sorted(objects)
     ]
-    return {
+    result: dict[str, Any] = {
         "joint_max_error": float(np.max(np.abs(joints - episode.joints[index]))),
         "end_effector_translation_error": max(error[0] for error in ee_errors),
         "end_effector_rotation_error": max(error[1] for error in ee_errors),
         "object_translation_error": max(error[0] for error in object_errors),
         "object_rotation_error": max(error[1] for error in object_errors),
     }
+    if include_actor_errors:
+        result["actor_errors"] = {
+            name: {
+                "translation_error": float(translation),
+                "rotation_error": float(rotation),
+            }
+            for name, (translation, rotation) in zip(sorted(objects), object_errors)
+        }
+    return result
 
 
 def thresholds_from_protocol(protocol: dict[str, Any]) -> dict[str, float]:

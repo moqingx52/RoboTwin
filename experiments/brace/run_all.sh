@@ -14,7 +14,8 @@ rollout_dir=${BRACE_ROLLOUT_DIR:-experiments/phase1/rollouts_200}
 traced_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/rollouts_traced}
 brace_dir=${BRACE_OUTPUT_DIR:-experiments/brace}
 protocol=${BRACE_PROTOCOL_PATH:-${brace_dir}/protocol.json}
-protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.1.json}
+protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.2.json}
+pilot_rollout_dir=${BRACE_PILOT_ROLLOUT_DIR:-experiments/brace/rollouts_traced_pilot}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
 verify_workers=${BRACE_VERIFY_WORKERS:-96}
@@ -34,9 +35,10 @@ Stages:
   verify   Strictly verify all shards and rebuild canonical manifests.
   init     Create BRACE directories and a local protocol.json from the template.
   audit    Run v1 waypoint-replay audit (historical baseline).
-  audit-v2 Run snapshot + control-trace audit (requires protocol.v2.1.json).
+  audit-v2 Run snapshot + control-trace audit (requires protocol.v2.2.json).
   collect-trace-smoke  Collect 2-4 traced rollouts per task for schema smoke.
   collect-trace-audit  Collect traced rollouts for the v2 audit sample.
+  select-pilot-seeds  Select mixed-outcome env seeds for Stage-2 pilot.
   collect-trace-pilot  Collect traced rollouts for Stage-2 pilot seeds.
   verify-traced        Verify traced rollout shards and schema v2 HDF5.
   branch   Collect matched-continuation branches (requires passed replay audit v2).
@@ -239,11 +241,23 @@ case "${stage}" in
     ;;
 
   collect-trace-pilot)
-    export BRACE_TRACED_ROLLOUT_DIR="${traced_rollout_dir}"
+    export BRACE_TRACED_ROLLOUT_DIR="${pilot_rollout_dir}"
     export BRACE_TRACE_ENV_SEEDS="${BRACE_TRACE_ENV_SEEDS:?Set BRACE_TRACE_ENV_SEEDS for pilot collection}"
     export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
     export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
     exec bash experiments/brace/collect_traced_parallel.sh "$@"
+    ;;
+
+  select-pilot-seeds)
+    mkdir -p "${brace_dir}/seeds"
+    for task in "${tasks[@]}"; do
+      python experiments/brace/select_pilot_seeds.py \
+        --task "${task}" \
+        --rollout-dir "${rollout_dir}" \
+        --count "${BRACE_PILOT_SEED_COUNT:-10}" \
+        --seed "${BRACE_PILOT_SEED_SELECTION:-0}" \
+        --output "${brace_dir}/seeds/${task}_pilot_seeds.json"
+    done
     ;;
 
   verify-traced)
@@ -277,10 +291,13 @@ case "${stage}" in
       echo "collect_branches.py is not implemented yet; branch collection cannot start." >&2
       exit 2
     fi
+    branch_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}
     exec python experiments/brace/collect_branches.py \
-      --protocol "${protocol}" \
-      --rollout-dir "${rollout_dir}" \
+      --protocol "${protocol_v2}" \
+      --rollout-dir "${branch_rollout_dir}" \
       --output-dir "${brace_dir}/branches" \
+      --workers "${audit_workers}" \
+      --workers-per-gpu "${audit_workers_per_gpu}" \
       --gpus "${gpu_ids[@]}" \
       "$@"
     ;;

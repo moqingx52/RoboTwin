@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import multiprocessing
 import os
@@ -26,7 +27,7 @@ from experiments.brace.replay_audit import (
     METRIC_TO_THRESHOLD,
     Candidate,
     collect_candidates,
-    compare_state,
+    compare_state_detailed,
     file_sha256,
     git_commit,
     read_json,
@@ -114,9 +115,89 @@ def _episode_from_state(state: dict[str, Any]):
     )
 
 
-def compare_robot_state(actual: dict[str, Any], expected: dict[str, Any], thresholds: dict[str, float]) -> dict[str, Any]:
+def actor_metrics_for_task(protocol: dict[str, Any], task: str) -> dict[str, list[str]]:
+    actor_metrics = protocol.get("actor_metrics", {})
+    task_metrics = actor_metrics.get(task, {})
+    if not isinstance(task_metrics, dict):
+        raise ValueError(f"actor_metrics.{task} must be an object")
+    return {str(pattern): list(metrics) for pattern, metrics in task_metrics.items()}
+
+
+def resolve_actor_metric_dims(actor_name: str, task_metrics: dict[str, list[str]]) -> list[str]:
+    for pattern, metrics in task_metrics.items():
+        if fnmatch.fnmatch(actor_name, pattern):
+            return list(metrics)
+    return ["translation", "rotation"]
+
+
+def apply_actor_metrics(
+    errors: dict[str, Any],
+    thresholds: dict[str, float],
+    task_metrics: dict[str, list[str]],
+) -> dict[str, Any]:
+    actor_errors = errors.get("actor_errors", {})
+    actor_metric_passed: dict[str, dict[str, bool]] = {}
+    rotation_values: list[float] = []
+    translation_values: list[float] = []
+
+    for actor_name, metrics in sorted(actor_errors.items()):
+        dims = resolve_actor_metric_dims(actor_name, task_metrics)
+        actor_passed: dict[str, bool] = {}
+        if "translation" in dims:
+            value = float(metrics["translation_error"])
+            translation_values.append(value)
+            actor_passed["translation"] = value <= thresholds["object_translation_error"]
+        if "rotation" in dims:
+            value = float(metrics["rotation_error"])
+            rotation_values.append(value)
+            actor_passed["rotation"] = value <= thresholds["object_rotation_error"]
+        actor_metric_passed[actor_name] = actor_passed
+
+    gated_errors = {
+        "joint_max_error": errors["joint_max_error"],
+        "end_effector_translation_error": errors["end_effector_translation_error"],
+        "end_effector_rotation_error": errors["end_effector_rotation_error"],
+        "object_translation_error": max(translation_values) if translation_values else 0.0,
+        "object_rotation_error": max(rotation_values) if rotation_values else 0.0,
+        "actor_errors": actor_errors,
+    }
+    metric_passed = {
+        metric: gated_errors[metric] <= thresholds[metric]
+        for metric in METRIC_TO_THRESHOLD
+    }
+    worst_actor = None
+    worst_metric = None
+    worst_value = -1.0
+    for actor_name, metrics in sorted(actor_errors.items()):
+        dims = resolve_actor_metric_dims(actor_name, task_metrics)
+        for metric_name in dims:
+            key = f"{metric_name}_error"
+            value = float(metrics[key])
+            if not actor_metric_passed[actor_name].get(metric_name, True) and value >= worst_value:
+                worst_actor = actor_name
+                worst_metric = metric_name
+                worst_value = value
+
+    passed = all(metric_passed.values())
+    return {
+        "errors": gated_errors,
+        "metric_passed": metric_passed,
+        "actor_metric_passed": actor_metric_passed,
+        "worst_actor": worst_actor,
+        "worst_metric": worst_metric,
+        "passed": passed,
+    }
+
+
+def compare_robot_state(
+    actual: dict[str, Any],
+    expected: dict[str, Any],
+    thresholds: dict[str, float],
+    *,
+    task_metrics: dict[str, list[str]] | None = None,
+) -> dict[str, Any]:
     episode = _episode_from_state(expected)
-    errors = compare_state(
+    errors = compare_state_detailed(
         (
             np.asarray(actual["joints"], dtype=np.float64),
             {
@@ -128,8 +209,31 @@ def compare_robot_state(actual: dict[str, Any], expected: dict[str, Any], thresh
         episode,
         0,
     )
-    metric_passed = {metric: value <= thresholds[metric] for metric, value in errors.items()}
-    return {"errors": errors, "metric_passed": metric_passed, "passed": all(metric_passed.values())}
+    if task_metrics:
+        return apply_actor_metrics(errors, thresholds, task_metrics)
+    scalar_errors = {metric: errors[metric] for metric in METRIC_TO_THRESHOLD}
+    metric_passed = {metric: value <= thresholds[metric] for metric, value in scalar_errors.items()}
+    worst_actor = None
+    worst_metric = None
+    worst_value = -1.0
+    for actor_name, metrics in sorted(errors.get("actor_errors", {}).items()):
+        for metric_name, threshold_key in (
+            ("translation", "object_translation_error"),
+            ("rotation", "object_rotation_error"),
+        ):
+            value = float(metrics[f"{metric_name}_error"])
+            if value > thresholds[threshold_key] and value >= worst_value:
+                worst_actor = actor_name
+                worst_metric = metric_name
+                worst_value = value
+    return {
+        "errors": errors,
+        "metric_passed": metric_passed,
+        "actor_metric_passed": {},
+        "worst_actor": worst_actor,
+        "worst_metric": worst_metric,
+        "passed": all(metric_passed.values()),
+    }
 
 
 def _make_run_args(candidate: Candidate, task_config: str) -> dict[str, Any]:
@@ -174,6 +278,7 @@ def audit_snapshot(
     restore_repeat_count: int,
     horizon: int,
     task_config: str,
+    task_metrics: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     base_row = {
@@ -218,7 +323,7 @@ def audit_snapshot(
             env.replay_control_step(step)
         expected_state = trace["control_steps"][end_index]["robot_state"]
         actual_state = robot_state_dict(env)
-        return compare_robot_state(actual_state, expected_state, thresholds)
+        return compare_robot_state(actual_state, expected_state, thresholds, task_metrics=task_metrics)
 
     comparison = _run_with_env(candidate, task_config, _replay_control_trace)
     rows.append(
@@ -241,6 +346,7 @@ def audit_candidate_snapshots(
     restore_repeat_count: int,
     horizon: int,
     task_config: str,
+    task_metrics: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for snapshot in snapshots:
@@ -253,6 +359,7 @@ def audit_candidate_snapshots(
                 restore_repeat_count=restore_repeat_count,
                 horizon=horizon,
                 task_config=task_config,
+                task_metrics=task_metrics,
             )
         )
     return rows
@@ -266,6 +373,7 @@ def run_audit_job(
     restore_repeat_count: int,
     horizon: int,
     task_config: str,
+    task_metrics: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     trace = load_brace_trace(candidate.path)
     snapshots = trace["branch_snapshots"][:snapshot_count]
@@ -282,6 +390,7 @@ def run_audit_job(
         restore_repeat_count=restore_repeat_count,
         horizon=horizon,
         task_config=task_config,
+        task_metrics=task_metrics,
     )
 
 
@@ -292,7 +401,16 @@ def audit_worker(gpu_id: int, jobs: Any, results: Any) -> None:
         job = jobs.get()
         if job is None:
             return
-        job_index, candidate, snapshot_count, thresholds, restore_repeat_count, horizon, task_config = job
+        (
+            job_index,
+            candidate,
+            snapshot_count,
+            thresholds,
+            restore_repeat_count,
+            horizon,
+            task_config,
+            task_metrics,
+        ) = job
         try:
             rows = run_audit_job(
                 candidate,
@@ -301,6 +419,7 @@ def audit_worker(gpu_id: int, jobs: Any, results: Any) -> None:
                 restore_repeat_count=restore_repeat_count,
                 horizon=horizon,
                 task_config=task_config,
+                task_metrics=task_metrics,
             )
             results.put((job_index, rows, None))
         except BaseException as exc:
@@ -324,6 +443,7 @@ def audit_candidates_parallel(
     restore_repeat_count: int,
     horizon: int,
     task_config: str,
+    task_metrics_by_task: dict[str, dict[str, list[str]]],
 ) -> tuple[list[dict[str, Any]], list[tuple[Candidate, str]]]:
     if not work:
         return [], []
@@ -372,6 +492,7 @@ def audit_candidates_parallel(
                     restore_repeat_count,
                     horizon,
                     task_config,
+                    task_metrics_by_task.get(candidate.task),
                 )
             )
         for job_queue in job_queues:
@@ -534,11 +655,50 @@ def evaluate_replay_gate(
     }
 
 
+def summarize_per_actor_failures(checks: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    counts: dict[str, dict[str, int]] = {}
+    for row in checks:
+        if row.get("check_type") != "control_trace_replay" or row.get("passed"):
+            continue
+        task = row["task"]
+        actor_errors = row.get("errors", {}).get("actor_errors", {})
+        actor_metric_passed = row.get("actor_metric_passed", {})
+        for actor_name, metrics in actor_errors.items():
+            task_counts = counts.setdefault(task, {})
+            passed = actor_metric_passed.get(actor_name, {})
+            if passed.get("translation") is False:
+                key = f"{actor_name}:translation"
+                task_counts[key] = task_counts.get(key, 0) + 1
+            if passed.get("rotation") is False:
+                key = f"{actor_name}:rotation"
+                task_counts[key] = task_counts.get(key, 0) + 1
+            if not actor_metric_passed:
+                if float(metrics["rotation_error"]) > 0.05:
+                    key = f"{actor_name}:rotation"
+                    task_counts[key] = task_counts.get(key, 0) + 1
+                if float(metrics["translation_error"]) > 0.005:
+                    key = f"{actor_name}:translation"
+                    task_counts[key] = task_counts.get(key, 0) + 1
+    return counts
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--rollout-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--tasks",
+        nargs="+",
+        default=None,
+        help="Optional task subset; defaults to all tasks in the protocol.",
+    )
+    parser.add_argument(
+        "--horizon-curve",
+        type=str,
+        default=None,
+        help="Comma-separated replay horizons for diagnostic sweeps (e.g. 1,5,10,20,50).",
+    )
     parser.add_argument(
         "--workers-per-gpu",
         type=int,
@@ -559,6 +719,91 @@ def parse_args() -> argparse.Namespace:
         help="GPU ids pinned at worker creation (required for curobo import).",
     )
     return parser.parse_args()
+
+
+def _run_audit_for_horizons(
+    *,
+    protocol: dict[str, Any],
+    rollout_dir: Path,
+    output_dir: Path,
+    tasks: list[str],
+    thresholds: dict[str, float],
+    workers: int,
+    gpu_ids: list[int],
+    workers_per_gpu: int,
+    horizons: list[int],
+    task_metrics_by_task: dict[str, dict[str, list[str]]],
+) -> int:
+    sampling = protocol["replay_audit"]
+    trajectory_count = int(sampling["trajectories_per_task"])
+    snapshot_count = int(sampling["snapshots_per_trajectory"])
+    selection_seed = int(sampling["selection_seed"])
+    require_both = bool(sampling["require_success_and_failure"])
+    restore_repeat_count = int(sampling["restore_repeat_count"])
+    task_config = protocol.get("task_config", "demo_brace_trace")
+
+    curve_summary: dict[str, Any] = {"horizons": horizons, "tasks": {}}
+    exit_code = 0
+    for horizon in horizons:
+        checks: list[dict[str, Any]] = []
+        preflight_errors: list[str] = []
+        selected_by_task: dict[str, list[Candidate]] = {}
+        for task_index, task in enumerate(tasks):
+            candidates, errors = collect_candidates(task, rollout_dir)
+            selected, selection_errors = select_candidates(
+                candidates,
+                trajectory_count,
+                selection_seed + task_index,
+                require_both,
+            )
+            preflight_errors.extend(f"{task}: {error}" for error in errors + selection_errors)
+            selected_by_task[task] = selected
+
+        if not preflight_errors:
+            work = [candidate for task in tasks for candidate in selected_by_task[task]]
+            if work:
+                parallel_checks, audit_errors = audit_candidates_parallel(
+                    work,
+                    thresholds,
+                    workers,
+                    gpu_ids,
+                    workers_per_gpu=workers_per_gpu,
+                    snapshot_count=snapshot_count,
+                    restore_repeat_count=restore_repeat_count,
+                    horizon=horizon,
+                    task_config=task_config,
+                    task_metrics_by_task=task_metrics_by_task,
+                )
+                checks.extend(parallel_checks)
+                for candidate, error in audit_errors:
+                    preflight_errors.append(
+                        f"{candidate.task}: audit failed seed={candidate.env_seed} "
+                        f"rollout={candidate.rollout_id}: {error}"
+                    )
+
+        gate_summary = evaluate_replay_gate(
+            checks,
+            tasks,
+            protocol,
+            complete=not preflight_errors,
+            preflight_errors=preflight_errors,
+        )
+        curve_summary["tasks"][str(horizon)] = {
+            "passed": gate_summary["passed"],
+            "control_trace_replay": gate_summary["control_trace_replay"],
+            "per_task": gate_summary["per_task"],
+            "per_actor_failure_counts": summarize_per_actor_failures(checks),
+        }
+        horizon_dir = output_dir / f"horizon_{horizon}"
+        horizon_dir.mkdir(parents=True, exist_ok=True)
+        write_jsonl_atomic(horizon_dir / "checks.jsonl", checks)
+        write_jsonl_atomic(horizon_dir / "failures.jsonl", [row for row in checks if not row["passed"]])
+        if not gate_summary["passed"]:
+            exit_code = 1
+
+    write_json_atomic(output_dir / "horizon_curve_summary.json", curve_summary)
+    print(f"Horizon curve summary written to {output_dir / 'horizon_curve_summary.json'}")
+    return exit_code
 
 
 def main() -> int:
@@ -593,6 +838,15 @@ def main() -> int:
         restore_repeat_count = int(sampling["restore_repeat_count"])
         horizon = int(sampling["continuation_horizon_physics_steps"])
         task_config = protocol.get("task_config", "demo_brace_trace")
+        tasks = list(args.tasks) if args.tasks else list(protocol["tasks"])
+        for task in tasks:
+            if task not in protocol["tasks"]:
+                raise ValueError(f"unknown task {task!r} in protocol tasks={protocol['tasks']}")
+        task_metrics_by_task = {
+            task: actor_metrics_for_task(protocol, task)
+            for task in tasks
+            if protocol.get("actor_metrics", {}).get(task)
+        }
     except Exception as exc:
         summary = {
             "schema_version": 2,
@@ -604,12 +858,27 @@ def main() -> int:
         print(summary["preflight_errors"][0], file=sys.stderr)
         return 2
 
+    if args.horizon_curve:
+        horizons = [int(value.strip()) for value in args.horizon_curve.split(",") if value.strip()]
+        return _run_audit_for_horizons(
+            protocol=protocol,
+            rollout_dir=rollout_dir,
+            output_dir=output_dir,
+            tasks=tasks,
+            thresholds=thresholds,
+            workers=workers,
+            gpu_ids=args.gpus,
+            workers_per_gpu=args.workers_per_gpu,
+            horizons=horizons,
+            task_metrics_by_task=task_metrics_by_task,
+        )
+
     checks: list[dict[str, Any]] = []
     preflight_errors: list[str] = []
     task_summaries: dict[str, Any] = {}
     selected_by_task: dict[str, list[Candidate]] = {}
 
-    for task_index, task in enumerate(protocol["tasks"]):
+    for task_index, task in enumerate(tasks):
         candidates, errors = collect_candidates(task, rollout_dir)
         selected, selection_errors = select_candidates(
             candidates,
@@ -633,7 +902,7 @@ def main() -> int:
         }
 
     if not preflight_errors:
-        work = [candidate for task in protocol["tasks"] for candidate in selected_by_task[task]]
+        work = [candidate for task in tasks for candidate in selected_by_task[task]]
         if work:
             parallel_checks, audit_errors = audit_candidates_parallel(
                 work,
@@ -645,6 +914,7 @@ def main() -> int:
                 restore_repeat_count=restore_repeat_count,
                 horizon=horizon,
                 task_config=task_config,
+                task_metrics_by_task=task_metrics_by_task,
             )
             checks.extend(parallel_checks)
             for candidate, error in audit_errors:
@@ -678,7 +948,7 @@ def main() -> int:
     complete = len(checks) == expected_checks and not preflight_errors
     gate_summary = evaluate_replay_gate(
         checks,
-        protocol["tasks"],
+        tasks,
         protocol,
         complete=complete,
         preflight_errors=preflight_errors,
@@ -716,6 +986,7 @@ def main() -> int:
         "git_commit": git_commit(),
         "thresholds": thresholds,
         "metric_errors": metric_errors,
+        "per_actor_failure_counts": summarize_per_actor_failures(checks),
         "tasks": task_summaries,
         "preflight_errors": preflight_errors,
         "artifacts": {

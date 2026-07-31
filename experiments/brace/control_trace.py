@@ -331,40 +331,41 @@ def load_brace_trace(hdf5_path: Path) -> dict[str, Any]:
             )
 
         snaps = root["branch_snapshots"]
-        snap_actor_names = sorted(snaps["dynamic_actors"].keys())
         branch_snapshots = []
-        snap_count = int(snaps["physics_step"].shape[0])
-        for index in range(snap_count):
-            dynamic_actors = {}
-            for actor_name in snap_actor_names:
-                actor_group = snaps["dynamic_actors"][actor_name]
-                dynamic_actors[actor_name] = {
-                    "pose": np.asarray(actor_group["pose"][index], dtype=np.float64),
-                    "linear_velocity": np.asarray(actor_group["linear_velocity"][index], dtype=np.float64),
-                    "angular_velocity": np.asarray(actor_group["angular_velocity"][index], dtype=np.float64),
-                }
-            branch_snapshots.append(
-                {
-                    "snapshot_id": int(snaps["snapshot_id"][index]),
-                    "physics_step": int(snaps["physics_step"][index]),
-                    "control_trace_offset": int(snaps["control_trace_offset"][index]),
-                    "robot_state": {
-                        "left_qpos": np.asarray(snaps["robot_state"]["left_qpos"][index], dtype=np.float64),
-                        "left_qvel": np.asarray(snaps["robot_state"]["left_qvel"][index], dtype=np.float64),
-                        "right_qpos": np.asarray(snaps["robot_state"]["right_qpos"][index], dtype=np.float64),
-                        "right_qvel": np.asarray(snaps["robot_state"]["right_qvel"][index], dtype=np.float64),
-                        "joints": np.asarray(snaps["robot_state"]["joints"][index], dtype=np.float64),
-                        "left_endpose": np.asarray(snaps["robot_state"]["left_endpose"][index], dtype=np.float64),
-                        "right_endpose": np.asarray(snaps["robot_state"]["right_endpose"][index], dtype=np.float64),
-                        "dynamic_actors": dynamic_actors,
-                    },
-                    "observation_joint_vector": (
-                        np.asarray(snaps["observation_joint_vector"][index], dtype=np.float64)
-                        if "observation_joint_vector" in snaps
-                        else None
-                    ),
-                }
-            )
+        if "physics_step" in snaps and int(snaps["physics_step"].shape[0]) > 0:
+            snap_actor_names = sorted(snaps["dynamic_actors"].keys())
+            snap_count = int(snaps["physics_step"].shape[0])
+            for index in range(snap_count):
+                dynamic_actors = {}
+                for actor_name in snap_actor_names:
+                    actor_group = snaps["dynamic_actors"][actor_name]
+                    dynamic_actors[actor_name] = {
+                        "pose": np.asarray(actor_group["pose"][index], dtype=np.float64),
+                        "linear_velocity": np.asarray(actor_group["linear_velocity"][index], dtype=np.float64),
+                        "angular_velocity": np.asarray(actor_group["angular_velocity"][index], dtype=np.float64),
+                    }
+                branch_snapshots.append(
+                    {
+                        "snapshot_id": int(snaps["snapshot_id"][index]),
+                        "physics_step": int(snaps["physics_step"][index]),
+                        "control_trace_offset": int(snaps["control_trace_offset"][index]),
+                        "robot_state": {
+                            "left_qpos": np.asarray(snaps["robot_state"]["left_qpos"][index], dtype=np.float64),
+                            "left_qvel": np.asarray(snaps["robot_state"]["left_qvel"][index], dtype=np.float64),
+                            "right_qpos": np.asarray(snaps["robot_state"]["right_qpos"][index], dtype=np.float64),
+                            "right_qvel": np.asarray(snaps["robot_state"]["right_qvel"][index], dtype=np.float64),
+                            "joints": np.asarray(snaps["robot_state"]["joints"][index], dtype=np.float64),
+                            "left_endpose": np.asarray(snaps["robot_state"]["left_endpose"][index], dtype=np.float64),
+                            "right_endpose": np.asarray(snaps["robot_state"]["right_endpose"][index], dtype=np.float64),
+                            "dynamic_actors": dynamic_actors,
+                        },
+                        "observation_joint_vector": (
+                            np.asarray(snaps["observation_joint_vector"][index], dtype=np.float64)
+                            if "observation_joint_vector" in snaps
+                            else None
+                        ),
+                    }
+                )
 
         chunks = root["policy_chunks"]
         policy_chunks = []
@@ -374,7 +375,7 @@ def load_brace_trace(hdf5_path: Path) -> dict[str, Any]:
                     "chunk_index": int(chunks["chunk_index"][index]),
                     "policy_step": int(chunks["policy_step"][index]),
                     "physics_step": int(chunks["physics_step"][index]),
-                    "action": np.asarray(chunks["action"][index], dtype=np.float64),
+                    "action": policy_chunk_actions(np.asarray(chunks["action"][index], dtype=np.float64)),
                 }
             )
 
@@ -387,10 +388,36 @@ def load_brace_trace(hdf5_path: Path) -> dict[str, Any]:
         }
 
 
+def policy_chunk_actions(chunk_action: np.ndarray) -> np.ndarray:
+    action_array = np.asarray(chunk_action, dtype=np.float64)
+    if action_array.ndim == 1:
+        return action_array[None, :]
+    return action_array
+
+
 def validate_schema_v2(hdf5_path: Path) -> list[str]:
     errors: list[str] = []
     try:
-        load_brace_trace(hdf5_path)
+        payload = load_brace_trace(hdf5_path)
     except Exception as exc:
         errors.append(f"{hdf5_path}: {type(exc).__name__}: {exc}")
+        return errors
+
+    meta = payload.get("meta", {})
+    expected_steps = meta.get("n_action_steps")
+    for chunk in payload.get("policy_chunks", []):
+        action = np.asarray(chunk["action"], dtype=np.float64)
+        if action.ndim == 1:
+            if expected_steps not in (None, 1):
+                errors.append(
+                    f"{hdf5_path}: legacy single-step policy chunk with n_action_steps={expected_steps}"
+                )
+            continue
+        if action.ndim != 2:
+            errors.append(f"{hdf5_path}: policy chunk action has unsupported shape {action.shape}")
+            continue
+        if expected_steps is not None and int(action.shape[0]) != int(expected_steps):
+            errors.append(
+                f"{hdf5_path}: policy chunk action steps {action.shape[0]} != meta n_action_steps {expected_steps}"
+            )
     return errors

@@ -1,0 +1,10 @@
+{
+  "classification_counts": {
+    "container_rotation": 1,
+    "garbage_rotation": 13
+  },
+  "deskbin_or_garbage_translation": 0,
+  "garbage_rotation_dominates": true,
+  "recommendation": "freeze_protocol_v2.2",
+  "total_replay_failures": 14
+}

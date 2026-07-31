@@ -4,6 +4,8 @@ from unittest import mock
 
 from experiments.brace.replay_audit import Candidate
 from experiments.brace.replay_audit_v2 import (
+    actor_metrics_for_task,
+    apply_actor_metrics,
     audit_candidates_parallel,
     evaluate_replay_gate,
     evaluate_task_replay_gate,
@@ -11,6 +13,7 @@ from experiments.brace.replay_audit_v2 import (
     replay_gate_requirements,
     resolve_worker_count,
     run_audit_job,
+    summarize_per_actor_failures,
     worker_gpu_assignments,
 )
 
@@ -132,6 +135,7 @@ class ReplayAuditV2SchedulerTest(unittest.TestCase):
                     restore_repeat_count=1,
                     horizon=1,
                     task_config="demo_brace_trace",
+                    task_metrics_by_task={},
                 )
 
 
@@ -193,6 +197,61 @@ class ReplayAuditV2GateTest(unittest.TestCase):
         self.assertFalse(dump["replay_gate_passed"])
         self.assertEqual(place["control_trace_replay"]["passed_checks"], 59)
         self.assertEqual(dump["control_trace_replay"]["passed_checks"], 47)
+
+    def test_actor_metrics_ignore_sphere_rotation(self):
+        protocol = {
+            **self._protocol(),
+            "protocol_revision": "2.2",
+            "actor_metrics": {
+                "dump_bin_bigbin": {
+                    "deskbin": ["translation", "rotation"],
+                    "garbage_*": ["translation"],
+                }
+            },
+        }
+        errors = {
+            "joint_max_error": 0.0,
+            "end_effector_translation_error": 0.0,
+            "end_effector_rotation_error": 0.0,
+            "object_translation_error": 0.001,
+            "object_rotation_error": 0.12,
+            "actor_errors": {
+                "deskbin": {"translation_error": 0.001, "rotation_error": 0.01},
+                "garbage_0": {"translation_error": 0.001, "rotation_error": 0.12},
+            },
+        }
+        result = apply_actor_metrics(
+            errors,
+            {
+                "joint_max_error": 0.01,
+                "end_effector_translation_error": 0.005,
+                "end_effector_rotation_error": 0.05,
+                "object_translation_error": 0.005,
+                "object_rotation_error": 0.05,
+            },
+            actor_metrics_for_task(protocol, "dump_bin_bigbin"),
+        )
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["worst_actor"], None)
+
+    def test_summarize_per_actor_failures_counts_garbage_rotation(self):
+        checks = [
+            {
+                "task": "dump_bin_bigbin",
+                "check_type": "control_trace_replay",
+                "passed": False,
+                "errors": {
+                    "actor_errors": {
+                        "garbage_0": {"translation_error": 0.0, "rotation_error": 0.1},
+                    }
+                },
+                "actor_metric_passed": {
+                    "garbage_0": {"translation": True, "rotation": False},
+                },
+            }
+        ]
+        counts = summarize_per_actor_failures(checks)
+        self.assertEqual(counts["dump_bin_bigbin"]["garbage_0:rotation"], 1)
 
 
 if __name__ == "__main__":

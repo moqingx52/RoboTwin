@@ -14,17 +14,20 @@ docs/brace_audit_v2_design.md
 | Version | Script | Protocol | Purpose |
 |---------|--------|----------|---------|
 | v1 (archived) | `replay_audit.py` | `archive/protocol.v1.frozen.json` | Waypoint replay baseline (80% NO-GO) |
-| **v2.1 (current)** | `replay_audit_v2.py` | `protocol.v2.1.json` | Separate restore + replay gates |
+| **v2.2 (current)** | `replay_audit_v2.py` | `protocol.v2.2.json` | Symmetry-aware actor metrics + separate gates |
+| v2.1 (archived) | `replay_audit_v2.py` | `protocol.v2.1.json` | Separate restore + replay gates |
 | v2.0 (diagnostic) | `replay_audit_v2.py` | `protocol.v2.json` | Mixed pass-rate gate (superseded) |
 
 v1 results are archived under `experiments/brace/archive/replay_audit_v1_no_go/`.
 The first v2.0 mixed-gate run is documented under
 `experiments/brace/archive/replay_audit_v2_mixed_gate_diagnostic/`.
+The v2.1 gate run is archived under
+`experiments/brace/archive/replay_audit_v2_v2.1_gate/`.
 
 `branch` requires each task in `BRACE_TASKS` to have
 `replay_audit_v2/summary.json` → `tasks.<task>.replay_gate_passed=true`.
-For a single-task pilot, set `BRACE_TASKS=place_container_plate` after re-running
-`audit-v2` under protocol v2.1.
+For a single-task pilot, set `BRACE_TASKS=place_container_plate` and use
+`experiments/brace/rollouts_traced_pilot/` via `run_place_pilot.sh`.
 
 ## Unified cloud entry
 

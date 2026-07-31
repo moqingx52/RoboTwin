@@ -132,7 +132,7 @@ def rollout_once(
             observation = env.get_obs()
             obs = encode_obs(observation)
             actions = model.get_action(obs)
-            env.record_policy_chunk(actions[0], chunk_index)
+            env.record_policy_chunk(actions, chunk_index)
             for action in actions:
                 env.take_action(action)
                 observation = env.get_obs()
