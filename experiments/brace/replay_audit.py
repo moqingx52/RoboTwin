@@ -102,6 +102,14 @@ def repo_path(value: str | Path) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
 
+def load_env_seeds_from_json(payload: dict[str, Any]) -> list[int]:
+    if "seeds" in payload:
+        return [int(seed) for seed in payload["seeds"]]
+    if "train_rollout" in payload:
+        return [int(seed) for seed in payload["train_rollout"]]
+    raise ValueError("seeds file must contain 'seeds' or 'train_rollout'")
+
+
 def iter_manifest_rows(task_dir: Path) -> Iterable[dict[str, Any]]:
     canonical = task_dir / "manifest.jsonl"
     paths = [canonical] if canonical.is_file() else sorted(task_dir.glob("manifest_shard_*_of_*.jsonl"))

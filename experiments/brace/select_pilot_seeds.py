@@ -16,7 +16,7 @@ for import_path in (REPO_ROOT, PHASE1_DIR):
     if str(import_path) not in sys.path:
         sys.path.insert(0, str(import_path))
 
-from experiments.brace.replay_audit import iter_manifest_rows, read_json, repo_path, write_json_atomic
+from experiments.brace.replay_audit import iter_manifest_rows, load_env_seeds_from_json, read_json, repo_path, write_json_atomic
 
 
 def select_mixed_outcome_seeds(

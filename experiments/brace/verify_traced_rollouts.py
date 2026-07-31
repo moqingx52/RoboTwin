@@ -18,6 +18,7 @@ for import_path in (REPO_ROOT, PHASE1_DIR):
 
 from common import TASKS, repo_path
 from experiments.brace.control_trace import validate_schema_v2
+from experiments.brace.replay_audit import load_env_seeds_from_json
 
 
 def read_jsonl(path: Path):
@@ -76,6 +77,7 @@ def main():
     parser = argparse.ArgumentParser(description="Verify traced rollout HDF5 schema v2.")
     parser.add_argument("--tasks", nargs="+", choices=TASKS, default=list(TASKS))
     parser.add_argument("--rollout-dir", type=Path, required=True)
+    parser.add_argument("--seeds-file", type=Path, default=None)
     parser.add_argument("--rollouts-per-seed", type=int, default=8)
     parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--require-failures", action="store_true")
@@ -91,10 +93,10 @@ def main():
 
     failed = False
     for task in args.tasks:
-        seed_path = repo_path("experiments", "phase1", "seeds", f"{task}_seeds.json")
-        with seed_path.open(encoding="utf-8") as handle:
+        seeds_path = args.seeds_file or repo_path("experiments", "phase1", "seeds", f"{task}_seeds.json")
+        with Path(seeds_path).open(encoding="utf-8") as handle:
             seed_payload = json.load(handle)
-        seeds = [int(seed) for seed in seed_payload["train_rollout"]]
+        seeds = load_env_seeds_from_json(seed_payload)
         expected = {(seed, rollout) for seed in seeds for rollout in range(args.rollouts_per_seed)}
 
         task_dir = args.rollout_dir / task

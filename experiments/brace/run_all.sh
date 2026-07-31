@@ -242,7 +242,15 @@ case "${stage}" in
 
   collect-trace-pilot)
     export BRACE_TRACED_ROLLOUT_DIR="${pilot_rollout_dir}"
-    export BRACE_TRACE_ENV_SEEDS="${BRACE_TRACE_ENV_SEEDS:?Set BRACE_TRACE_ENV_SEEDS for pilot collection}"
+    if [[ -z "${BRACE_TRACE_ENV_SEEDS:-}" ]]; then
+      seeds_file="${brace_dir}/seeds/${tasks[0]}_pilot_seeds.json"
+      if [[ -s "${seeds_file}" ]]; then
+        export BRACE_TRACE_ENV_SEEDS="$(jq -r '.seeds | join(" ")' "${seeds_file}")"
+      else
+        echo "Missing ${seeds_file}. Run select-pilot-seeds first." >&2
+        exit 2
+      fi
+    fi
     export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
     export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
     exec bash experiments/brace/collect_traced_parallel.sh "$@"
@@ -253,7 +261,7 @@ case "${stage}" in
     for task in "${tasks[@]}"; do
       python experiments/brace/select_pilot_seeds.py \
         --task "${task}" \
-        --rollout-dir "${rollout_dir}" \
+        --rollout-dir "${traced_rollout_dir}" \
         --count "${BRACE_PILOT_SEED_COUNT:-10}" \
         --seed "${BRACE_PILOT_SEED_SELECTION:-0}" \
         --output "${brace_dir}/seeds/${task}_pilot_seeds.json"
@@ -266,20 +274,28 @@ case "${stage}" in
       exit 2
     fi
     for task in "${tasks[@]}"; do
+      verify_rollout_dir="${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}"
+      verify_seeds_file="experiments/phase1/seeds/${task}_seeds.json"
+      verify_shards="${num_shards}"
+      if [[ "${verify_rollout_dir}" == *rollouts_traced_pilot* ]]; then
+        verify_seeds_file="${brace_dir}/seeds/${task}_pilot_seeds.json"
+        verify_shards="${BRACE_PILOT_NUM_SHARDS:-24}"
+      fi
       python experiments/brace/verify_traced_rollouts.py \
         --tasks "${task}" \
-        --rollout-dir "${traced_rollout_dir}" \
+        --rollout-dir "${verify_rollout_dir}" \
+        --seeds-file "${verify_seeds_file}" \
         --rollouts-per-seed "${rollouts_per_seed}" \
-        --num-shards "${num_shards}" \
+        --num-shards "${verify_shards}" \
         --require-failures \
         --workers "${verify_workers}"
 
       python experiments/phase1/merge_rollout_shards.py \
         --task "${task}" \
         --task-config demo_brace_trace \
-        --seeds-file "experiments/phase1/seeds/${task}_seeds.json" \
+        --seeds-file "${verify_seeds_file}" \
         --rollouts-per-seed "${rollouts_per_seed}" \
-        --rollout-dir "${traced_rollout_dir}"
+        --rollout-dir "${verify_rollout_dir}"
     done
     echo "Traced rollouts verified."
     ;;

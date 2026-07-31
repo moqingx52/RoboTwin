@@ -555,9 +555,7 @@ def main() -> int:
     budgets: dict[str, Any] = {}
 
     for task in tasks:
-        seeds_file = args.seeds_file or repo_path(
-            "experiments", "brace", "seeds", f"{task}_pilot_seeds.json"
-        )
+        seeds_file = args.seeds_file or (REPO_ROOT / "experiments" / "brace" / "seeds" / f"{task}_pilot_seeds.json")
         if not seeds_file.is_file():
             errors.append(f"{task}: missing pilot seeds file {seeds_file}")
             continue
@@ -602,7 +600,7 @@ def main() -> int:
             "accepted_chunks": int(summary["accepted_points"]),
             "optimizer_examples": 0,
         }
-        budget_path = repo_path("experiments", "brace", "budgets", f"{task}_pilot.json")
+        budget_path = REPO_ROOT / "experiments" / "brace" / "budgets" / f"{task}_pilot.json"
         budget_path.parent.mkdir(parents=True, exist_ok=True)
         write_json_atomic(budget_path, budgets[task])
 

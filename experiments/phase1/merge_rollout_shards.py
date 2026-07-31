@@ -5,6 +5,12 @@ from pathlib import Path
 from common import add_common_args, iter_jsonl, read_json, repo_path, write_json
 
 
+def load_env_seeds(payload: dict) -> list[int]:
+    if "seeds" in payload:
+        return [int(seed) for seed in payload["seeds"]]
+    return [int(seed) for seed in payload["train_rollout"]]
+
+
 def main():
     parser = argparse.ArgumentParser(description="Merge phase1 rollout shard manifests into canonical files.")
     add_common_args(parser)
@@ -15,7 +21,7 @@ def main():
 
     seeds_file = args.seeds_file or repo_path("experiments", "phase1", "seeds", f"{args.task_name}_seeds.json")
     seeds_payload = read_json(seeds_file)
-    train_seeds = [int(seed) for seed in seeds_payload["train_rollout"]]
+    train_seeds = load_env_seeds(seeds_payload)
     task_dir = args.rollout_dir / args.task_name
     shard_paths = sorted(task_dir.glob("manifest_shard_*_of_*.jsonl"))
     if not shard_paths:

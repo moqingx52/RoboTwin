@@ -28,6 +28,7 @@ from common import (  # noqa: E402
     split_range,
     write_json,
 )
+from experiments.brace.replay_audit import load_env_seeds_from_json  # noqa: E402
 
 
 def path_for_manifest(path: Path) -> str:
@@ -268,7 +269,7 @@ def main():
 
     seeds_file = args.seeds_file or repo_path("experiments", "phase1", "seeds", f"{args.task_name}_seeds.json")
     seeds_payload = read_json(seeds_file)
-    seeds = split_range(seeds_payload["train_rollout"], args.shard_id, args.num_shards)
+    seeds = split_range(load_env_seeds_from_json(seeds_payload), args.shard_id, args.num_shards)
     if args.env_seeds is not None:
         allow = {int(seed) for seed in args.env_seeds}
         seeds = [seed for seed in seeds if seed in allow]

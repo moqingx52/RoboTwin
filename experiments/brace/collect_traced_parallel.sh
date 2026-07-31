@@ -30,6 +30,15 @@ names=()
 
 job_index=0
 for task in "${tasks[@]}"; do
+  seeds_file="experiments/phase1/seeds/${task}_seeds.json"
+  if [[ "${rollout_dir}" == *rollouts_traced_pilot* ]]; then
+    seeds_file="experiments/brace/seeds/${task}_pilot_seeds.json"
+    if [[ ! -s "${seeds_file}" ]]; then
+      echo "Missing pilot seeds file: ${seeds_file}. Run select-pilot-seeds first." >&2
+      exit 2
+    fi
+    unset env_seeds || true
+  fi
   for ((shard=0; shard<shards_per_task; shard++)); do
     gpu="${gpu_ids[job_index % ${#gpu_ids[@]}]}"
     name="${task}_shard$(printf '%02d' "${shard}")_of_$(printf '%02d' "${shards_per_task}")"
@@ -49,7 +58,7 @@ for task in "${tasks[@]}"; do
     python experiments/brace/collect_traced_rollouts.py \
       --task "${task}" \
       --task-config "${task_config}" \
-      --seeds-file "experiments/phase1/seeds/${task}_seeds.json" \
+      --seeds-file "${seeds_file}" \
       --output-dir "${rollout_dir}" \
       --expert-data-num "${expert_data_num}" \
       --checkpoint-num "${checkpoint_num}" \
@@ -91,9 +100,14 @@ if [[ -n "${max_trajectories}" ]]; then
 fi
 
 for task in "${tasks[@]}"; do
+  verify_seeds_file="experiments/phase1/seeds/${task}_seeds.json"
+  if [[ "${rollout_dir}" == *rollouts_traced_pilot* ]]; then
+    verify_seeds_file="experiments/brace/seeds/${task}_pilot_seeds.json"
+  fi
   python experiments/brace/verify_traced_rollouts.py \
     --tasks "${task}" \
     --rollout-dir "${rollout_dir}" \
+    --seeds-file "${verify_seeds_file}" \
     --rollouts-per-seed "${rollouts_per_seed}" \
     --num-shards "${shards_per_task}" \
     --require-failures \
@@ -102,7 +116,7 @@ for task in "${tasks[@]}"; do
   python experiments/phase1/merge_rollout_shards.py \
     --task "${task}" \
     --task-config "${task_config}" \
-    --seeds-file "experiments/phase1/seeds/${task}_seeds.json" \
+    --seeds-file "${verify_seeds_file}" \
     --rollouts-per-seed "${rollouts_per_seed}" \
     --rollout-dir "${rollout_dir}"
 done
