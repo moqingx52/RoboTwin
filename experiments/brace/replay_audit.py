@@ -130,41 +130,54 @@ def iter_manifest_rows(task_dir: Path) -> Iterable[dict[str, Any]]:
                     yield row
 
 
-def collect_candidates(task: str, rollout_dir: Path) -> tuple[list[Candidate], list[str]]:
+def collect_candidates(
+    task: str,
+    rollout_dir: Path,
+    *,
+    progress_callback: Callable[[int], None] | None = None,
+    progress_every: int = 100,
+) -> tuple[list[Candidate], list[str]]:
     task_dir = rollout_dir / task
     errors: list[str] = []
     if not task_dir.is_dir():
         return [], [f"missing task rollout directory: {task_dir}"]
+    if progress_every < 1:
+        raise ValueError("progress_every must be >= 1")
 
     candidates: list[Candidate] = []
+    row_count = 0
     try:
-        rows = list(iter_manifest_rows(task_dir))
+        for row in iter_manifest_rows(task_dir):
+            row_count += 1
+            if progress_callback is not None and row_count % progress_every == 0:
+                progress_callback(row_count)
+
+            success = bool(row.get("success"))
+            raw_path = row.get("hdf5_path") if success else row.get("failure_hdf5_path")
+            if not raw_path:
+                continue
+            path = repo_path(raw_path)
+            if not path.is_file():
+                errors.append(
+                    f"missing {'success' if success else 'failure'} HDF5 for "
+                    f"seed={row.get('env_seed')} rollout={row.get('rollout_id')}: {path}"
+                )
+                continue
+            candidates.append(
+                Candidate(
+                    task=task,
+                    env_seed=int(row["env_seed"]),
+                    rollout_id=int(row["rollout_id"]),
+                    success=success,
+                    path=path,
+                )
+            )
     except Exception as exc:
         return [], [f"cannot read manifest: {type(exc).__name__}: {exc}"]
-    if not rows:
+    if row_count == 0:
         return [], [f"no canonical or shard manifest rows under {task_dir}"]
-
-    for row in rows:
-        success = bool(row.get("success"))
-        raw_path = row.get("hdf5_path") if success else row.get("failure_hdf5_path")
-        if not raw_path:
-            continue
-        path = repo_path(raw_path)
-        if not path.is_file():
-            errors.append(
-                f"missing {'success' if success else 'failure'} HDF5 for "
-                f"seed={row.get('env_seed')} rollout={row.get('rollout_id')}: {path}"
-            )
-            continue
-        candidates.append(
-            Candidate(
-                task=task,
-                env_seed=int(row["env_seed"]),
-                rollout_id=int(row["rollout_id"]),
-                success=success,
-                path=path,
-            )
-        )
+    if progress_callback is not None and row_count % progress_every != 0:
+        progress_callback(row_count)
     candidates.sort(key=lambda item: (item.env_seed, item.rollout_id, not item.success))
     return candidates, errors
 

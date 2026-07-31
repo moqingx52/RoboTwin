@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 import math
 import multiprocessing
@@ -11,6 +12,7 @@ import os
 import queue as queue_module
 import random
 import sys
+import time
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
@@ -99,9 +101,13 @@ def select_branch_points(
     *,
     max_points: int,
     rng: random.Random,
+    success_trace: dict[str, Any] | None = None,
+    failure_trace: dict[str, Any] | None = None,
 ) -> list[BranchPoint]:
-    success_trace = load_brace_trace(success.path)
-    failure_trace = load_brace_trace(failure.path)
+    if success_trace is None:
+        success_trace = load_brace_trace(success.path)
+    if failure_trace is None:
+        failure_trace = load_brace_trace(failure.path)
     success_steps = _steps_by_physics_step(success_trace)
     failure_steps = _steps_by_physics_step(failure_trace)
     shared_steps = sorted(set(success_steps) & set(failure_steps))
@@ -184,34 +190,126 @@ def build_branch_jobs(
     control_k: int,
     continuation_m: int,
     selection_seed: int,
+    prepare_workers: int = 1,
 ) -> list[BranchJob]:
-    candidates, _errors = collect_candidates(task, rollout_dir)
+    started_at = time.monotonic()
+    print(f"[branch prepare] task={task} phase=manifest status=starting dir={rollout_dir / task}", flush=True)
+    candidates, _errors = collect_candidates(
+        task,
+        rollout_dir,
+        progress_callback=lambda rows: print(
+            f"[branch prepare] task={task} phase=manifest status=scanning rows={rows}",
+            flush=True,
+        ),
+        progress_every=25,
+    )
+    success_count = sum(candidate.success for candidate in candidates)
+    failure_count = len(candidates) - success_count
+    print(
+        f"[branch prepare] task={task} phase=manifest status=done "
+        f"candidates={len(candidates)} successes={success_count} failures={failure_count} "
+        f"elapsed={time.monotonic() - started_at:.1f}s",
+        flush=True,
+    )
+    for error in _errors:
+        print(f"[branch prepare] task={task} phase=manifest warning={error}", flush=True)
+
     by_seed: dict[int, dict[bool, list[Candidate]]] = {}
     for candidate in candidates:
         by_seed.setdefault(candidate.env_seed, {}).setdefault(candidate.success, []).append(candidate)
 
-    jobs: list[BranchJob] = []
+    seed_inputs: list[tuple[int, str, int, Candidate, Candidate, int, int, int, int]] = []
     for seed_index, env_seed in enumerate(env_seeds):
         seed_candidates = by_seed.get(env_seed, {})
         successes = seed_candidates.get(True, [])
         failures = seed_candidates.get(False, [])
         if not successes or not failures:
+            print(
+                f"[branch prepare] task={task} phase=pairing seed={env_seed} status=skipped "
+                f"successes={len(successes)} failures={len(failures)}",
+                flush=True,
+            )
             continue
         success = sorted(successes, key=lambda item: item.rollout_id)[0]
         failure = sorted(failures, key=lambda item: item.rollout_id)[0]
-        rng = random.Random(selection_seed + seed_index)
-        points = select_branch_points(
-            task,
-            env_seed,
-            success,
-            failure,
-            max_points=max_points,
-            rng=rng,
+        seed_inputs.append(
+            (
+                seed_index,
+                task,
+                env_seed,
+                success,
+                failure,
+                max_points,
+                control_k,
+                continuation_m,
+                selection_seed,
+            )
         )
-        success_trace = load_brace_trace(success.path)
+
+    if not seed_inputs:
+        print(f"[branch prepare] task={task} phase=trace-analysis status=done seeds=0 jobs=0", flush=True)
+        return []
+
+    worker_count = min(max(prepare_workers, 1), len(seed_inputs))
+    print(
+        f"[branch prepare] task={task} phase=trace-analysis status=starting "
+        f"seeds={len(seed_inputs)} workers={worker_count}",
+        flush=True,
+    )
+    jobs_by_seed_index: dict[int, list[BranchJob]] = {}
+    if worker_count == 1:
+        results = map(_build_seed_branch_jobs, seed_inputs)
+        for completed_count, (seed_index, env_seed, seed_jobs) in enumerate(results, start=1):
+            jobs_by_seed_index[seed_index] = seed_jobs
+            print(
+                f"[branch prepare] task={task} phase=trace-analysis progress={completed_count}/{len(seed_inputs)} "
+                f"seed={env_seed} jobs={len(seed_jobs)} elapsed={time.monotonic() - started_at:.1f}s",
+                flush=True,
+            )
+    else:
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=worker_count, mp_context=context) as pool:
+            futures = [pool.submit(_build_seed_branch_jobs, item) for item in seed_inputs]
+            for completed_count, future in enumerate(as_completed(futures), start=1):
+                seed_index, env_seed, seed_jobs = future.result()
+                jobs_by_seed_index[seed_index] = seed_jobs
+                print(
+                    f"[branch prepare] task={task} phase=trace-analysis progress={completed_count}/{len(seed_inputs)} "
+                    f"seed={env_seed} jobs={len(seed_jobs)} elapsed={time.monotonic() - started_at:.1f}s",
+                    flush=True,
+                )
+
+    jobs = [job for seed_index in sorted(jobs_by_seed_index) for job in jobs_by_seed_index[seed_index]]
+    print(
+        f"[branch prepare] task={task} phase=trace-analysis status=done "
+        f"seeds={len(seed_inputs)} jobs={len(jobs)} elapsed={time.monotonic() - started_at:.1f}s",
+        flush=True,
+    )
+    return jobs
+
+
+def _build_seed_branch_jobs(
+    item: tuple[int, str, int, Candidate, Candidate, int, int, int, int],
+) -> tuple[int, int, list[BranchJob]]:
+    seed_index, task, env_seed, success, failure, max_points, control_k, continuation_m, selection_seed = item
+    rng = random.Random(selection_seed + seed_index)
+    success_trace = load_brace_trace(success.path)
+    failure_trace = load_brace_trace(failure.path)
+    points = select_branch_points(
+        task,
+        env_seed,
+        success,
+        failure,
+        max_points=max_points,
+        rng=rng,
+        success_trace=success_trace,
+        failure_trace=failure_trace,
+    )
+    jobs: list[BranchJob] = []
+    if points:
         chunk_count = len(success_trace["policy_chunks"])
         if chunk_count == 0:
-            continue
+            return seed_index, env_seed, []
         continuation_seeds = tuple(range(continuation_m))
         for point in points:
             candidate_chunk_index = _policy_chunk_index_for_physics_step(success_trace, point.physics_step)
@@ -228,7 +326,7 @@ def build_branch_jobs(
                     continuation_seeds=continuation_seeds,
                 )
             )
-    return jobs
+    return seed_index, env_seed, jobs
 
 
 def _chunk_actions(trace: dict[str, Any], chunk_index: int) -> np.ndarray:
@@ -457,11 +555,12 @@ def branch_worker(gpu_id: int, jobs: Any, results: Any, rollout_dir: Path, task_
         if job is None:
             return
         job_index, branch_job = job
+        results.put(("started", job_index, os.getpid(), gpu_id))
         try:
             rows = run_branch_job(branch_job, rollout_dir, task_config=task_config, model_args=model_args)
-            results.put((job_index, rows, None))
+            results.put(("done", job_index, rows, None))
         except BaseException as exc:
-            results.put((job_index, [], f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"))
+            results.put(("done", job_index, [], f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"))
 
 
 def run_branch_jobs_parallel(
@@ -494,8 +593,18 @@ def run_branch_jobs_parallel(
         )
         for worker_index, gpu_id in assignments
     ]
+    started_at = time.monotonic()
+    print(
+        f"[branch execute] status=launching jobs={len(jobs)} workers={worker_count} "
+        f"workers_per_gpu={workers_per_gpu} gpus={gpu_ids}",
+        flush=True,
+    )
     for process in processes:
         process.start()
+    print(
+        f"[branch execute] status=workers-started pids={[process.pid for process in processes]}",
+        flush=True,
+    )
     try:
         for job_index, branch_job in enumerate(jobs):
             job_queues[job_worker_index(job_index, worker_count)].put((job_index, branch_job))
@@ -503,10 +612,54 @@ def run_branch_jobs_parallel(
             job_queue.put(None)
 
         completed: dict[int, tuple[list[dict[str, Any]], str | None]] = {}
+        started_jobs: set[int] = set()
         while len(completed) < len(jobs):
-            job_index, rows, error = result_queue.get()
+            try:
+                message = result_queue.get(timeout=15)
+            except queue_module.Empty:
+                crashed = [
+                    f"{process.name}(pid={process.pid}, exitcode={process.exitcode})"
+                    for process in processes
+                    if process.exitcode not in (None, 0)
+                ]
+                if crashed:
+                    raise RuntimeError("branch worker exited before returning its result: " + ", ".join(crashed))
+                alive = sum(process.is_alive() for process in processes)
+                if alive == 0:
+                    missing = sorted(set(range(len(jobs))) - set(completed))
+                    raise RuntimeError(f"all branch workers exited with incomplete jobs: {missing}")
+                print(
+                    f"[branch execute] status=waiting started={len(started_jobs)}/{len(jobs)} "
+                    f"completed={len(completed)}/{len(jobs)} alive_workers={alive}/{worker_count} "
+                    f"elapsed={time.monotonic() - started_at:.1f}s",
+                    flush=True,
+                )
+                continue
+
+            event = message[0]
+            if event == "started":
+                _, job_index, pid, gpu_id = message
+                started_jobs.add(job_index)
+                point = jobs[job_index].point
+                print(
+                    f"[branch execute] status=job-started job={job_index + 1}/{len(jobs)} "
+                    f"seed={point.env_seed} point={point.point_type} worker_pid={pid} gpu={gpu_id}",
+                    flush=True,
+                )
+                continue
+
+            _, job_index, rows, error = message
             completed[job_index] = (rows, error)
-            print(f"  branch jobs {len(completed)}/{len(jobs)}", flush=True)
+            print(
+                f"[branch execute] status=job-done progress={len(completed)}/{len(jobs)} "
+                f"job={job_index + 1} rows={len(rows)} elapsed={time.monotonic() - started_at:.1f}s",
+                flush=True,
+            )
+    except BaseException:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+        raise
     finally:
         for process in processes:
             process.join()
@@ -530,12 +683,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seeds-file", type=Path, default=None)
     parser.add_argument("--workers-per-gpu", type=int, default=3)
     parser.add_argument("--workers", type=int, default=None)
+    parser.add_argument(
+        "--prepare-workers",
+        type=int,
+        default=min(os.cpu_count() or 1, 96),
+        help="CPU processes used to read traces and select branch points; capped to the number of eligible seeds.",
+    )
     parser.add_argument("--gpus", nargs="+", type=int, default=list(range(8)))
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.prepare_workers < 1:
+        raise SystemExit("--prepare-workers must be >= 1")
     protocol_path = repo_path(args.protocol)
     rollout_dir = repo_path(args.rollout_dir)
     output_dir = repo_path(args.output_dir)
@@ -569,6 +730,7 @@ def main() -> int:
             control_k=control_k,
             continuation_m=continuation_m,
             selection_seed=int(protocol["replay_audit"].get("selection_seed", 0)),
+            prepare_workers=args.prepare_workers,
         )
         print(f"Collecting branches for {task}: {len(jobs)} jobs across {len(env_seeds)} seeds", flush=True)
         workers = args.workers if args.workers is not None else len(args.gpus) * args.workers_per_gpu

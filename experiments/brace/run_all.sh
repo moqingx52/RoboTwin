@@ -21,6 +21,7 @@ rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
 verify_workers=${BRACE_VERIFY_WORKERS:-96}
 audit_workers_per_gpu=${BRACE_AUDIT_WORKERS_PER_GPU:-3}
 audit_workers=${BRACE_AUDIT_WORKERS:-$(( ${#gpu_ids[@]} * audit_workers_per_gpu ))}
+branch_prepare_workers=${BRACE_BRANCH_PREPARE_WORKERS:-96}
 
 usage() {
   cat <<'EOF'
@@ -313,6 +314,7 @@ case "${stage}" in
       --tasks "${tasks[@]}" \
       --workers "${audit_workers}" \
       --workers-per-gpu "${audit_workers_per_gpu}" \
+      --prepare-workers "${branch_prepare_workers}" \
       --gpus "${gpu_ids[@]}" \
       "$@"
     ;;
