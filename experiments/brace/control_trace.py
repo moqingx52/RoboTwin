@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,95 @@ def snapshot_indices(total_steps: int, count: int) -> list[int]:
     if len(set(indices)) != count:
         raise ValueError(f"cannot choose {count} unique snapshots from {total_steps} steps")
     return indices
+
+
+@dataclass
+class BranchContext:
+    snapshot_id: int
+    snapshot_physics_step: int
+    boundary_physics_step: int
+    branch_chunk_index: int
+    replay_steps: list[dict[str, Any]]
+    take_action_cnt: int
+
+    @property
+    def runtime_state(self) -> dict[str, Any]:
+        return {
+            "physics_step": int(self.boundary_physics_step),
+            "take_action_cnt": int(self.take_action_cnt),
+            "policy_chunk_index": int(self.branch_chunk_index) - 1,
+            "eval_success": False,
+        }
+
+
+def buffer_index_for_physics_step(control_steps: list[dict[str, Any]], physics_step: int) -> int:
+    for index, step in enumerate(control_steps):
+        if int(step["physics_step"]) == int(physics_step):
+            return index
+    raise ValueError(f"physics_step {physics_step} not found in control trace")
+
+
+def policy_chunk_index_at_physics_step(trace: dict[str, Any], physics_step: int) -> int:
+    for step in trace["control_steps"]:
+        if int(step["physics_step"]) == int(physics_step):
+            return int(step["policy_chunk_index"])
+    raise ValueError(f"physics_step {physics_step} not found in control trace")
+
+
+def take_action_cnt_before_chunk(trace: dict[str, Any], branch_chunk_index: int) -> int:
+    total = 0
+    for chunk in trace["policy_chunks"]:
+        chunk_index = int(chunk["chunk_index"])
+        if chunk_index < branch_chunk_index:
+            total += len(policy_chunk_actions(chunk["action"]))
+        elif chunk_index == branch_chunk_index:
+            break
+    return total
+
+
+def trace_has_chunk_index(trace: dict[str, Any], chunk_index: int) -> bool:
+    return any(int(chunk["chunk_index"]) == int(chunk_index) for chunk in trace["policy_chunks"])
+
+
+def build_branch_context(trace: dict[str, Any], snapshot: dict[str, Any]) -> BranchContext:
+    control_steps = trace["control_steps"]
+    if not control_steps:
+        raise ValueError("control trace is empty")
+
+    snapshot_physics_step = int(snapshot["physics_step"])
+    start_idx = buffer_index_for_physics_step(control_steps, snapshot_physics_step)
+    current_chunk = int(control_steps[start_idx]["policy_chunk_index"])
+
+    end_of_chunk_idx = start_idx
+    while (
+        end_of_chunk_idx + 1 < len(control_steps)
+        and int(control_steps[end_of_chunk_idx + 1]["policy_chunk_index"]) == current_chunk
+    ):
+        end_of_chunk_idx += 1
+
+    branch_boundary_idx = end_of_chunk_idx + 1
+    if branch_boundary_idx >= len(control_steps):
+        raise ValueError(f"snapshot {snapshot.get('snapshot_id')} is too late for chunk-boundary branch")
+
+    branch_chunk_index = int(control_steps[branch_boundary_idx]["policy_chunk_index"])
+    if branch_chunk_index <= current_chunk:
+        raise ValueError(
+            f"snapshot {snapshot.get('snapshot_id')} did not advance to a later chunk "
+            f"(current={current_chunk}, branch={branch_chunk_index})"
+        )
+
+    replay_steps = list(control_steps[start_idx + 1 : branch_boundary_idx])
+    boundary_physics_step = int(control_steps[branch_boundary_idx]["physics_step"])
+    take_action_cnt = take_action_cnt_before_chunk(trace, branch_chunk_index)
+
+    return BranchContext(
+        snapshot_id=int(snapshot["snapshot_id"]),
+        snapshot_physics_step=snapshot_physics_step,
+        boundary_physics_step=boundary_physics_step,
+        branch_chunk_index=branch_chunk_index,
+        replay_steps=replay_steps,
+        take_action_cnt=take_action_cnt,
+    )
 
 
 def _resolve_entity(actor: Any) -> Any:

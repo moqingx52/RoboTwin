@@ -27,7 +27,7 @@ import glob
 
 from ._GLOBAL_CONFIGS import *
 
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 
 current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
@@ -592,6 +592,12 @@ class Base_Task(gym.Env):
         from experiments.brace.control_trace import restore_robot_state
 
         restore_robot_state(self, snapshot["robot_state"], settle=False)
+
+    def apply_branch_runtime_state(self, runtime_state: dict[str, Any]):
+        self.physics_step = int(runtime_state["physics_step"])
+        self.take_action_cnt = int(runtime_state["take_action_cnt"])
+        self._current_policy_chunk_index = int(runtime_state["policy_chunk_index"])
+        self.eval_success = bool(runtime_state.get("eval_success", False))
 
     def build_branch_snapshots(self, snapshots_per_trajectory: int):
         from experiments.brace.control_trace import snapshot_indices

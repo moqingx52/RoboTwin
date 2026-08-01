@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import json
-import math
 import multiprocessing
 import os
 import queue as queue_module
@@ -26,7 +24,13 @@ for import_path in (REPO_ROOT, PHASE1_DIR):
     if str(import_path) not in sys.path:
         sys.path.insert(0, str(import_path))
 
-from experiments.brace.control_trace import load_brace_trace, policy_chunk_actions
+from experiments.brace.control_trace import (
+    BranchContext,
+    build_branch_context,
+    load_brace_trace,
+    policy_chunk_actions,
+    trace_has_chunk_index,
+)
 from experiments.brace.replay_audit import (
     Candidate,
     collect_candidates,
@@ -44,18 +48,19 @@ from experiments.brace.replay_audit_v2 import worker_gpu_assignments, job_worker
 class BranchPoint:
     task: str
     env_seed: int
-    physics_step: int
     snapshot_id: int
+    snapshot_physics_step: int
+    physics_step: int
+    branch_chunk_index: int
     point_type: str
     success_rollout_id: int
-    failure_rollout_id: int
 
 
 @dataclass(frozen=True)
 class BranchJob:
     point: BranchPoint
     candidate_chunk_index: int
-    control_chunk_indices: tuple[int, ...]
+    control_failure_rollout_ids: tuple[int, ...]
     continuation_seeds: tuple[int, ...]
 
 
@@ -67,30 +72,6 @@ def _joint_distance(left: dict[str, Any], right: dict[str, Any]) -> float:
     left_joints = np.asarray(left["robot_state"]["joints"], dtype=np.float64)
     right_joints = np.asarray(right["robot_state"]["joints"], dtype=np.float64)
     return float(np.linalg.norm(left_joints - right_joints))
-
-
-def _snapshot_for_physics_step(trace: dict[str, Any], physics_step: int) -> dict[str, Any] | None:
-    for snapshot in trace["branch_snapshots"]:
-        if int(snapshot["physics_step"]) == int(physics_step):
-            return snapshot
-    if trace["branch_snapshots"]:
-        return min(
-            trace["branch_snapshots"],
-            key=lambda item: abs(int(item["physics_step"]) - int(physics_step)),
-        )
-    return None
-
-
-def _policy_chunk_index_for_physics_step(trace: dict[str, Any], physics_step: int) -> int:
-    for chunk in trace["policy_chunks"]:
-        start = int(chunk["physics_step"])
-        actions = policy_chunk_actions(chunk["action"])
-        end = start + len(actions)
-        if start <= physics_step < end:
-            return int(chunk["chunk_index"])
-    if trace["policy_chunks"]:
-        return int(trace["policy_chunks"][-1]["chunk_index"])
-    return 0
 
 
 def select_branch_points(
@@ -108,77 +89,65 @@ def select_branch_points(
         success_trace = load_brace_trace(success.path)
     if failure_trace is None:
         failure_trace = load_brace_trace(failure.path)
+
     success_steps = _steps_by_physics_step(success_trace)
     failure_steps = _steps_by_physics_step(failure_trace)
-    shared_steps = sorted(set(success_steps) & set(failure_steps))
-    if len(shared_steps) < 3:
+
+    scored: list[tuple[float, dict[str, Any], BranchContext]] = []
+    seen_snapshot_ids: set[int] = set()
+    for snapshot in success_trace["branch_snapshots"]:
+        snapshot_id = int(snapshot["snapshot_id"])
+        if snapshot_id in seen_snapshot_ids:
+            continue
+        snapshot_physics_step = int(snapshot["physics_step"])
+        if snapshot_physics_step not in success_steps or snapshot_physics_step not in failure_steps:
+            continue
+        try:
+            context = build_branch_context(success_trace, snapshot)
+        except ValueError:
+            continue
+        seen_snapshot_ids.add(snapshot_id)
+        divergence = _joint_distance(success_steps[snapshot_physics_step], failure_steps[snapshot_physics_step])
+        scored.append((divergence, snapshot, context))
+
+    if not scored:
         return []
 
-    divergences = [_joint_distance(success_steps[step], failure_steps[step]) for step in shared_steps]
+    scored.sort(key=lambda item: item[0], reverse=True)
+    selected = scored[:max_points]
+    point_types = ["local_divergence_peak", "first_persistent_divergence", "random_negative_control"]
     points: list[BranchPoint] = []
-
-    first_persistent = None
-    streak = 0
-    threshold = 0.02
-    for step, divergence in zip(shared_steps, divergences):
-        if divergence >= threshold:
-            streak += 1
-            if streak >= 3 and first_persistent is None:
-                first_persistent = step
-        else:
-            streak = 0
-    if first_persistent is not None:
-        snapshot = _snapshot_for_physics_step(success_trace, first_persistent)
-        if snapshot is not None:
-            points.append(
-                BranchPoint(
-                    task=task,
-                    env_seed=env_seed,
-                    physics_step=int(first_persistent),
-                    snapshot_id=int(snapshot["snapshot_id"]),
-                    point_type="first_persistent_divergence",
-                    success_rollout_id=success.rollout_id,
-                    failure_rollout_id=failure.rollout_id,
-                )
-            )
-
-    interior = shared_steps[1:-1]
-    if interior:
-        peak_step = interior[int(np.argmax([divergences[shared_steps.index(step)] for step in interior]))]
-        snapshot = _snapshot_for_physics_step(success_trace, peak_step)
-        if snapshot is not None and all(point.physics_step != peak_step for point in points):
-            points.append(
-                BranchPoint(
-                    task=task,
-                    env_seed=env_seed,
-                    physics_step=int(peak_step),
-                    snapshot_id=int(snapshot["snapshot_id"]),
-                    point_type="local_divergence_peak",
-                    success_rollout_id=success.rollout_id,
-                    failure_rollout_id=failure.rollout_id,
-                )
-            )
-
-    negative_pool = [step for step in interior if all(point.physics_step != step for point in points)]
-    rng.shuffle(negative_pool)
-    for step in negative_pool[: max(0, max_points - len(points))]:
-        snapshot = _snapshot_for_physics_step(success_trace, step)
-        if snapshot is None:
-            continue
+    for rank, (_divergence, snapshot, context) in enumerate(selected):
+        point_type = point_types[min(rank, len(point_types) - 1)]
         points.append(
             BranchPoint(
                 task=task,
                 env_seed=env_seed,
-                physics_step=int(step),
                 snapshot_id=int(snapshot["snapshot_id"]),
-                point_type="random_negative_control",
+                snapshot_physics_step=int(snapshot["physics_step"]),
+                physics_step=int(context.boundary_physics_step),
+                branch_chunk_index=int(context.branch_chunk_index),
+                point_type=point_type,
                 success_rollout_id=success.rollout_id,
-                failure_rollout_id=failure.rollout_id,
             )
         )
-        if len(points) >= max_points:
-            break
-    return points[:max_points]
+    return points
+
+
+def _select_control_failure_rollout_ids(
+    failures: list[Candidate],
+    *,
+    branch_chunk_index: int,
+    control_k: int,
+    rng: random.Random,
+) -> tuple[int, ...]:
+    eligible: list[Candidate] = []
+    for failure in failures:
+        failure_trace = load_brace_trace(failure.path)
+        if trace_has_chunk_index(failure_trace, branch_chunk_index):
+            eligible.append(failure)
+    rng.shuffle(eligible)
+    return tuple(failure.rollout_id for failure in eligible[:control_k])
 
 
 def build_branch_jobs(
@@ -218,7 +187,7 @@ def build_branch_jobs(
     for candidate in candidates:
         by_seed.setdefault(candidate.env_seed, {}).setdefault(candidate.success, []).append(candidate)
 
-    seed_inputs: list[tuple[int, str, int, Candidate, Candidate, int, int, int, int]] = []
+    seed_inputs: list[tuple[int, str, int, Candidate, tuple[Candidate, ...], int, int, int, int]] = []
     for seed_index, env_seed in enumerate(env_seeds):
         seed_candidates = by_seed.get(env_seed, {})
         successes = seed_candidates.get(True, [])
@@ -231,14 +200,14 @@ def build_branch_jobs(
             )
             continue
         success = sorted(successes, key=lambda item: item.rollout_id)[0]
-        failure = sorted(failures, key=lambda item: item.rollout_id)[0]
+        failure_tuple = tuple(sorted(failures, key=lambda item: item.rollout_id))
         seed_inputs.append(
             (
                 seed_index,
                 task,
                 env_seed,
                 success,
-                failure,
+                failure_tuple,
                 max_points,
                 control_k,
                 continuation_m,
@@ -289,43 +258,44 @@ def build_branch_jobs(
 
 
 def _build_seed_branch_jobs(
-    item: tuple[int, str, int, Candidate, Candidate, int, int, int, int],
+    item: tuple[int, str, int, Candidate, tuple[Candidate, ...], int, int, int, int],
 ) -> tuple[int, int, list[BranchJob]]:
-    seed_index, task, env_seed, success, failure, max_points, control_k, continuation_m, selection_seed = item
+    seed_index, task, env_seed, success, failures, max_points, control_k, continuation_m, selection_seed = item
     rng = random.Random(selection_seed + seed_index)
     success_trace = load_brace_trace(success.path)
-    failure_trace = load_brace_trace(failure.path)
+    failure_trace = load_brace_trace(failures[0].path)
     points = select_branch_points(
         task,
         env_seed,
         success,
-        failure,
+        failures[0],
         max_points=max_points,
         rng=rng,
         success_trace=success_trace,
         failure_trace=failure_trace,
     )
     jobs: list[BranchJob] = []
-    if points:
-        chunk_count = len(success_trace["policy_chunks"])
-        if chunk_count == 0:
-            return seed_index, env_seed, []
-        continuation_seeds = tuple(range(continuation_m))
-        for point in points:
-            candidate_chunk_index = _policy_chunk_index_for_physics_step(success_trace, point.physics_step)
-            control_pool = [index for index in range(chunk_count) if index != candidate_chunk_index]
-            rng.shuffle(control_pool)
-            control_indices = tuple(control_pool[:control_k])
-            if len(control_indices) < control_k:
-                continue
-            jobs.append(
-                BranchJob(
-                    point=point,
-                    candidate_chunk_index=candidate_chunk_index,
-                    control_chunk_indices=control_indices,
-                    continuation_seeds=continuation_seeds,
-                )
+    if not points:
+        return seed_index, env_seed, jobs
+
+    continuation_seeds = tuple(range(continuation_m))
+    for point in points:
+        control_failure_rollout_ids = _select_control_failure_rollout_ids(
+            list(failures),
+            branch_chunk_index=point.branch_chunk_index,
+            control_k=control_k,
+            rng=rng,
+        )
+        if len(control_failure_rollout_ids) < control_k:
+            continue
+        jobs.append(
+            BranchJob(
+                point=point,
+                candidate_chunk_index=point.branch_chunk_index,
+                control_failure_rollout_ids=control_failure_rollout_ids,
+                continuation_seeds=continuation_seeds,
             )
+        )
     return seed_index, env_seed, jobs
 
 
@@ -340,6 +310,8 @@ def _run_branch_episode(
     env,
     *,
     snapshot: dict[str, Any],
+    replay_steps: list[dict[str, Any]],
+    runtime_state: dict[str, Any],
     chunk_actions: np.ndarray,
     continuation_seed: int,
     model,
@@ -354,6 +326,10 @@ def _run_branch_episode(
 
     model.reset_obs()
     env.restore_branch_snapshot(snapshot)
+    for step in replay_steps:
+        env.replay_control_step(step)
+    env.apply_branch_runtime_state(runtime_state)
+
     observation = env.get_obs()
     obs = encode_obs(observation)
     transitions = 0
@@ -386,6 +362,13 @@ def _run_branch_episode(
     }
 
 
+def _branch_row_fields(point: BranchPoint, branch_context: BranchContext) -> dict[str, Any]:
+    return {
+        **point.__dict__,
+        "boundary_physics_step": int(branch_context.boundary_physics_step),
+    }
+
+
 def run_branch_job(
     job: BranchJob,
     rollout_dir: Path,
@@ -397,23 +380,17 @@ def run_branch_job(
     from policy.DP.deploy_policy import encode_obs, get_model
 
     task = job.point.task
-    task_dir = rollout_dir / task
     candidates, _ = collect_candidates(task, rollout_dir)
     success = next(
         item
         for item in candidates
         if item.env_seed == job.point.env_seed and item.rollout_id == job.point.success_rollout_id
     )
-    failure = next(
-        item
-        for item in candidates
-        if item.env_seed == job.point.env_seed and item.rollout_id == job.point.failure_rollout_id
-    )
     success_trace = load_brace_trace(success.path)
-    failure_trace = load_brace_trace(failure.path)
     snapshot = next(
         item for item in success_trace["branch_snapshots"] if int(item["snapshot_id"]) == int(job.point.snapshot_id)
     )
+    branch_context = build_branch_context(success_trace, snapshot)
 
     env_args = load_task_args(task, task_config)
     run_args = dict(env_args)
@@ -422,6 +399,7 @@ def run_branch_job(
 
     rows: list[dict[str, Any]] = []
     candidate_actions = _chunk_actions(success_trace, job.candidate_chunk_index)
+    base_fields = _branch_row_fields(job.point, branch_context)
     for continuation_seed in job.continuation_seeds:
         env = make_task_env(task)
         try:
@@ -429,6 +407,8 @@ def run_branch_job(
             result = _run_branch_episode(
                 env,
                 snapshot=snapshot,
+                replay_steps=branch_context.replay_steps,
+                runtime_state=branch_context.runtime_state,
                 chunk_actions=candidate_actions,
                 continuation_seed=continuation_seed,
                 model=model,
@@ -436,9 +416,10 @@ def run_branch_job(
             )
             rows.append(
                 {
-                    **job.point.__dict__,
+                    **base_fields,
                     "branch_role": "candidate",
                     "chunk_index": job.candidate_chunk_index,
+                    "failure_rollout_id": None,
                     "continuation_seed": continuation_seed,
                     **result,
                 }
@@ -449,8 +430,14 @@ def run_branch_job(
             except Exception:
                 pass
 
-    for control_chunk_index in job.control_chunk_indices:
-        control_actions = _chunk_actions(failure_trace, control_chunk_index)
+    for failure_rollout_id in job.control_failure_rollout_ids:
+        failure = next(
+            item
+            for item in candidates
+            if item.env_seed == job.point.env_seed and item.rollout_id == failure_rollout_id
+        )
+        failure_trace = load_brace_trace(failure.path)
+        control_actions = _chunk_actions(failure_trace, job.candidate_chunk_index)
         for continuation_seed in job.continuation_seeds:
             env = make_task_env(task)
             try:
@@ -458,6 +445,8 @@ def run_branch_job(
                 result = _run_branch_episode(
                     env,
                     snapshot=snapshot,
+                    replay_steps=branch_context.replay_steps,
+                    runtime_state=branch_context.runtime_state,
                     chunk_actions=control_actions,
                     continuation_seed=continuation_seed,
                     model=model,
@@ -465,9 +454,10 @@ def run_branch_job(
                 )
                 rows.append(
                     {
-                        **job.point.__dict__,
+                        **base_fields,
                         "branch_role": "control",
-                        "chunk_index": control_chunk_index,
+                        "chunk_index": job.candidate_chunk_index,
+                        "failure_rollout_id": int(failure_rollout_id),
                         "continuation_seed": continuation_seed,
                         **result,
                     }
@@ -492,21 +482,31 @@ def bootstrap_lcb(successes: list[bool], *, alpha: float, samples: int, rng: ran
     return float(np.quantile(boot, alpha))
 
 
+def evaluate_harness_sanity(rows: list[dict[str, Any]], *, min_rate: float) -> tuple[bool, str | None]:
+    candidate_rows = [row for row in rows if row.get("branch_role") == "candidate"]
+    if not candidate_rows:
+        return False, "no_candidate_rollouts"
+    rate = sum(bool(row["success"]) for row in candidate_rows) / len(candidate_rows)
+    if rate < min_rate:
+        return False, f"candidate_baseline_rate_{rate:.3f}_below_{min_rate}"
+    return True, None
+
+
 def summarize_branch_rows(rows: list[dict[str, Any]], *, alpha: float, delta: float) -> dict[str, Any]:
-    grouped: dict[tuple[int, int], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[int, int, int], list[dict[str, Any]]] = {}
     for row in rows:
-        key = (int(row["env_seed"]), int(row["physics_step"]))
+        key = (int(row["env_seed"]), int(row["snapshot_id"]), int(row["physics_step"]))
         grouped.setdefault(key, []).append(row)
 
     point_summaries = []
     accepted = 0
-    for (_env_seed, _physics_step), group in grouped.items():
+    for (_env_seed, _snapshot_id, _physics_step), group in grouped.items():
         candidate_success = [bool(row["success"]) for row in group if row["branch_role"] == "candidate"]
         control_success = [bool(row["success"]) for row in group if row["branch_role"] == "control"]
         advantage = (sum(candidate_success) / len(candidate_success) if candidate_success else 0.0) - (
             sum(control_success) / len(control_success) if control_success else 0.0
         )
-        rng = random.Random(_env_seed + _physics_step)
+        rng = random.Random(_env_seed + _snapshot_id + _physics_step)
         lcb = bootstrap_lcb(candidate_success, alpha=alpha, samples=500, rng=rng) - (
             sum(control_success) / len(control_success) if control_success else 0.0
         )
@@ -515,7 +515,10 @@ def summarize_branch_rows(rows: list[dict[str, Any]], *, alpha: float, delta: fl
         point_summaries.append(
             {
                 "env_seed": _env_seed,
+                "snapshot_id": _snapshot_id,
                 "physics_step": _physics_step,
+                "snapshot_physics_step": int(group[0]["snapshot_physics_step"]),
+                "branch_chunk_index": int(group[0]["branch_chunk_index"]),
                 "point_type": group[0]["point_type"],
                 "candidate_success_rate": sum(candidate_success) / len(candidate_success),
                 "control_success_rate": sum(control_success) / len(control_success),
@@ -704,16 +707,21 @@ def main() -> int:
     protocol = read_json(protocol_path)
     tasks = list(args.tasks) if args.tasks else list(protocol["tasks"])
     task_config = protocol.get("task_config", "demo_brace_trace")
-    max_points = int(protocol.get("candidate_points_per_pair", 4))
+    max_points = int(protocol.get("candidate_points_per_pair", 3))
     control_k = int(protocol.get("control_chunks_k", 3))
     continuation_m = int(protocol.get("continuation_seeds_m", 3))
     alpha = float(protocol["acceptance"]["one_sided_alpha"])
     delta = float(protocol["acceptance"]["minimum_advantage_delta"])
+    harness_min_rate = float(
+        protocol.get("branch_harness", {}).get("harness_sanity", {}).get("candidate_baseline_min_rate", 0.05)
+    )
 
     all_rows: list[dict[str, Any]] = []
     task_summaries: dict[str, Any] = {}
     errors: list[str] = []
     budgets: dict[str, Any] = {}
+    harness_valid = True
+    harness_invalid_reason: str | None = None
 
     for task in tasks:
         seeds_file = args.seeds_file or (REPO_ROOT / "experiments" / "brace" / "seeds" / f"{task}_pilot_seeds.json")
@@ -756,6 +764,13 @@ def main() -> int:
         errors.extend(job_errors)
         all_rows.extend(rows)
         summary = summarize_branch_rows(rows, alpha=alpha, delta=delta)
+        task_harness_valid, task_harness_reason = evaluate_harness_sanity(rows, min_rate=harness_min_rate)
+        summary["harness_valid"] = task_harness_valid
+        if not task_harness_valid:
+            summary["harness_invalid_reason"] = task_harness_reason
+            harness_valid = False
+            if harness_invalid_reason is None:
+                harness_invalid_reason = f"{task}:{task_harness_reason}"
         task_summaries[task] = summary
         budgets[task] = {
             "environment_transitions": int(sum(int(row.get("transitions", 0)) for row in rows)),
@@ -766,12 +781,14 @@ def main() -> int:
         budget_path.parent.mkdir(parents=True, exist_ok=True)
         write_json_atomic(budget_path, budgets[task])
 
-    passed = bool(task_summaries) and all(summary["passed"] for summary in task_summaries.values()) and not errors
+    scientific_passed = bool(task_summaries) and all(summary["passed"] for summary in task_summaries.values())
+    passed = harness_valid and scientific_passed and not errors
     summary = {
         "schema_version": 2,
-        "protocol_revision": protocol.get("protocol_revision", "2.2"),
+        "protocol_revision": protocol.get("protocol_revision", "2.3"),
         "passed": passed,
         "complete": not errors,
+        "harness_valid": harness_valid,
         "tasks": task_summaries,
         "errors": errors,
         "protocol_path": str(protocol_path),
@@ -779,9 +796,11 @@ def main() -> int:
         "git_commit": git_commit(),
         "artifacts": {"checks": "checks.jsonl", "budgets": "../budgets"},
     }
+    if harness_invalid_reason is not None:
+        summary["harness_invalid_reason"] = harness_invalid_reason
     write_jsonl_atomic(output_dir / "checks.jsonl", all_rows)
     write_json_atomic(output_dir / "summary.json", summary)
-    print(f"Branch collection passed={passed} summary={output_dir / 'summary.json'}")
+    print(f"Branch collection passed={passed} harness_valid={harness_valid} summary={output_dir / 'summary.json'}")
     if errors:
         print(errors[0], file=sys.stderr)
     return 0 if passed else 1

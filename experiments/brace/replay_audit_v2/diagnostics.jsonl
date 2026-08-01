@@ -1,0 +1,4 @@
+{"error": "place_container_plate: missing task rollout directory: /home/gsy/work/RoboTwin/experiments/brace/rollouts_traced_pilot/place_container_plate"}
+{"error": "place_container_plate: need 20 trajectories, found 0 with readable HDF5"}
+{"error": "dump_bin_bigbin: missing task rollout directory: /home/gsy/work/RoboTwin/experiments/brace/rollouts_traced_pilot/dump_bin_bigbin"}
+{"error": "dump_bin_bigbin: need 20 trajectories, found 0 with readable HDF5"}

@@ -1,0 +1,120 @@
+{
+  "artifacts": {
+    "checks": "checks.jsonl",
+    "diagnostics": "diagnostics.jsonl",
+    "failures": "failures.jsonl"
+  },
+  "complete": false,
+  "control_trace_replay": {
+    "failed_checks": 0,
+    "pass_rate": 0.0,
+    "passed": false,
+    "passed_checks": 0,
+    "required_pass_rate": 0.95,
+    "total_checks": 0
+  },
+  "expected_checks": 240,
+  "expected_replay_checks": 120,
+  "expected_restore_checks": 120,
+  "failed_checks": 0,
+  "git_commit": "cc7140b92fe56622ea5979e881e4924e2c6af885",
+  "metric_errors": {},
+  "minimum_pass_rate": 0.95,
+  "pass_rate": 0.0,
+  "passed": false,
+  "passed_checks": 0,
+  "per_actor_failure_counts": {},
+  "per_task_control_trace_replay_minimum_pass_rate": 0.95,
+  "preflight_errors": [
+    "place_container_plate: missing task rollout directory: /home/gsy/work/RoboTwin/experiments/brace/rollouts_traced_pilot/place_container_plate",
+    "place_container_plate: need 20 trajectories, found 0 with readable HDF5",
+    "dump_bin_bigbin: missing task rollout directory: /home/gsy/work/RoboTwin/experiments/brace/rollouts_traced_pilot/dump_bin_bigbin",
+    "dump_bin_bigbin: need 20 trajectories, found 0 with readable HDF5"
+  ],
+  "protocol_path": "/home/gsy/work/RoboTwin/experiments/brace/protocol.v2.3.json",
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "restore_determinism": {
+    "failed_checks": 0,
+    "pass_rate": 0.0,
+    "passed": false,
+    "passed_checks": 0,
+    "required_pass_rate": 1.0,
+    "total_checks": 0
+  },
+  "schema_version": 2,
+  "tasks": {
+    "dump_bin_bigbin": {
+      "available_failures": 0,
+      "available_successes": 0,
+      "available_trajectories": 0,
+      "control_trace_replay": {
+        "failed_checks": 0,
+        "pass_rate": 0.0,
+        "passed": false,
+        "passed_checks": 0,
+        "total_checks": 0
+      },
+      "pass_rate": 0.0,
+      "passed_checks": 0,
+      "preflight_errors": [
+        "missing task rollout directory: /home/gsy/work/RoboTwin/experiments/brace/rollouts_traced_pilot/dump_bin_bigbin",
+        "need 20 trajectories, found 0 with readable HDF5"
+      ],
+      "replay_gate_passed": false,
+      "requested_trajectories": 20,
+      "restore_determinism": {
+        "failed_checks": 0,
+        "pass_rate": 0.0,
+        "passed": false,
+        "passed_checks": 0,
+        "total_checks": 0
+      },
+      "selected_failures": 0,
+      "selected_successes": 0,
+      "selected_trajectories": 0,
+      "snapshots_per_trajectory": 3,
+      "total_checks": 0
+    },
+    "place_container_plate": {
+      "available_failures": 0,
+      "available_successes": 0,
+      "available_trajectories": 0,
+      "control_trace_replay": {
+        "failed_checks": 0,
+        "pass_rate": 0.0,
+        "passed": false,
+        "passed_checks": 0,
+        "total_checks": 0
+      },
+      "pass_rate": 0.0,
+      "passed_checks": 0,
+      "preflight_errors": [
+        "missing task rollout directory: /home/gsy/work/RoboTwin/experiments/brace/rollouts_traced_pilot/place_container_plate",
+        "need 20 trajectories, found 0 with readable HDF5"
+      ],
+      "replay_gate_passed": false,
+      "requested_trajectories": 20,
+      "restore_determinism": {
+        "failed_checks": 0,
+        "pass_rate": 0.0,
+        "passed": false,
+        "passed_checks": 0,
+        "total_checks": 0
+      },
+      "selected_failures": 0,
+      "selected_successes": 0,
+      "selected_trajectories": 0,
+      "snapshots_per_trajectory": 3,
+      "total_checks": 0
+    }
+  },
+  "thresholds": {
+    "end_effector_rotation_error": 0.05,
+    "end_effector_translation_error": 0.005,
+    "joint_max_error": 0.01,
+    "object_rotation_error": 0.05,
+    "object_translation_error": 0.005
+  },
+  "total_checks": 0
+}
