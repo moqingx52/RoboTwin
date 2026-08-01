@@ -7,7 +7,9 @@ cd "${repo_root}"
 
 export BRACE_PROTOCOL_V2_PATH=experiments/brace/protocol.v2.3.json
 export BRACE_TASKS=dump_bin_bigbin
+# Pilot: 10 seeds on 8 GPUs -> 1 worker/GPU avoids 2x15GB>24GB pile-up on GPU0/1.
 export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-1}"
+export BRACE_PILOT_NUM_SHARDS="${BRACE_PILOT_NUM_SHARDS:-8}"
 unset BRACE_PILOT_SEEDS_FILE || true
 
 replay_gate="$(jq -r '.tasks.dump_bin_bigbin.replay_gate_passed // false' experiments/brace/replay_audit_v2/summary.json)"

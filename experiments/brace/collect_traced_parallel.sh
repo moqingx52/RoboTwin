@@ -30,8 +30,14 @@ resolve_pilot_shards() {
   seed_count="$(jq '.seeds | length' "${seeds_file}")"
   if [[ -n "${BRACE_PILOT_NUM_SHARDS:-}" ]]; then
     shards_per_task="${BRACE_PILOT_NUM_SHARDS}"
-  elif (( seed_count > 0 && shards_per_task > seed_count )); then
-    shards_per_task="${seed_count}"
+  elif (( seed_count > 0 )); then
+    max_parallel=$(( ${#gpu_ids[@]} * workers_per_gpu ))
+    if (( max_parallel > seed_count )); then
+      shards_per_task="${seed_count}"
+    elif (( max_parallel < seed_count )); then
+      # Prefer one shard per GPU slot when seeds exceed parallel capacity.
+      shards_per_task="${max_parallel}"
+    fi
   fi
   if (( shards_per_task < 1 )); then
     shards_per_task=1

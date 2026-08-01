@@ -1,0 +1,8 @@
+{
+  "task": "dump_bin_bigbin",
+  "protocol_revision": "2.3",
+  "run_type": "pilot",
+  "analyzed_seeds": [100168, 100075, 100082, 100194],
+  "pilot_seeds": [100168, 100243, 100129, 100075, 100150, 100082, 100093, 100194, 100222, 100136],
+  "note": "Four seeds produced 12 branch points; six pilot seeds filtered at prepare (K=3 failure chunks)."
+}
