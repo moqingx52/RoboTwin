@@ -1,0 +1,25 @@
+{
+  "artifacts": {
+    "budgets": "../budgets",
+    "checks": "checks.jsonl"
+  },
+  "complete": true,
+  "errors": [],
+  "git_commit": "4753527e5b99709e2002f789b4b510f03030d342",
+  "harness_valid": true,
+  "passed": true,
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/protocol.v2.3.json",
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "schema_version": 2,
+  "tasks": {
+    "place_container_plate": {
+      "accepted_points": 11,
+      "harness_valid": true,
+      "matched_success_lift": 0.6222222222222222,
+      "passed": true,
+      "recovery_seed_fraction": 1.0,
+      "total_points": 15
+    }
+  }
+}

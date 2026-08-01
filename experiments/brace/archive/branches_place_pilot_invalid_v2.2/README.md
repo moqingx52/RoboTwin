@@ -41,5 +41,6 @@ Non-empty output proves the same snapshot was reused for multiple claimed branch
 
 ## Successor
 
-See `experiments/brace/protocol.v2.3.json` and the v2.3 branch harness in
-`experiments/brace/collect_branches.py`.
+- Protocol / harness: `experiments/brace/protocol.v2.3.json`, `collect_branches.py`
+- Valid pilot archive: `experiments/brace/archive/branches_place_pilot_valid_v2.3/`
+- Written conclusion: `docs/brace_stage2_place_pilot_conclusion.md`

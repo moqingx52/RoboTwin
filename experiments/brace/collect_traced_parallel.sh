@@ -32,7 +32,7 @@ job_index=0
 for task in "${tasks[@]}"; do
   seeds_file="experiments/phase1/seeds/${task}_seeds.json"
   if [[ "${rollout_dir}" == *rollouts_traced_pilot* ]]; then
-    seeds_file="experiments/brace/seeds/${task}_pilot_seeds.json"
+    seeds_file="${BRACE_PILOT_SEEDS_FILE:-experiments/brace/seeds/${task}_pilot_seeds.json}"
     if [[ ! -s "${seeds_file}" ]]; then
       echo "Missing pilot seeds file: ${seeds_file}. Run select-pilot-seeds first." >&2
       exit 2
@@ -102,7 +102,7 @@ fi
 for task in "${tasks[@]}"; do
   verify_seeds_file="experiments/phase1/seeds/${task}_seeds.json"
   if [[ "${rollout_dir}" == *rollouts_traced_pilot* ]]; then
-    verify_seeds_file="experiments/brace/seeds/${task}_pilot_seeds.json"
+    verify_seeds_file="${BRACE_PILOT_SEEDS_FILE:-experiments/brace/seeds/${task}_pilot_seeds.json}"
   fi
   python experiments/brace/verify_traced_rollouts.py \
     --tasks "${task}" \

@@ -14,7 +14,7 @@ rollout_dir=${BRACE_ROLLOUT_DIR:-experiments/phase1/rollouts_200}
 traced_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/rollouts_traced}
 brace_dir=${BRACE_OUTPUT_DIR:-experiments/brace}
 protocol=${BRACE_PROTOCOL_PATH:-${brace_dir}/protocol.json}
-protocol_v2=${BRACE_PROTOCOL_V2_PATH:-${brace_dir}/protocol.v2.3.json}
+protocol_v2=${BRACE_PROTOCOL_V2_PATH:-experiments/brace/protocol.v2.3.json}
 pilot_rollout_dir=${BRACE_PILOT_ROLLOUT_DIR:-experiments/brace/rollouts_traced_pilot}
 num_shards=${BRACE_NUM_SHARDS:-12}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
@@ -22,6 +22,19 @@ verify_workers=${BRACE_VERIFY_WORKERS:-96}
 audit_workers_per_gpu=${BRACE_AUDIT_WORKERS_PER_GPU:-3}
 audit_workers=${BRACE_AUDIT_WORKERS:-$(( ${#gpu_ids[@]} * audit_workers_per_gpu ))}
 branch_prepare_workers=${BRACE_BRANCH_PREPARE_WORKERS:-96}
+branch_output_dir=${BRACE_BRANCH_OUTPUT_DIR:-${brace_dir}/branches}
+dataset_dir=${BRACE_DATASET_DIR:-${brace_dir}/datasets}
+dataset_run_label=${BRACE_DATASET_RUN_LABEL:-place_pilot_v2.3}
+screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.json}
+
+pilot_seeds_file_for_task() {
+  local task=$1
+  if [[ -n "${BRACE_PILOT_SEEDS_FILE:-}" ]]; then
+    echo "${BRACE_PILOT_SEEDS_FILE}"
+  else
+    echo "${brace_dir}/seeds/${task}_pilot_seeds.json"
+  fi
+}
 
 usage() {
   cat <<'EOF'
@@ -40,8 +53,12 @@ Stages:
   collect-trace-smoke  Collect 2-4 traced rollouts per task for schema smoke.
   collect-trace-audit  Collect traced rollouts for the v2 audit sample.
   select-pilot-seeds  Select mixed-outcome env seeds for Stage-2 pilot.
+  select-confirm-seeds  Select held-out confirmatory seeds (Track B).
   collect-trace-pilot  Collect traced rollouts for Stage-2 pilot seeds.
   verify-traced        Verify traced rollout shards and schema v2 HDF5.
+  inventory-traced     Inventory mixed-outcome seed counts (directed collection).
+  export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
+  anchor-smoke         Frozen-denoiser anchor structural smoke (screen_protocol.v1).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
@@ -49,6 +66,15 @@ Stages:
 Important:
   The old experiments/phase3 prep/screen/full stages are not called by this entry.
   The currently running failure collection is useful BRACE input and should finish.
+
+Environment (v2 audit / branch):
+  BRACE_PROTOCOL_V2_PATH   Protocol file for audit-v2 and branch (default:
+                           experiments/brace/protocol.v2.3.json). Set explicitly when
+                           reproducing archived v2.3 runs.
+  BRACE_TRACED_ROLLOUT_DIR Traced HDF5 root (e.g. rollouts_traced_pilot for Stage 2).
+  BRACE_BRANCH_OUTPUT_DIR  Branch summary/checks output dir (default: experiments/brace/branches).
+  BRACE_PILOT_SEEDS_FILE   Override pilot/confirm seeds JSON for collect/verify/branch.
+  BRACE_TASKS              Space-separated task subset (default: both protocol tasks).
 EOF
 }
 
@@ -245,15 +271,70 @@ case "${stage}" in
   collect-trace-pilot)
     export BRACE_TRACED_ROLLOUT_DIR="${pilot_rollout_dir}"
     for task in "${tasks[@]}"; do
-      seeds_file="${brace_dir}/seeds/${task}_pilot_seeds.json"
+      seeds_file="$(pilot_seeds_file_for_task "${task}")"
       if [[ ! -s "${seeds_file}" ]]; then
-        echo "Missing ${seeds_file}. Run select-pilot-seeds first." >&2
+        echo "Missing ${seeds_file}. Run select-pilot-seeds or select-confirm-seeds first." >&2
         exit 2
       fi
     done
     export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}"
     export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
     exec bash experiments/brace/collect_traced_parallel.sh "$@"
+    ;;
+
+  select-confirm-seeds)
+    mkdir -p "${brace_dir}/seeds"
+    for task in "${tasks[@]}"; do
+      exclude_file="${BRACE_EXCLUDE_SEEDS_FILE:-${brace_dir}/archive/branches_place_pilot_valid_v2.3/analyzed_seeds.json}"
+      confirm_args=(
+        --task "${task}"
+        --rollout-dir "${traced_rollout_dir}"
+        --count "${BRACE_CONFIRM_SEED_COUNT:-5}"
+        --seed "${BRACE_CONFIRM_SEED_SELECTION:-1}"
+        --exclude-seeds-file "${exclude_file}"
+        --output "${brace_dir}/seeds/${task}_confirm_seeds.json"
+      )
+      if [[ -n "${BRACE_CONFIRM_ROLLOUT_ID_MIN:-}" ]]; then
+        confirm_args+=(--rollout-id-min "${BRACE_CONFIRM_ROLLOUT_ID_MIN}")
+      fi
+      if [[ -n "${BRACE_CONFIRM_ROLLOUT_ID_MAX:-}" ]]; then
+        confirm_args+=(--rollout-id-max "${BRACE_CONFIRM_ROLLOUT_ID_MAX}")
+      fi
+      python experiments/brace/select_confirm_seeds.py "${confirm_args[@]}"
+    done
+    ;;
+
+  inventory-traced)
+    mkdir -p "${brace_dir}/inventory"
+    for task in "${tasks[@]}"; do
+      python experiments/brace/inventory_traced_rollouts.py \
+        --task "${task}" \
+        --rollout-dir "${traced_rollout_dir}" \
+        --output "${brace_dir}/inventory/${task}_traced.json"
+    done
+    ;;
+
+  export-verified-chunks)
+    mkdir -p "${dataset_dir}"
+    branch_source_dir=${BRACE_BRANCH_DIR:-${brace_dir}/branches}
+    traced_source_dir=${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}
+    for task in "${tasks[@]}"; do
+      python experiments/brace/export_verified_chunks.py \
+        --protocol "${protocol_v2}" \
+        --branch-dir "${branch_source_dir}" \
+        --rollout-dir "${traced_source_dir}" \
+        --task "${task}" \
+        --run-label "${dataset_run_label}" \
+        --output-dir "${dataset_dir}" \
+        --n1-seed "${BRACE_N1_SEED:-0}"
+    done
+    ;;
+
+  anchor-smoke)
+    mkdir -p "${brace_dir}/anchor_smoke"
+    python experiments/brace/anchor_smoke.py \
+      --protocol "${screen_protocol}" \
+      --output "${brace_dir}/anchor_smoke/summary.json"
     ;;
 
   select-pilot-seeds)
@@ -278,7 +359,7 @@ case "${stage}" in
       verify_seeds_file="experiments/phase1/seeds/${task}_seeds.json"
       verify_shards="${num_shards}"
       if [[ "${verify_rollout_dir}" == *rollouts_traced_pilot* ]]; then
-        verify_seeds_file="${brace_dir}/seeds/${task}_pilot_seeds.json"
+        verify_seeds_file="$(pilot_seeds_file_for_task "${task}")"
         verify_shards="${BRACE_PILOT_NUM_SHARDS:-24}"
       fi
       python experiments/brace/verify_traced_rollouts.py \
@@ -308,16 +389,20 @@ case "${stage}" in
       exit 2
     fi
     branch_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}
-    exec python experiments/brace/collect_branches.py \
-      --protocol "${protocol_v2}" \
-      --rollout-dir "${branch_rollout_dir}" \
-      --output-dir "${brace_dir}/branches" \
-      --tasks "${tasks[@]}" \
-      --workers "${audit_workers}" \
-      --workers-per-gpu "${audit_workers_per_gpu}" \
-      --prepare-workers "${branch_prepare_workers}" \
-      --gpus "${gpu_ids[@]}" \
-      "$@"
+    branch_args=(
+      --protocol "${protocol_v2}"
+      --rollout-dir "${branch_rollout_dir}"
+      --output-dir "${branch_output_dir}"
+      --tasks "${tasks[@]}"
+      --workers "${audit_workers}"
+      --workers-per-gpu "${audit_workers_per_gpu}"
+      --prepare-workers "${branch_prepare_workers}"
+      --gpus "${gpu_ids[@]}"
+    )
+    if [[ -n "${BRACE_PILOT_SEEDS_FILE:-}" ]]; then
+      branch_args+=(--seeds-file "${BRACE_PILOT_SEEDS_FILE}")
+    fi
+    exec python experiments/brace/collect_branches.py "${branch_args[@]}" "$@"
     ;;
 
   screen)

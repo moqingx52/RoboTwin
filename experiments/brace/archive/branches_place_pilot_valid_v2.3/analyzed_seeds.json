@@ -1,0 +1,7 @@
+{
+  "task": "place_container_plate",
+  "protocol_revision": "2.3",
+  "run_type": "pilot",
+  "analyzed_seeds": [100000, 100079, 100041, 100099, 100048],
+  "note": "Seeds that produced the 15 evaluated branch points in the valid v2.3 pilot."
+}

@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "checks": "checks.jsonl",
+    "diagnostics": "diagnostics.jsonl",
+    "failures": "failures.jsonl"
+  },
+  "complete": true,
+  "control_trace_replay": {
+    "failed_checks": 3,
+    "pass_rate": 0.95,
+    "passed": true,
+    "passed_checks": 57,
+    "required_pass_rate": 0.95,
+    "total_checks": 60
+  },
+  "expected_checks": 120,
+  "expected_replay_checks": 60,
+  "expected_restore_checks": 60,
+  "failed_checks": 3,
+  "git_commit": "4753527e5b99709e2002f789b4b510f03030d342",
+  "minimum_pass_rate": 0.95,
+  "pass_rate": 0.975,
+  "passed": true,
+  "passed_checks": 117,
+  "per_actor_failure_counts": {
+    "dump_bin_bigbin": {
+      "deskbin:translation": 1,
+      "garbage_0:translation": 1,
+      "garbage_1:translation": 2,
+      "garbage_4:translation": 1
+    }
+  },
+  "per_task_control_trace_replay_minimum_pass_rate": 0.95,
+  "preflight_errors": [],
+  "protocol_path": "experiments/brace/protocol.v2.3.json",
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "restore_determinism": {
+    "failed_checks": 0,
+    "pass_rate": 1.0,
+    "passed": true,
+    "passed_checks": 60,
+    "required_pass_rate": 1.0,
+    "total_checks": 60
+  },
+  "schema_version": 2,
+  "tasks": {
+    "dump_bin_bigbin": {
+      "available_trajectories": 800,
+      "control_trace_replay": {
+        "failed_checks": 3,
+        "pass_rate": 0.95,
+        "passed": true,
+        "passed_checks": 57,
+        "total_checks": 60
+      },
+      "pass_rate": 0.975,
+      "passed_checks": 117,
+      "preflight_errors": [],
+      "replay_gate_passed": true,
+      "requested_trajectories": 20,
+      "restore_determinism": {
+        "failed_checks": 0,
+        "pass_rate": 1.0,
+        "passed": true,
+        "passed_checks": 60,
+        "total_checks": 60
+      },
+      "selected_trajectories": 20,
+      "snapshots_per_trajectory": 3,
+      "total_checks": 120
+    }
+  },
+  "total_checks": 120
+}
