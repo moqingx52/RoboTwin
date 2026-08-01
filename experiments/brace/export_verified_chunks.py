@@ -79,9 +79,9 @@ def _candidate_rows_by_point(rows: list[dict[str, Any]]) -> dict[tuple[int, int,
     return result
 
 
-def _index_success_candidate(candidate: Candidate) -> tuple[int, int, str, tuple[int, ...]]:
+def _index_success_candidate(candidate: Candidate) -> tuple[str, int, int, str, tuple[int, ...]]:
     indices = tuple(sorted(load_policy_chunk_indices(candidate.path)))
-    return (candidate.env_seed, candidate.rollout_id, str(candidate.path), indices)
+    return (candidate.task, candidate.env_seed, candidate.rollout_id, str(candidate.path), indices)
 
 
 def index_success_chunk_indices(
@@ -109,8 +109,14 @@ def index_success_chunk_indices(
                 if completed == 1 or completed % 25 == 0 or completed == len(successes):
                     print(f"  indexed {completed}/{len(successes)} trajectories", flush=True)
 
-    for env_seed, rollout_id, path_text, indices in indexed:
-        candidate = Candidate(env_seed=env_seed, rollout_id=rollout_id, success=True, path=Path(path_text))
+    for task_name, env_seed, rollout_id, path_text, indices in indexed:
+        candidate = Candidate(
+            task=task_name,
+            env_seed=env_seed,
+            rollout_id=rollout_id,
+            success=True,
+            path=Path(path_text),
+        )
         for chunk_index in indices:
             chunk_to_candidates[int(chunk_index)].append(candidate)
     return chunk_to_candidates
