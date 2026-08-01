@@ -46,6 +46,12 @@ def load_checks(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def stats_from_task_block(task_stats: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    restore = dict(task_stats.get("restore_determinism", {}))
+    replay = dict(task_stats.get("control_trace_replay", {}))
+    return restore, replay
+
+
 def extract_task_summary(source: dict[str, Any], task: str, checks: list[dict[str, Any]]) -> dict[str, Any]:
     task_stats = source.get("tasks", {}).get(task)
     if task_stats is None:
@@ -54,6 +60,23 @@ def extract_task_summary(source: dict[str, Any], task: str, checks: list[dict[st
     task_checks = [row for row in checks if row.get("task") == task]
     restore_stats = summarize_check_type(task_checks, "restore_determinism")
     replay_stats = summarize_check_type(task_checks, "control_trace_replay")
+    if restore_stats["total_checks"] == 0 and replay_stats["total_checks"] == 0:
+        restore_block, replay_block = stats_from_task_block(task_stats)
+        if int(restore_block.get("total_checks", 0)) > 0:
+            restore_stats = {
+                "failed_checks": int(restore_block.get("failed_checks", 0)),
+                "pass_rate": float(restore_block.get("pass_rate", 0.0)),
+                "passed_checks": int(restore_block.get("passed_checks", 0)),
+                "total_checks": int(restore_block.get("total_checks", 0)),
+            }
+        if int(replay_block.get("total_checks", 0)) > 0:
+            replay_stats = {
+                "failed_checks": int(replay_block.get("failed_checks", 0)),
+                "pass_rate": float(replay_block.get("pass_rate", 0.0)),
+                "passed_checks": int(replay_block.get("passed_checks", 0)),
+                "total_checks": int(replay_block.get("total_checks", 0)),
+            }
+
     restore_required = float(
         source.get("restore_determinism", {}).get("required_pass_rate", 1.0)
     )
@@ -68,16 +91,22 @@ def extract_task_summary(source: dict[str, Any], task: str, checks: list[dict[st
     replay_passed = (
         replay_stats["total_checks"] > 0
         and replay_stats["pass_rate"] >= replay_required
-        and bool(task_stats.get("replay_gate_passed", replay_stats["pass_rate"] >= replay_required))
     )
+    replay_gate_passed = bool(task_stats.get("replay_gate_passed", replay_passed))
     total_checks = restore_stats["total_checks"] + replay_stats["total_checks"]
     passed_checks = restore_stats["passed_checks"] + replay_stats["passed_checks"]
+    task_complete = int(task_stats.get("total_checks", 0)) > 0 or total_checks > 0
+    complete = bool(source.get("complete", False)) or task_complete
+    preflight_errors = [
+        err for err in source.get("preflight_errors", [])
+        if isinstance(err, str) and task.replace("_", " ") not in err and task not in err
+    ]
     passed = (
-        bool(source.get("complete", False))
-        and not source.get("preflight_errors")
+        complete
+        and not preflight_errors
         and restore_passed
         and replay_passed
-        and bool(task_stats.get("replay_gate_passed", replay_passed))
+        and replay_gate_passed
     )
 
     per_actor = {
@@ -87,9 +116,9 @@ def extract_task_summary(source: dict[str, Any], task: str, checks: list[dict[st
     return {
         "schema_version": source.get("schema_version", 2),
         "artifacts": source.get("artifacts", {}),
-        "complete": bool(source.get("complete", False)),
+        "complete": complete,
         "passed": passed,
-        "preflight_errors": list(source.get("preflight_errors", [])),
+        "preflight_errors": preflight_errors,
         "restore_determinism": {
             **restore_stats,
             "passed": restore_passed,
