@@ -97,15 +97,10 @@ experiments/brace/sync/.cache/
 !experiments/brace/sync/inventories/
 !experiments/brace/sync/inventories/*.json
 !experiments/brace/sync/LATEST
+!experiments/brace/sync/CHECKLIST.md
 
 /*.json*
 /*.txt
 
-# Experiment reports and paper drafts (un-ignore BRACE docs + paper only)
-docs/*
-!docs/brace*/
-!docs/brace*/
-!docs/brace*/**
-!docs/brace_artifact_sync_checklist.md
-!docs/paper/
-!docs/paper/**
+# Private experiment reports and paper drafts (never track)
+docs/

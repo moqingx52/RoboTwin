@@ -387,7 +387,7 @@ def main() -> int:
     parser.add_argument(
         "--checklist",
         type=Path,
-        default=REPO_ROOT / "docs" / "brace_artifact_sync_checklist.md",
+        default=BRACE_DIR / "sync" / "CHECKLIST.md",
     )
     parser.add_argument(
         "--remote-repo",

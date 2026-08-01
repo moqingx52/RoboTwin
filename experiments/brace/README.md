@@ -83,7 +83,7 @@ Remote runs can scan artifacts and emit a download checklist:
 ```bash
 bash experiments/brace/run_all.sh artifact-inventory
 # → experiments/brace/sync/inventories/<timestamp>.json
-# → docs/brace_artifact_sync_checklist.md
+# → experiments/brace/sync/CHECKLIST.md
 ```
 
 After copying JSON files to the local repo paths listed in the checklist:
