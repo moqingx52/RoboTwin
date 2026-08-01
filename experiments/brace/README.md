@@ -78,6 +78,30 @@ The entry never delegates to the old CPST `prep/screen/full` stages.
 
 ## Evidence sync (cloud pull-only → local push)
 
+### Data management policy (immutable runs)
+
+Shared paths like `replay_audit_v2/summary.json` and `branches/` are **legacy and
+overwrite-prone**. Default behavior (since 2026-08-02):
+
+```text
+experiments/brace/runs/<UTC>_<stage>_<task>/meta.json
+experiments/brace/runs/<UTC>_<stage>_<task>/replay_audit_v2/<task>/summary.json
+experiments/brace/runs/<UTC>_branch_<label>/branches/summary.json
+```
+
+Pointers (cloud-local, not git-tracked):
+
+- `runs/LATEST` — most recent run directory
+- `runs/LATEST_AUDIT_<task>` — latest audit output for a task
+- `runs/LATEST_<branch_label>` — latest branch output
+
+**Promote** validated outputs into frozen `archive/` before syncing to git.
+Set `BRACE_LEGACY_MUTABLE_OUTPUTS=1` only to reproduce old scripts.
+
+```bash
+bash experiments/brace/run_all.sh list-runs
+```
+
 Cloud machines usually **can pull but not push**. Evidence JSON flows:
 
 ```text

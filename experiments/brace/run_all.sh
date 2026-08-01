@@ -27,6 +27,10 @@ dataset_dir=${BRACE_DATASET_DIR:-${brace_dir}/datasets}
 dataset_run_label=${BRACE_DATASET_RUN_LABEL:-place_pilot_v2.3}
 screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.json}
 
+# shellcheck source=experiments/brace/run_paths.sh
+source "${repo_root}/experiments/brace/run_paths.sh"
+export BRACE_RUN_ID="${BRACE_RUN_ID:-$(brace_utc_run_id)}"
+
 pilot_seeds_file_for_task() {
   local task=$1
   if [[ -n "${BRACE_PILOT_SEEDS_FILE:-}" ]]; then
@@ -78,6 +82,7 @@ Stages:
   validate-artifacts   Validate archives/manifests against optional remote inventory snapshot.
   merge-audit-v2       Merge per-task replay audit summaries into combined gate file.
   archive-replay-gate  Extract per-task replay gate summary into archive/.
+  list-runs            List recent timestamped BRACE run directories.
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
   anchor-smoke         Frozen-denoiser anchor structural smoke (screen_protocol.v1).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
@@ -96,6 +101,12 @@ Environment (v2 audit / branch):
   BRACE_BRANCH_OUTPUT_DIR  Branch summary/checks output dir (default: experiments/brace/branches).
   BRACE_PILOT_SEEDS_FILE   Override pilot/confirm seeds JSON for collect/verify/branch.
   BRACE_TASKS              Space-separated task subset (default: both protocol tasks).
+
+Immutable outputs (default since v2.3+):
+  Each stage writes under experiments/brace/runs/<UTC>_<stage>_<tasks>/...
+  Pointer files: runs/LATEST, runs/LATEST_AUDIT_<task>, runs/LATEST_<branch_label>
+  Set BRACE_LEGACY_MUTABLE_OUTPUTS=1 to restore old shared paths (not recommended).
+  Frozen git-tracked copies live under experiments/brace/archive/ only.
 EOF
 }
 
@@ -163,19 +174,15 @@ require_gate() {
 }
 
 require_task_replay_gates() {
-  local path=$1
+  local _fallback_path=$1
   local task task_summary
   for task in "${tasks[@]}"; do
-    task_summary="${brace_dir}/replay_audit_v2/${task}/summary.json"
-    if [[ -s "${task_summary}" ]]; then
-      if [[ "$(jq -r '.tasks[$task].replay_gate_passed // false' --arg task "${task}" "${task_summary}")" != "true" ]]; then
-        echo "Replay audit v2 per-task gate has not passed for ${task}: ${task_summary}" >&2
-        exit 2
-      fi
-      continue
+    if ! task_summary="$(brace_latest_audit_summary "${task}")"; then
+      echo "Replay audit v2 per-task gate has not passed for ${task}: no summary found" >&2
+      exit 2
     fi
-    if [[ ! -s "${path}" ]] || [[ "$(jq -r --arg task "${task}" '.tasks[$task].replay_gate_passed // false' "${path}")" != "true" ]]; then
-      echo "Replay audit v2 per-task gate has not passed for ${task}: ${path}" >&2
+    if [[ "$(jq -r '.tasks[$task].replay_gate_passed // false' --arg task "${task}" "${task_summary}")" != "true" ]]; then
+      echo "Replay audit v2 per-task gate has not passed for ${task}: ${task_summary}" >&2
       exit 2
     fi
   done
@@ -230,6 +237,7 @@ case "${stage}" in
   init)
     mkdir -p \
       "${brace_dir}/logs" \
+      "${brace_dir}/runs" \
       "${brace_dir}/replay_audit" \
       "${brace_dir}/branches" \
       "${brace_dir}/budgets" \
@@ -270,16 +278,38 @@ case "${stage}" in
       echo "replay_audit_v2.py is not implemented yet." >&2
       exit 2
     fi
-    audit_output_dir="${BRACE_AUDIT_OUTPUT_DIR:-${brace_dir}/replay_audit_v2}"
-    exec python experiments/brace/replay_audit_v2.py \
-      --protocol "${protocol_v2}" \
-      --rollout-dir "${traced_rollout_dir}" \
-      --output-dir "${audit_output_dir}" \
-      --tasks "${tasks[@]}" \
-      --workers "${audit_workers}" \
-      --workers-per-gpu "${audit_workers_per_gpu}" \
-      --gpus "${gpu_ids[@]}" \
-      "$@"
+    for task in "${tasks[@]}"; do
+      if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" && -z "${BRACE_AUDIT_OUTPUT_DIR:-}" ]]; then
+        audit_output_dir="${brace_dir}/replay_audit_v2"
+      else
+        audit_output_dir="$(brace_audit_output_dir "${task}")"
+      fi
+      echo "Immutable audit output: ${audit_output_dir}" >&2
+      python experiments/brace/replay_audit_v2.py \
+        --protocol "${protocol_v2}" \
+        --rollout-dir "${traced_rollout_dir}" \
+        --output-dir "${audit_output_dir}" \
+        --tasks "${task}" \
+        --workers "${audit_workers}" \
+        --workers-per-gpu "${audit_workers_per_gpu}" \
+        --gpus "${gpu_ids[@]}" \
+        "$@"
+    done
+    ;;
+
+  list-runs)
+    if [[ ! -d "${brace_dir}/runs" ]]; then
+      echo "No runs/ directory yet."
+      exit 0
+    fi
+    find "${brace_dir}/runs" -maxdepth 2 -name meta.json -printf '%T@ %p\n' 2>/dev/null \
+      | sort -nr \
+      | head -n "${BRACE_LIST_RUNS_LIMIT:-20}" \
+      | while read -r _ts meta_path; do
+          run_dir="$(dirname "${meta_path}")"
+          echo "=== ${run_dir} ==="
+          jq -c '{stage, tasks, created_at, git_commit}' "${meta_path}" 2>/dev/null || true
+        done
     ;;
 
   collect-trace-smoke)
@@ -368,7 +398,11 @@ case "${stage}" in
       read -r -a merge_inputs <<< "${BRACE_AUDIT_MERGE_INPUTS}"
     else
       for task in "${tasks[@]}"; do
-        merge_inputs+=("${brace_dir}/replay_audit_v2/${task}/summary.json")
+        if summary_path="$(brace_latest_audit_summary "${task}")"; then
+          merge_inputs+=("${summary_path}")
+        else
+          merge_inputs+=("${brace_dir}/replay_audit_v2/${task}/summary.json")
+        fi
       done
     fi
     python experiments/brace/merge_replay_audit_summaries.py \
@@ -378,9 +412,17 @@ case "${stage}" in
 
   archive-replay-gate)
     for task in "${tasks[@]}"; do
-      BRACE_ARCHIVE_TASK="${task}" \
-      BRACE_AUDIT_ROOT="${BRACE_AUDIT_ROOT:-${brace_dir}/replay_audit_v2}" \
-        bash experiments/brace/archive_replay_gate.sh
+      audit_root="${BRACE_AUDIT_ROOT:-}"
+      if [[ -z "${audit_root}" && -f "${brace_dir}/runs/LATEST_AUDIT_${task}" ]]; then
+        audit_root="$(cat "${brace_dir}/runs/LATEST_AUDIT_${task}")"
+      fi
+      if [[ -z "${audit_root}" ]]; then
+        audit_root="${brace_dir}/replay_audit_v2"
+      fi
+      echo "Archiving replay gate for ${task} from ${audit_root}" >&2
+      python experiments/brace/extract_replay_gate_archive.py \
+        --task "${task}" \
+        --audit-root "${audit_root}"
     done
     ;;
 
@@ -459,6 +501,16 @@ case "${stage}" in
       echo "collect_branches.py is not implemented yet; branch collection cannot start." >&2
       exit 2
     fi
+    branch_label="${BRACE_BRANCH_LABEL:-branches}"
+    if [[ -n "${BRACE_BRANCH_OUTPUT_DIR:-}" ]]; then
+      branch_label="$(basename "${BRACE_BRANCH_OUTPUT_DIR}")"
+    fi
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      branch_output_dir="${BRACE_BRANCH_OUTPUT_DIR:-${brace_dir}/${branch_label}}"
+    else
+      branch_output_dir="$(brace_branch_output_dir "${branch_label}")"
+    fi
+    echo "Immutable branch output: ${branch_output_dir}" >&2
     branch_rollout_dir=${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}
     branch_args=(
       --protocol "${protocol_v2}"
