@@ -77,6 +77,7 @@ Stages:
   artifact-inventory   Scan evidence bundles; write sync inventory + checklist (cloud-friendly).
   validate-artifacts   Validate archives/manifests against optional remote inventory snapshot.
   merge-audit-v2       Merge per-task replay audit summaries into combined gate file.
+  archive-replay-gate  Extract per-task replay gate summary into archive/.
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
   anchor-smoke         Frozen-denoiser anchor structural smoke (screen_protocol.v1).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
@@ -373,6 +374,14 @@ case "${stage}" in
     python experiments/brace/merge_replay_audit_summaries.py \
       --output "${brace_dir}/replay_audit_v2/combined_summary.json" \
       $(printf ' --input %q' "${merge_inputs[@]}")
+    ;;
+
+  archive-replay-gate)
+    for task in "${tasks[@]}"; do
+      BRACE_ARCHIVE_TASK="${task}" \
+      BRACE_AUDIT_ROOT="${BRACE_AUDIT_ROOT:-${brace_dir}/replay_audit_v2}" \
+        bash experiments/brace/archive_replay_gate.sh
+    done
     ;;
 
   export-verified-chunks)
