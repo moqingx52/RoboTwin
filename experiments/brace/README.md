@@ -76,25 +76,37 @@ Traced collection uses `task_config/demo_brace_trace.yml` and extends HDF5 with:
 
 The entry never delegates to the old CPST `prep/screen/full` stages.
 
-## Evidence sync (cloud without git push)
+## Evidence sync (cloud pull-only → local push)
 
-Remote runs can scan artifacts and emit a download checklist:
+Cloud machines usually **can pull but not push**. Evidence JSON flows:
+
+```text
+Cloud: git pull → experiments → artifact-inventory
+          ↓ scp/rsync/tar (CHECKLIST.md lists paths + SHA256)
+Local: validate-artifacts → git add → git commit → git push
+```
+
+**On cloud** (scan only, no git commit):
 
 ```bash
+git pull
 bash experiments/brace/run_all.sh artifact-inventory
-# → experiments/brace/sync/inventories/<timestamp>.json
 # → experiments/brace/sync/CHECKLIST.md
+# → experiments/brace/sync/inventories/<timestamp>.json
 ```
 
-After copying JSON files to the local repo paths listed in the checklist:
+**On local** (after downloading files per CHECKLIST):
 
 ```bash
-bash experiments/brace/archive_place_pilot.sh
-bash experiments/brace/archive_dump_pilot.sh
-bash experiments/brace/archive_place_confirm.sh
+git pull
 python experiments/brace/validate_artifacts.py --inventory experiments/brace/sync/LATEST
+git add experiments/brace/archive experiments/brace/datasets experiments/brace/seeds experiments/brace/sync
+git commit -m "Sync BRACE evidence JSON from cloud."
+git push
 ```
 
-Per-task replay audit outputs should live under `replay_audit_v2/<task>/` and be
-merged with `bash experiments/brace/run_all.sh merge-audit-v2`.
+Optional one-shot from cloud: tarball `archive/`, `datasets/`, `sync/` and scp to local.
+
+Per-task replay audit outputs should live under `replay_audit_v2/<task>/`;
+extract gate JSON with `bash experiments/brace/run_all.sh archive-replay-gate` before inventory.
 HDF5 under `rollouts_traced*` is not tracked in git.
