@@ -36,6 +36,23 @@ pilot_seeds_file_for_task() {
   fi
 }
 
+pilot_shard_count_for_task() {
+  local task=$1
+  local seeds_file seed_count max_workers
+  seeds_file="$(pilot_seeds_file_for_task "${task}")"
+  if [[ -n "${BRACE_PILOT_NUM_SHARDS:-}" ]]; then
+    echo "${BRACE_PILOT_NUM_SHARDS}"
+    return
+  fi
+  seed_count="$(jq '.seeds | length' "${seeds_file}")"
+  max_workers=$(( ${#gpu_ids[@]} * ${BRACE_ROLLOUT_WORKERS_PER_GPU:-3} / ${#tasks[@]} ))
+  if (( seed_count > 0 && max_workers > seed_count )); then
+    echo "${seed_count}"
+  else
+    echo "${max_workers}"
+  fi
+}
+
 usage() {
   cat <<'EOF'
 BRACE unified experiment entry
@@ -360,7 +377,7 @@ case "${stage}" in
       verify_shards="${num_shards}"
       if [[ "${verify_rollout_dir}" == *rollouts_traced_pilot* ]]; then
         verify_seeds_file="$(pilot_seeds_file_for_task "${task}")"
-        verify_shards="${BRACE_PILOT_NUM_SHARDS:-24}"
+        verify_shards="$(pilot_shard_count_for_task "${task}")"
       fi
       python experiments/brace/verify_traced_rollouts.py \
         --tasks "${task}" \

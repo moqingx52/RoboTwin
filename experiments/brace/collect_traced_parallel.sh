@@ -24,6 +24,24 @@ snapshots_per_trajectory=${BRACE_SNAPSHOTS_PER_TRAJECTORY:-3}
 total_workers=$(( ${#gpu_ids[@]} * workers_per_gpu ))
 shards_per_task=$(( total_workers / ${#tasks[@]} ))
 
+resolve_pilot_shards() {
+  local seeds_file=$1
+  local seed_count
+  seed_count="$(jq '.seeds | length' "${seeds_file}")"
+  if [[ -n "${BRACE_PILOT_NUM_SHARDS:-}" ]]; then
+    shards_per_task="${BRACE_PILOT_NUM_SHARDS}"
+  elif (( seed_count > 0 && shards_per_task > seed_count )); then
+    shards_per_task="${seed_count}"
+  fi
+  if (( shards_per_task < 1 )); then
+    shards_per_task=1
+  fi
+  total_workers=$(( ${#gpu_ids[@]} * workers_per_gpu ))
+  if (( total_workers > shards_per_task )); then
+    total_workers="${shards_per_task}"
+  fi
+}
+
 mkdir -p "${log_dir}"
 pids=()
 names=()
@@ -37,6 +55,7 @@ for task in "${tasks[@]}"; do
       echo "Missing pilot seeds file: ${seeds_file}. Run select-pilot-seeds first." >&2
       exit 2
     fi
+    resolve_pilot_shards "${seeds_file}"
     env_seeds=""
   fi
   for ((shard=0; shard<shards_per_task; shard++)); do

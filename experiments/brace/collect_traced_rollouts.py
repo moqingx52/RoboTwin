@@ -315,6 +315,16 @@ def main():
     if args.max_trajectories is not None:
         work_items = work_items[: args.max_trajectories]
 
+    if not work_items:
+        write_json(
+            stats_path,
+            summarize_manifest([manifest_path] if manifest_path.exists() else [], seeds, args.rollouts_per_seed),
+        )
+        if not manifest_path.exists():
+            write_manifest_atomic(manifest_path, [])
+        print(f"No pending trajectories for shard {args.shard_id}/{args.num_shards}; skipped model load.")
+        return
+
     os.chdir(repo_path())
     env_args = load_traced_task_args(args.task_name, args.task_config)
     from policy.DP.deploy_policy import get_model
