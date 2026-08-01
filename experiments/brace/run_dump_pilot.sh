@@ -7,12 +7,24 @@ cd "${repo_root}"
 
 export BRACE_PROTOCOL_V2_PATH=experiments/brace/protocol.v2.3.json
 export BRACE_TASKS=dump_bin_bigbin
-# Pilot: 10 seeds on 8 GPUs -> 1 worker/GPU avoids 2x15GB>24GB pile-up on GPU0/1.
 export BRACE_ROLLOUT_WORKERS_PER_GPU="${BRACE_ROLLOUT_WORKERS_PER_GPU:-1}"
 export BRACE_PILOT_NUM_SHARDS="${BRACE_PILOT_NUM_SHARDS:-8}"
 unset BRACE_PILOT_SEEDS_FILE || true
 
-replay_gate="$(jq -r '.tasks.dump_bin_bigbin.replay_gate_passed // false' experiments/brace/replay_audit_v2/summary.json)"
+brace_dir=experiments/brace
+read -r -a tasks <<< "${BRACE_TASKS}"
+# shellcheck source=experiments/brace/run_paths.sh
+source "${repo_root}/experiments/brace/run_paths.sh"
+
+if ! replay_summary="$(brace_latest_audit_summary dump_bin_bigbin)"; then
+  echo "dump replay gate not passed; run A1 audit-v2 first." >&2
+  python experiments/brace/inventory_traced_rollouts.py \
+    --task dump_bin_bigbin \
+    --rollout-dir experiments/brace/rollouts_traced \
+    --output experiments/brace/inventory/dump_bin_bigbin_traced.json
+  exit 2
+fi
+replay_gate="$(jq -r '.tasks.dump_bin_bigbin.replay_gate_passed // false' "${replay_summary}")"
 if [[ "${replay_gate}" != "true" ]]; then
   echo "dump replay gate not passed; run A1 audit-v2 first." >&2
   python experiments/brace/inventory_traced_rollouts.py \
@@ -43,8 +55,13 @@ bash experiments/brace/run_all.sh collect-trace-pilot
 echo "=== A2 Step 3/4: verify traced pilot rollouts ==="
 bash experiments/brace/run_all.sh verify-traced
 
-export BRACE_BRANCH_OUTPUT_DIR=experiments/brace/branches_dump
-echo "=== A2 Step 4/4: branch collection -> branches_dump/ ==="
+export BRACE_BRANCH_LABEL=branches_dump
+echo "=== A2 Step 4/4: branch collection -> runs/.../branches_dump/ ==="
 bash experiments/brace/run_all.sh branch
 
-echo "Dump branch pilot complete: experiments/brace/branches_dump/summary.json"
+if branch_dir="$(brace_latest_branch_dir branches_dump)"; then
+  echo "Dump branch pilot complete: ${branch_dir}/summary.json"
+  bash experiments/brace/archive_dump_pilot.sh
+else
+  echo "Dump branch pilot finished; check runs/LATEST_branches_dump" >&2
+fi

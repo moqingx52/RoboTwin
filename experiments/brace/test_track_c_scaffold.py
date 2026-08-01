@@ -13,7 +13,10 @@ from experiments.brace.evaluate_confirmatory_gate import merge_task_points
 from experiments.brace.inventory_artifacts import build_inventory, inspect_artifact, ArtifactSpec
 from experiments.brace.inventory_traced_rollouts import inventory_task
 from experiments.brace.merge_replay_audit_summaries import merge_summaries
+from experiments.brace.promote_run import copy_file
 from experiments.brace.replay_audit import write_json_atomic
+from experiments.brace.resolve_artifact import resolve_audit_summary, resolve_branch_dir
+from experiments.brace.stage_records import emit_stage_record, list_records, resolve_latest_record
 from experiments.brace.validate_artifacts import run_validation
 
 
@@ -76,11 +79,64 @@ class TrackCScaffoldTest(unittest.TestCase):
         spec = ArtifactSpec(
             "place_pilot_archive",
             "experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",
-            ("experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",),
         )
         entry = inspect_artifact(spec)
         self.assertTrue(entry["exists"])
         self.assertEqual(entry["status"], "present")
+
+    def test_resolve_audit_summary_archive_fallback(self) -> None:
+        path = resolve_audit_summary("dump_bin_bigbin")
+        self.assertIsNotNone(path)
+        self.assertTrue(path.is_file())
+
+    def test_resolve_branch_dir_archive_fallback(self) -> None:
+        path = resolve_branch_dir("branches")
+        self.assertIsNotNone(path)
+        self.assertTrue((path / "summary.json").is_file())
+
+    def test_stage_record_emit_and_resolve(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            records_dir = Path(tmp) / "records"
+            summary_path = Path(tmp) / "summary.json"
+            write_json_atomic(
+                summary_path,
+                {"passed": True, "complete": True, "tasks": {"place_container_plate": {"passed": True}}},
+            )
+            import experiments.brace.stage_records as stage_records
+
+            original = stage_records.RECORDS_DIR
+            stage_records.RECORDS_DIR = records_dir
+            try:
+                record_path = emit_stage_record(
+                    "branch",
+                    summary_path=summary_path,
+                    tasks=["place_container_plate"],
+                    label="branches",
+                )
+                self.assertTrue(record_path.is_file())
+                record = json.loads(record_path.read_text(encoding="utf-8"))
+                bundle = records_dir / "bundles" / record["record_id"] / "summary.json"
+                self.assertTrue(bundle.is_file())
+                self.assertFalse(record["evidence_bundle"]["binary_artifacts_included"])
+                latest = resolve_latest_record("branch", task="place_container_plate")
+                self.assertIsNotNone(latest)
+                rows = list_records(limit=5)
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["stage"], "branch")
+            finally:
+                stage_records.RECORDS_DIR = original
+
+    def test_frozen_promotion_refuses_different_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.json"
+            destination = root / "archive" / "summary.json"
+            source.write_text('{"value": 1}\n', encoding="utf-8")
+            copy_file(source, destination)
+            copy_file(source, destination)  # idempotent
+            source.write_text('{"value": 2}\n', encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                copy_file(source, destination)
 
     def test_build_inventory_has_bundle_summary(self) -> None:
         inventory = build_inventory()

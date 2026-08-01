@@ -45,6 +45,27 @@ def load_inventory(path: Path) -> dict[str, Any]:
     return read_json(path)
 
 
+def validate_replay_gate_archive(summary_path: Path, errors: list[str]) -> None:
+    if not summary_path.is_file():
+        return
+    summary = read_json(summary_path)
+    replay = summary.get("control_trace_replay", {})
+    if int(replay.get("total_checks", 0)) == 0:
+        errors.append(f"replay gate archive is empty shell: {summary_path}")
+    if not summary.get("complete"):
+        errors.append(f"replay gate archive incomplete: {summary_path}")
+
+
+def validate_source_run(archive_dir: Path, errors: list[str], warnings: list[str]) -> None:
+    source_run = archive_dir / "source_run.json"
+    if not source_run.is_file():
+        warnings.append(f"missing source_run.json (pre-promote-run archive): {archive_dir}")
+        return
+    payload = read_json(source_run)
+    if not payload.get("source_run_dir"):
+        errors.append(f"source_run.json missing source_run_dir: {source_run}")
+
+
 def validate_manifest(archive_dir: Path, errors: list[str], warnings: list[str]) -> None:
     manifest_path = archive_dir / "MANIFEST.sha256"
     if not manifest_path.is_file():
@@ -74,6 +95,12 @@ def validate_branch_summary(summary_path: Path, checks_path: Path, errors: list[
     summary = read_json(summary_path)
     if "harness_valid" not in summary:
         errors.append(f"summary missing harness_valid: {summary_path}")
+    for task_stats in summary.get("tasks", {}).values():
+        if "points" not in task_stats:
+            errors.append(
+                f"summary missing per-point evidence (recover full cloud summary or rebuild from checks): "
+                f"{summary_path}"
+            )
     if not checks_path.is_file():
         errors.append(f"missing checks.jsonl: {checks_path}")
         return
@@ -142,6 +169,16 @@ def run_validation(
     place_archive = BRACE_DIR / "archive" / "branches_place_pilot_valid_v2.3"
     dump_archive = BRACE_DIR / "archive" / "branches_dump_pilot_valid_v2.3"
     confirm_archive = BRACE_DIR / "archive" / "branches_place_confirm_v2.3"
+    place_replay_archive = BRACE_DIR / "archive" / "replay_audit_v2_place_v2.3_gate"
+    dump_replay_archive = BRACE_DIR / "archive" / "replay_audit_v2_dump_v2.3_gate"
+
+    for archive in (place_archive, dump_archive, confirm_archive):
+        if archive.is_dir():
+            validate_source_run(archive, errors, warnings)
+    for replay_archive in (place_replay_archive, dump_replay_archive):
+        if (replay_archive / "summary.json").is_file():
+            validate_replay_gate_archive(replay_archive / "summary.json", errors)
+            validate_source_run(replay_archive, errors, warnings)
 
     if place_archive.is_dir():
         validate_manifest(place_archive, errors, warnings)

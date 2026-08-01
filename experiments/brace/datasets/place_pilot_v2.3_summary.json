@@ -1,0 +1,12 @@
+{
+  "accepted_points": 11,
+  "b1_chunks": 11,
+  "export_workers": 96,
+  "git_commit": "24561055b61704fdd05cf290fc2ecae8593a30c2",
+  "indexed_success_trajectories": 64,
+  "n1_chunks": 11,
+  "protocol_revision": "2.3",
+  "recomputed_accepted_points": 11,
+  "run_label": "place_pilot_v2.3",
+  "task": "place_container_plate"
+}

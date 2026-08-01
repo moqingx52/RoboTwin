@@ -6,6 +6,9 @@ cd "${repo_root}"
 
 read -r -a tasks <<< "${BRACE_TASKS:-place_container_plate dump_bin_bigbin}"
 read -r -a gpu_ids <<< "${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+brace_dir=experiments/brace
+# shellcheck source=experiments/brace/run_paths.sh
+source "${repo_root}/experiments/brace/run_paths.sh"
 
 workers_per_gpu=${BRACE_ROLLOUT_WORKERS_PER_GPU:-3}
 rollouts_per_seed=${BRACE_ROLLOUTS_PER_SEED:-8}
@@ -56,7 +59,11 @@ job_index=0
 for task in "${tasks[@]}"; do
   seeds_file="experiments/phase1/seeds/${task}_seeds.json"
   if [[ "${rollout_dir}" == *rollouts_traced_pilot* ]]; then
-    seeds_file="${BRACE_PILOT_SEEDS_FILE:-experiments/brace/seeds/${task}_pilot_seeds.json}"
+    if [[ -n "${BRACE_PILOT_SEEDS_FILE:-}" ]]; then
+      seeds_file="${BRACE_PILOT_SEEDS_FILE}"
+    elif ! seeds_file="$(brace_resolve_seeds_file "${task}_pilot_seeds.json")"; then
+      seeds_file="experiments/brace/seeds/${task}_pilot_seeds.json"
+    fi
     if [[ ! -s "${seeds_file}" ]]; then
       echo "Missing pilot seeds file: ${seeds_file}. Run select-pilot-seeds first." >&2
       exit 2
@@ -127,7 +134,11 @@ fi
 for task in "${tasks[@]}"; do
   verify_seeds_file="experiments/phase1/seeds/${task}_seeds.json"
   if [[ "${rollout_dir}" == *rollouts_traced_pilot* ]]; then
-    verify_seeds_file="${BRACE_PILOT_SEEDS_FILE:-experiments/brace/seeds/${task}_pilot_seeds.json}"
+    if [[ -n "${BRACE_PILOT_SEEDS_FILE:-}" ]]; then
+      verify_seeds_file="${BRACE_PILOT_SEEDS_FILE}"
+    elif ! verify_seeds_file="$(brace_resolve_seeds_file "${task}_pilot_seeds.json")"; then
+      verify_seeds_file="experiments/brace/seeds/${task}_pilot_seeds.json"
+    fi
   fi
   python experiments/brace/verify_traced_rollouts.py \
     --tasks "${task}" \

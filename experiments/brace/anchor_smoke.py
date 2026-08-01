@@ -86,6 +86,16 @@ def main() -> int:
     output = repo_path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(output, summary)
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record(
+            "anchor_smoke",
+            summary=summary,
+            summary_path=output,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: failed to emit stage record: {exc}", file=sys.stderr)
     print(json.dumps(summary, indent=2))
     return 0 if summary["passed"] else 1
 

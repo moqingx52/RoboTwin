@@ -33,8 +33,11 @@ export BRACE_RUN_ID="${BRACE_RUN_ID:-$(brace_utc_run_id)}"
 
 pilot_seeds_file_for_task() {
   local task=$1
+  local seeds_path
   if [[ -n "${BRACE_PILOT_SEEDS_FILE:-}" ]]; then
     echo "${BRACE_PILOT_SEEDS_FILE}"
+  elif seeds_path="$(brace_resolve_seeds_file "${task}_pilot_seeds.json" 2>/dev/null)"; then
+    echo "${seeds_path}"
   else
     echo "${brace_dir}/seeds/${task}_pilot_seeds.json"
   fi
@@ -82,7 +85,10 @@ Stages:
   validate-artifacts   Validate archives/manifests against optional remote inventory snapshot.
   merge-audit-v2       Merge per-task replay audit summaries into combined gate file.
   archive-replay-gate  Extract per-task replay gate summary into archive/.
+  promote-run          Promote immutable run outputs into archive/ with source_run.json.
+  audit-mutable-paths  Static scan for writes to deprecated mutable JSON paths.
   list-runs            List recent timestamped BRACE run directories.
+  list-records         List recent stage metadata records (experiments/brace/records/).
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
   anchor-smoke         Frozen-denoiser anchor structural smoke (screen_protocol.v1).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
@@ -174,7 +180,6 @@ require_gate() {
 }
 
 require_task_replay_gates() {
-  local _fallback_path=$1
   local task task_summary
   for task in "${tasks[@]}"; do
     if ! task_summary="$(brace_latest_audit_summary "${task}")"; then
@@ -238,6 +243,7 @@ case "${stage}" in
     mkdir -p \
       "${brace_dir}/logs" \
       "${brace_dir}/runs" \
+      "${brace_dir}/records" \
       "${brace_dir}/replay_audit" \
       "${brace_dir}/branches" \
       "${brace_dir}/budgets" \
@@ -278,6 +284,10 @@ case "${stage}" in
       echo "replay_audit_v2.py is not implemented yet." >&2
       exit 2
     fi
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" && -z "${BRACE_RUN_ROOT:-}" ]]; then
+      BRACE_RUN_ROOT="$(brace_allocate_run_dir audit_v2 replay_audit_v2)"
+      export BRACE_RUN_ROOT
+    fi
     for task in "${tasks[@]}"; do
       if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" && -z "${BRACE_AUDIT_OUTPUT_DIR:-}" ]]; then
         audit_output_dir="${brace_dir}/replay_audit_v2"
@@ -294,6 +304,15 @@ case "${stage}" in
         --workers-per-gpu "${audit_workers_per_gpu}" \
         --gpus "${gpu_ids[@]}" \
         "$@"
+      if [[ "${BRACE_AUTO_PROMOTE:-1}" == "1" ]]; then
+        audit_target=archive/replay_audit_v2_place_v2.3_gate
+        if [[ "${task}" == "dump_bin_bigbin" ]]; then
+          audit_target=archive/replay_audit_v2_dump_v2.3_gate
+        fi
+        BRACE_PROMOTE_RUN="${audit_output_dir}" \
+        BRACE_PROMOTE_TARGET="${audit_target}" \
+          bash experiments/brace/run_all.sh promote-run
+      fi
     done
     ;;
 
@@ -310,6 +329,21 @@ case "${stage}" in
           echo "=== ${run_dir} ==="
           jq -c '{stage, tasks, created_at, git_commit}' "${meta_path}" 2>/dev/null || true
         done
+    ;;
+
+  list-records)
+    python - <<'PY'
+import json
+from experiments.brace.stage_records import RECORDS_DIR, list_records
+
+rows = list_records(limit=int(__import__("os").environ.get("BRACE_LIST_RECORDS_LIMIT", "20")))
+if not rows:
+    print("No records/ yet. Records are emitted automatically after each stage completes.")
+    raise SystemExit(0)
+for row in reversed(rows):
+    print(f"{row['created_at']}  {row['stage']:24}  passed={row.get('passed')}  {row['path']}")
+print(f"\nIndex: {RECORDS_DIR / 'index.jsonl'}")
+PY
     ;;
 
   collect-trace-smoke)
@@ -343,16 +377,22 @@ case "${stage}" in
     ;;
 
   select-confirm-seeds)
-    mkdir -p "${brace_dir}/seeds"
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      seeds_output_dir="${brace_dir}/seeds"
+    else
+      seeds_output_dir="$(brace_stage_output_dir select_confirm_seeds seeds)"
+    fi
+    mkdir -p "${seeds_output_dir}"
     for task in "${tasks[@]}"; do
       exclude_file="${BRACE_EXCLUDE_SEEDS_FILE:-${brace_dir}/archive/branches_place_pilot_valid_v2.3/analyzed_seeds.json}"
+      seeds_name="${task}_confirm_seeds.json"
       confirm_args=(
         --task "${task}"
         --rollout-dir "${traced_rollout_dir}"
         --count "${BRACE_CONFIRM_SEED_COUNT:-5}"
         --seed "${BRACE_CONFIRM_SEED_SELECTION:-1}"
         --exclude-seeds-file "${exclude_file}"
-        --output "${brace_dir}/seeds/${task}_confirm_seeds.json"
+        --output "${seeds_output_dir}/${seeds_name}"
       )
       if [[ -n "${BRACE_CONFIRM_ROLLOUT_ID_MIN:-}" ]]; then
         confirm_args+=(--rollout-id-min "${BRACE_CONFIRM_ROLLOUT_ID_MIN}")
@@ -361,6 +401,9 @@ case "${stage}" in
         confirm_args+=(--rollout-id-max "${BRACE_CONFIRM_ROLLOUT_ID_MAX}")
       fi
       python experiments/brace/select_confirm_seeds.py "${confirm_args[@]}"
+      if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
+        echo "${seeds_output_dir}" > "${brace_dir}/runs/LATEST_seeds_${seeds_name}"
+      fi
     done
     ;;
 
@@ -401,13 +444,43 @@ case "${stage}" in
         if summary_path="$(brace_latest_audit_summary "${task}")"; then
           merge_inputs+=("${summary_path}")
         else
-          merge_inputs+=("${brace_dir}/replay_audit_v2/${task}/summary.json")
+          echo "No audit summary found for ${task}" >&2
+          exit 2
         fi
       done
     fi
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      merge_output="${brace_dir}/replay_audit_v2/combined_summary.json"
+    else
+      merge_output_dir="$(brace_stage_output_dir merged_audit combined_audit)"
+      merge_output="${merge_output_dir}/combined_summary.json"
+    fi
     python experiments/brace/merge_replay_audit_summaries.py \
-      --output "${brace_dir}/replay_audit_v2/combined_summary.json" \
+      --output "${merge_output}" \
       $(printf ' --input %q' "${merge_inputs[@]}")
+    ;;
+
+  promote-run)
+    target="${BRACE_PROMOTE_TARGET:-}"
+    if [[ -z "${target}" ]]; then
+      echo "Set BRACE_PROMOTE_TARGET (e.g. archive/branches_place_pilot_valid_v2.3)" >&2
+      exit 2
+    fi
+    promote_args=(--target "${target}")
+    if [[ -n "${BRACE_PROMOTE_RUN:-}" ]]; then
+      promote_args+=(--run-dir "${BRACE_PROMOTE_RUN}")
+    fi
+    if [[ -n "${dataset_run_label}" ]]; then
+      promote_args+=(--run-label "${dataset_run_label}")
+    fi
+    if [[ "${BRACE_ALLOW_FAILED_GATE:-0}" == "1" ]]; then
+      promote_args+=(--allow-failed-gate)
+    fi
+    python experiments/brace/promote_run.py "${promote_args[@]}" "$@"
+    ;;
+
+  audit-mutable-paths)
+    python experiments/brace/audit_mutable_paths.py "$@"
     ;;
 
   archive-replay-gate)
@@ -427,8 +500,20 @@ case "${stage}" in
     ;;
 
   export-verified-chunks)
-    mkdir -p "${dataset_dir}"
-    branch_source_dir=${BRACE_BRANCH_DIR:-${brace_dir}/branches}
+    if (( ${#tasks[@]} != 1 )); then
+      echo "export-verified-chunks requires exactly one BRACE_TASKS task and a task-specific run label." >&2
+      exit 2
+    fi
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      export_output_dir="${dataset_dir}"
+    else
+      export_output_dir="$(brace_stage_output_dir export_verified_chunks "export_${dataset_run_label}")"
+    fi
+    mkdir -p "${export_output_dir}"
+    if ! branch_source_dir="$(brace_latest_branch_dir "${BRACE_BRANCH_LABEL:-branches}")"; then
+      echo "No branch dir found for export (set BRACE_BRANCH_LABEL or run branch first)" >&2
+      exit 2
+    fi
     traced_source_dir=${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}
     for task in "${tasks[@]}"; do
       python experiments/brace/export_verified_chunks.py \
@@ -437,28 +522,52 @@ case "${stage}" in
         --rollout-dir "${traced_source_dir}" \
         --task "${task}" \
         --run-label "${dataset_run_label}" \
-        --output-dir "${dataset_dir}" \
+        --output-dir "${export_output_dir}" \
         --n1-seed "${BRACE_N1_SEED:-0}" \
         --workers "${BRACE_EXPORT_WORKERS:-96}"
     done
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
+      echo "Export run complete: ${export_output_dir}" >&2
+      if [[ "${BRACE_AUTO_PROMOTE:-1}" == "1" ]]; then
+        BRACE_PROMOTE_RUN="${export_output_dir}" \
+        BRACE_PROMOTE_TARGET=datasets/ \
+          bash experiments/brace/run_all.sh promote-run
+      else
+        echo "Promote to datasets/: BRACE_PROMOTE_RUN=${export_output_dir} BRACE_PROMOTE_TARGET=datasets/ bash experiments/brace/run_all.sh promote-run" >&2
+      fi
+    fi
     ;;
 
   anchor-smoke)
-    mkdir -p "${brace_dir}/anchor_smoke"
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      anchor_output="${brace_dir}/anchor_smoke/summary.json"
+    else
+      anchor_run_dir="$(brace_stage_output_dir anchor_smoke anchor_smoke)"
+      anchor_output="${anchor_run_dir}/summary.json"
+    fi
     python experiments/brace/anchor_smoke.py \
       --protocol "${screen_protocol}" \
-      --output "${brace_dir}/anchor_smoke/summary.json"
+      --output "${anchor_output}"
     ;;
 
   select-pilot-seeds)
-    mkdir -p "${brace_dir}/seeds"
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      seeds_output_dir="${brace_dir}/seeds"
+    else
+      seeds_output_dir="$(brace_stage_output_dir select_pilot_seeds seeds)"
+    fi
+    mkdir -p "${seeds_output_dir}"
     for task in "${tasks[@]}"; do
+      seeds_name="${task}_pilot_seeds.json"
       python experiments/brace/select_pilot_seeds.py \
         --task "${task}" \
         --rollout-dir "${traced_rollout_dir}" \
         --count "${BRACE_PILOT_SEED_COUNT:-10}" \
         --seed "${BRACE_PILOT_SEED_SELECTION:-0}" \
-        --output "${brace_dir}/seeds/${task}_pilot_seeds.json"
+        --output "${seeds_output_dir}/${seeds_name}"
+      if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
+        echo "${seeds_output_dir}" > "${brace_dir}/runs/LATEST_seeds_${seeds_name}"
+      fi
     done
     ;;
 
@@ -490,13 +599,18 @@ case "${stage}" in
         --seeds-file "${verify_seeds_file}" \
         --rollouts-per-seed "${rollouts_per_seed}" \
         --rollout-dir "${verify_rollout_dir}"
+
+      python experiments/brace/stage_records.py verify_traced \
+        --artifact-dir "${verify_rollout_dir}/${task}" \
+        --tasks "${task}" \
+        --label traced_rollouts
     done
     echo "Traced rollouts verified."
     ;;
 
   branch)
     freeze_guard
-    require_task_replay_gates "${brace_dir}/replay_audit_v2/summary.json"
+    require_task_replay_gates
     if [[ ! -f experiments/brace/collect_branches.py ]]; then
       echo "collect_branches.py is not implemented yet; branch collection cannot start." >&2
       exit 2
@@ -530,18 +644,33 @@ case "${stage}" in
 
   screen)
     freeze_guard
-    require_gate "${brace_dir}/replay_audit_v2/summary.json" \
-      "Replay audit v2 gate has not passed"
-    require_gate "${brace_dir}/branches/summary.json" \
-      "Branch-quality gate has not passed"
-    require_gate "${brace_dir}/anchor_smoke/summary.json" \
-      "Frozen-denoiser anchor smoke gate has not passed"
+    audit_summary=""
+    for task in "${tasks[@]}"; do
+      if ! audit_summary="$(brace_latest_audit_summary "${task}")"; then
+        echo "Replay audit v2 gate has not passed: no summary for ${task}" >&2
+        exit 2
+      fi
+      require_gate "${audit_summary}" "Replay audit v2 gate has not passed"
+    done
+    if ! branch_summary="$(brace_latest_branch_summary branches)"; then
+      echo "Branch-quality gate has not passed: no branch summary found" >&2
+      exit 2
+    fi
+    require_gate "${branch_summary}" "Branch-quality gate has not passed"
+    anchor_summary="${brace_dir}/anchor_smoke/summary.json"
+    if [[ -f "${brace_dir}/runs/LATEST_anchor_smoke" ]]; then
+      anchor_run="$(cat "${brace_dir}/runs/LATEST_anchor_smoke")"
+      if [[ -s "${anchor_run}/summary.json" ]]; then
+        anchor_summary="${anchor_run}/summary.json"
+      fi
+    fi
+    require_gate "${anchor_summary}" "Frozen-denoiser anchor smoke gate has not passed"
     if [[ ! -f experiments/brace/orchestrate.py ]]; then
       echo "BRACE orchestrate.py is not implemented yet; screen cannot start." >&2
       exit 2
     fi
     exec python experiments/brace/orchestrate.py screen \
-      --protocol "${protocol}" \
+      --protocol "${screen_protocol}" \
       --gpus "${gpu_ids[@]}" \
       "$@"
     ;;

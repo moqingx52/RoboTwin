@@ -323,6 +323,18 @@ def main() -> int:
     write_jsonl_atomic(output_dir / f"{args.run_label}_N1.jsonl", payload["records"]["N1"])
     summary = {key: value for key, value in payload.items() if key != "records"}
     write_json_atomic(output_dir / f"{args.run_label}_summary.json", summary)
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record(
+            "export_verified_chunks",
+            summary=summary,
+            summary_path=output_dir / f"{args.run_label}_summary.json",
+            tasks=[args.task],
+            label=args.run_label,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: failed to emit stage record: {exc}", file=sys.stderr)
     print(json.dumps(summary, indent=2))
     return 0
 

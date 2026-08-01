@@ -1,0 +1,25 @@
+{
+  "excluded_seeds": [
+    100000,
+    100041,
+    100048,
+    100079,
+    100099
+  ],
+  "requested_count": 5,
+  "rollout_id_range": [
+    null,
+    null
+  ],
+  "run_type": "confirmatory",
+  "seeds": [
+    100100,
+    100043,
+    100081,
+    100020,
+    100071
+  ],
+  "selection_seed": 1,
+  "source_rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "task": "place_container_plate"
+}

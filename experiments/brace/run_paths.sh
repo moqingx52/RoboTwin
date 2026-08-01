@@ -116,9 +116,97 @@ brace_latest_audit_summary() {
     "${brace_dir}/replay_audit_v2/${task}/summary.json" \
     "${brace_dir}/replay_audit_v2/summary.json"; do
     if [[ -s "${candidate}" ]]; then
+      echo "WARNING: using legacy audit summary (deprecated): ${candidate}" >&2
       printf '%s\n' "${candidate}"
       return 0
     fi
   done
+  return 1
+}
+
+brace_latest_branch_dir() {
+  local label=${1:-branches}
+  local pointer candidate
+  if [[ -n "${BRACE_BRANCH_DIR:-}" && -s "${BRACE_BRANCH_DIR}/summary.json" ]]; then
+    printf '%s\n' "${BRACE_BRANCH_DIR}"
+    return 0
+  fi
+  pointer="$(cat "${brace_dir}/runs/LATEST_${label}" 2>/dev/null || true)"
+  if [[ -n "${pointer}" && -s "${pointer}/summary.json" ]]; then
+    printf '%s\n' "${pointer}"
+    return 0
+  fi
+  local archive_name="branches_place_pilot_valid_v2.3"
+  case "${label}" in
+    branches_confirm) archive_name="branches_place_confirm_v2.3" ;;
+    branches_dump) archive_name="branches_dump_pilot_valid_v2.3" ;;
+  esac
+  for candidate in \
+    "${brace_dir}/archive/${archive_name}" \
+    "${brace_dir}/${label}"; do
+    if [[ -s "${candidate}/summary.json" ]]; then
+      if [[ "${candidate}" == "${brace_dir}/${label}" ]]; then
+        echo "WARNING: using legacy branch dir (deprecated): ${candidate}" >&2
+      fi
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+brace_latest_branch_summary() {
+  local label=${1:-branches}
+  local branch_dir
+  if branch_dir="$(brace_latest_branch_dir "${label}")"; then
+    printf '%s\n' "${branch_dir}/summary.json"
+    return 0
+  fi
+  return 1
+}
+
+brace_stage_output_dir() {
+  local stage=$1
+  local pointer_suffix=${2:-}
+  if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+    if [[ -n "${BRACE_STAGE_OUTPUT_DIR:-}" ]]; then
+      mkdir -p "${BRACE_STAGE_OUTPUT_DIR}"
+      printf '%s\n' "${BRACE_STAGE_OUTPUT_DIR}"
+      return 0
+    fi
+    printf '%s\n' "${brace_dir}"
+    return 0
+  fi
+  if [[ -z "${BRACE_RUN_ROOT:-}" ]]; then
+    BRACE_RUN_ROOT="$(brace_allocate_run_dir "${stage}" "${pointer_suffix}")"
+    export BRACE_RUN_ROOT
+  fi
+  if [[ -n "${pointer_suffix}" ]]; then
+    echo "${BRACE_RUN_ROOT}" > "${brace_dir}/runs/LATEST_${pointer_suffix}"
+  fi
+  printf '%s\n' "${BRACE_RUN_ROOT}"
+}
+
+brace_resolve_audit_summary() {
+  local task=$1
+  brace_latest_audit_summary "${task}"
+}
+
+brace_resolve_seeds_file() {
+  local name=$1
+  local pointer candidate
+  pointer="$(cat "${brace_dir}/runs/LATEST_seeds_${name}" 2>/dev/null || true)"
+  if [[ -n "${pointer}" ]]; then
+    candidate="${pointer}/${name}"
+    if [[ -s "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  fi
+  candidate="${brace_dir}/seeds/${name}"
+  if [[ -s "${candidate}" ]]; then
+    printf '%s\n' "${candidate}"
+    return 0
+  fi
   return 1
 }

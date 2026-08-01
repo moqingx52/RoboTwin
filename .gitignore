@@ -82,6 +82,7 @@ experiments/brace/branches_confirm/
 experiments/brace/branches_dump/
 experiments/brace/replay_audit_v2/
 experiments/brace/runs/
+experiments/brace/records/
 experiments/brace/sync/.cache/
 
 # BRACE evidence chain JSON (track in git)

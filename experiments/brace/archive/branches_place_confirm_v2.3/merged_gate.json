@@ -1,0 +1,73 @@
+{
+  "accepted_by_seed": {
+    "100000": 2,
+    "100041": 3,
+    "100048": 2,
+    "100071": 1,
+    "100079": 1,
+    "100099": 3
+  },
+  "accepted_points": 12,
+  "accepted_recovery_seed_fraction": 1.0,
+  "by_point_type": {
+    "first_persistent_divergence": {
+      "accepted_count": 6,
+      "count": 6,
+      "point_pooled_lift": 0.9259259259259259
+    },
+    "local_divergence_peak": {
+      "accepted_count": 2,
+      "count": 6,
+      "point_pooled_lift": 0.1851851851851852
+    },
+    "random_negative_control": {
+      "accepted_count": 4,
+      "count": 6,
+      "point_pooled_lift": 0.5925925925925926
+    }
+  },
+  "candidate_positive_rate_by_seed": 1.0,
+  "checks": {
+    "harness_valid": true,
+    "lift_or_recovery_gate": true,
+    "lift_positive": true,
+    "max_seed_accepted_share_le_20pct": false,
+    "min_points": false,
+    "min_seeds": false
+  },
+  "confirm_points": 3,
+  "confirm_summary": "/workspace/RoboTwin/experiments/brace/branches_confirm/summary.json",
+  "git_commit": "3ee29971ec49026e34d970bf1a2efc88ae425f3e",
+  "leave_one_seed_out_delta": {
+    "100000": 0.01728395061728394,
+    "100041": -0.03456790123456788,
+    "100048": -0.02716049382716057,
+    "100071": 0.05432098765432092,
+    "100079": 0.024691358024691357,
+    "100099": -0.03456790123456788
+  },
+  "matched_success_lift": 0.5679012345679013,
+  "max_accepted_share_by_seed": 0.25,
+  "passed": false,
+  "pilot_points": 15,
+  "pilot_summary": "/workspace/RoboTwin/experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",
+  "point_pooled_lift": 0.5679012345679013,
+  "recovery_seed_fraction": 1.0,
+  "schema_version": 2,
+  "seed_level_bootstrap_ci": {
+    "high": 0.6913580246913581,
+    "low": 0.425925925925926
+  },
+  "seed_level_lifts": {
+    "100000": 0.48148148148148157,
+    "100041": 0.7407407407407408,
+    "100048": 0.7037037037037037,
+    "100071": 0.2962962962962963,
+    "100079": 0.4444444444444444,
+    "100099": 0.7407407407407408
+  },
+  "seed_level_mean_lift": 0.5679012345679013,
+  "task": "place_container_plate",
+  "total_points": 18,
+  "unique_seeds": 6
+}

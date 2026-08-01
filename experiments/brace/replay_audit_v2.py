@@ -999,6 +999,17 @@ def main() -> int:
     write_jsonl_atomic(output_dir / "failures.jsonl", [row for row in checks if not row["passed"]])
     write_jsonl_atomic(output_dir / "diagnostics.jsonl", [{"error": error} for error in preflight_errors])
     write_json_atomic(output_dir / "summary.json", summary)
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record(
+            "audit_v2",
+            summary=summary,
+            summary_path=output_dir / "summary.json",
+            tasks=list(args.tasks),
+        )
+    except Exception as exc:  # noqa: BLE001 — record emission must not fail the audit
+        print(f"Warning: failed to emit stage record: {exc}", file=sys.stderr)
     print(
         f"Replay audit v2 passed={summary['passed']} complete={summary['complete']} "
         f"restore={summary['restore_determinism']['passed_checks']}/"

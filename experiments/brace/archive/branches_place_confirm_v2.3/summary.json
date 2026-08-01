@@ -1,0 +1,66 @@
+{
+  "artifacts": {
+    "budgets": "../budgets",
+    "checks": "checks.jsonl"
+  },
+  "complete": true,
+  "errors": [],
+  "git_commit": "24561055b61704fdd05cf290fc2ecae8593a30c2",
+  "harness_valid": true,
+  "passed": true,
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/protocol.v2.3.json",
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "schema_version": 2,
+  "tasks": {
+    "place_container_plate": {
+      "accepted_points": 1,
+      "harness_valid": true,
+      "matched_success_lift": 0.2962962962962963,
+      "passed": true,
+      "points": [
+        {
+          "accepted": false,
+          "advantage": 0.11111111111111116,
+          "branch_chunk_index": 14,
+          "candidate_success_rate": 1.0,
+          "control_success_rate": 0.8888888888888888,
+          "env_seed": 100071,
+          "lcb_advantage": 0.11111111111111116,
+          "physics_step": 7083,
+          "point_type": "local_divergence_peak",
+          "snapshot_id": 2,
+          "snapshot_physics_step": 7056
+        },
+        {
+          "accepted": true,
+          "advantage": 1.0,
+          "branch_chunk_index": 7,
+          "candidate_success_rate": 1.0,
+          "control_success_rate": 0.0,
+          "env_seed": 100071,
+          "lcb_advantage": 1.0,
+          "physics_step": 4794,
+          "point_type": "first_persistent_divergence",
+          "snapshot_id": 1,
+          "snapshot_physics_step": 4704
+        },
+        {
+          "accepted": false,
+          "advantage": -0.22222222222222227,
+          "branch_chunk_index": 4,
+          "candidate_success_rate": 0.3333333333333333,
+          "control_success_rate": 0.5555555555555556,
+          "env_seed": 100071,
+          "lcb_advantage": -0.5555555555555556,
+          "physics_step": 3090,
+          "point_type": "random_negative_control",
+          "snapshot_id": 0,
+          "snapshot_physics_step": 2352
+        }
+      ],
+      "recovery_seed_fraction": 1.0,
+      "total_points": 3
+    }
+  }
+}

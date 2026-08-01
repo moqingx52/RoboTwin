@@ -64,7 +64,19 @@ def main() -> int:
         "rollout_id_range": [args.rollout_id_min, args.rollout_id_max],
         "source_rollout_dir": str(repo_path(args.rollout_dir)),
     }
-    write_json_atomic(repo_path(args.output), output_payload)
+    output = repo_path(args.output)
+    write_json_atomic(output, output_payload)
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record(
+            "select_confirm_seeds",
+            summary=output_payload,
+            summary_path=output,
+            tasks=[args.task],
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: failed to emit stage record: {exc}", file=sys.stderr)
     print(json.dumps(output_payload, indent=2))
     return 0
 

@@ -781,9 +781,9 @@ def main() -> int:
             "accepted_chunks": int(summary["accepted_points"]),
             "optimizer_examples": 0,
         }
-        budget_path = REPO_ROOT / "experiments" / "brace" / "budgets" / f"{task}_pilot.json"
-        budget_path.parent.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(budget_path, budgets[task])
+        budgets_dir = output_dir / "budgets"
+        budgets_dir.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(budgets_dir / f"{task}_pilot.json", budgets[task])
 
     scientific_passed = bool(task_summaries) and all(summary["passed"] for summary in task_summaries.values())
     passed = harness_valid and scientific_passed and not errors
@@ -798,12 +798,26 @@ def main() -> int:
         "protocol_path": str(protocol_path),
         "protocol_sha256": file_sha256(protocol_path),
         "git_commit": git_commit(),
-        "artifacts": {"checks": "checks.jsonl", "budgets": "../budgets"},
+        "artifacts": {"checks": "checks.jsonl", "budgets": "budgets/"},
     }
+    if budgets:
+        write_json_atomic(output_dir / "budgets.json", budgets)
     if harness_invalid_reason is not None:
         summary["harness_invalid_reason"] = harness_invalid_reason
     write_jsonl_atomic(output_dir / "checks.jsonl", all_rows)
     write_json_atomic(output_dir / "summary.json", summary)
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record(
+            "branch",
+            summary=summary,
+            summary_path=output_dir / "summary.json",
+            tasks=list(args.tasks),
+            label=output_dir.name,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: failed to emit stage record: {exc}", file=sys.stderr)
     print(f"Branch collection passed={passed} harness_valid={harness_valid} summary={output_dir / 'summary.json'}")
     if errors:
         print(errors[0], file=sys.stderr)

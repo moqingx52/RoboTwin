@@ -2,6 +2,7 @@
 """Scan BRACE evidence bundles and emit a remote/local sync inventory.
 
 Designed for cloud runs without git push access: scan once, download via checklist.
+Archive-first: only frozen promote outputs and promoted datasets are git-track sources.
 """
 
 from __future__ import annotations
@@ -27,7 +28,6 @@ from experiments.brace.replay_audit import file_sha256, git_commit, read_json, r
 class ArtifactSpec:
     bundle_id: str
     repo_path: str
-    source_paths: tuple[str, ...]
     required: bool = True
     git_track: bool = True
 
@@ -36,171 +36,140 @@ BUNDLES: tuple[ArtifactSpec, ...] = (
     ArtifactSpec(
         "place_pilot_archive",
         "experiments/brace/archive/branches_place_pilot_valid_v2.3/checks.jsonl",
-        (
-            "experiments/brace/archive/branches_place_pilot_valid_v2.3/checks.jsonl",
-            "experiments/brace/branches/checks.jsonl",
-        ),
     ),
     ArtifactSpec(
         "place_pilot_archive",
         "experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",
-        (
-            "experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",
-            "experiments/brace/branches/summary.json",
-        ),
     ),
     ArtifactSpec(
         "place_pilot_archive",
         "experiments/brace/archive/branches_place_pilot_valid_v2.3/protocol.v2.3.json",
-        (
-            "experiments/brace/archive/branches_place_pilot_valid_v2.3/protocol.v2.3.json",
-            "experiments/brace/protocol.v2.3.json",
-        ),
+    ),
+    ArtifactSpec(
+        "place_pilot_archive",
+        "experiments/brace/archive/branches_place_pilot_valid_v2.3/source_run.json",
+        required=False,
     ),
     ArtifactSpec(
         "place_pilot_archive",
         "experiments/brace/archive/branches_place_pilot_valid_v2.3/analyzed_seeds.json",
-        ("experiments/brace/archive/branches_place_pilot_valid_v2.3/analyzed_seeds.json",),
         required=False,
     ),
     ArtifactSpec(
         "place_pilot_archive",
         "experiments/brace/archive/branches_place_pilot_valid_v2.3/MANIFEST.sha256",
-        ("experiments/brace/archive/branches_place_pilot_valid_v2.3/MANIFEST.sha256",),
         required=False,
     ),
     ArtifactSpec(
         "dump_pilot_archive",
         "experiments/brace/archive/branches_dump_pilot_valid_v2.3/checks.jsonl",
-        (
-            "experiments/brace/archive/branches_dump_pilot_valid_v2.3/checks.jsonl",
-            "experiments/brace/branches_dump/checks.jsonl",
-        ),
     ),
     ArtifactSpec(
         "dump_pilot_archive",
         "experiments/brace/archive/branches_dump_pilot_valid_v2.3/summary.json",
-        (
-            "experiments/brace/archive/branches_dump_pilot_valid_v2.3/summary.json",
-            "experiments/brace/branches_dump/summary.json",
-        ),
     ),
     ArtifactSpec(
         "dump_pilot_archive",
         "experiments/brace/archive/branches_dump_pilot_valid_v2.3/protocol.v2.3.json",
-        (
-            "experiments/brace/archive/branches_dump_pilot_valid_v2.3/protocol.v2.3.json",
-            "experiments/brace/protocol.v2.3.json",
-        ),
+    ),
+    ArtifactSpec(
+        "dump_pilot_archive",
+        "experiments/brace/archive/branches_dump_pilot_valid_v2.3/source_run.json",
+        required=False,
     ),
     ArtifactSpec(
         "dump_pilot_archive",
         "experiments/brace/archive/branches_dump_pilot_valid_v2.3/analyzed_seeds.json",
-        ("experiments/brace/archive/branches_dump_pilot_valid_v2.3/analyzed_seeds.json",),
         required=False,
     ),
     ArtifactSpec(
         "dump_pilot_archive",
         "experiments/brace/archive/branches_dump_pilot_valid_v2.3/MANIFEST.sha256",
-        ("experiments/brace/archive/branches_dump_pilot_valid_v2.3/MANIFEST.sha256",),
         required=False,
     ),
     ArtifactSpec(
         "confirm_archive",
         "experiments/brace/archive/branches_place_confirm_v2.3/summary.json",
-        (
-            "experiments/brace/archive/branches_place_confirm_v2.3/summary.json",
-            "experiments/brace/branches_confirm/summary.json",
-        ),
     ),
     ArtifactSpec(
         "confirm_archive",
         "experiments/brace/archive/branches_place_confirm_v2.3/checks.jsonl",
-        (
-            "experiments/brace/archive/branches_place_confirm_v2.3/checks.jsonl",
-            "experiments/brace/branches_confirm/checks.jsonl",
-        ),
     ),
     ArtifactSpec(
         "confirm_archive",
         "experiments/brace/archive/branches_place_confirm_v2.3/merged_gate.json",
-        (
-            "experiments/brace/archive/branches_place_confirm_v2.3/merged_gate.json",
-            "experiments/brace/branches_confirm/merged_gate.json",
-        ),
     ),
     ArtifactSpec(
         "confirm_archive",
         "experiments/brace/archive/branches_place_confirm_v2.3/protocol.v2.3.json",
-        (
-            "experiments/brace/archive/branches_place_confirm_v2.3/protocol.v2.3.json",
-            "experiments/brace/protocol.v2.3.json",
-        ),
         required=False,
+    ),
+    ArtifactSpec(
+        "confirm_archive",
+        "experiments/brace/archive/branches_place_confirm_v2.3/source_run.json",
+        required=False,
+    ),
+    ArtifactSpec(
+        "confirm_archive",
+        "experiments/brace/archive/branches_place_confirm_v2.3/confirm_seeds.json",
     ),
     ArtifactSpec(
         "datasets_b1n1",
         "experiments/brace/datasets/place_pilot_v2.3_B1.jsonl",
-        ("experiments/brace/datasets/place_pilot_v2.3_B1.jsonl",),
     ),
     ArtifactSpec(
         "datasets_b1n1",
         "experiments/brace/datasets/place_pilot_v2.3_N1.jsonl",
-        ("experiments/brace/datasets/place_pilot_v2.3_N1.jsonl",),
     ),
     ArtifactSpec(
         "datasets_b1n1",
-        "experiments/brace/datasets/export_summary.json",
-        ("experiments/brace/datasets/export_summary.json",),
+        "experiments/brace/datasets/place_pilot_v2.3_summary.json",
+    ),
+    ArtifactSpec(
+        "datasets_b1n1",
+        "experiments/brace/datasets/place_pilot_v2.3_export_summary.json",
+        required=False,
+    ),
+    ArtifactSpec(
+        "datasets_b1n1",
+        "experiments/brace/datasets/place_pilot_v2.3_source_run.json",
         required=False,
     ),
     ArtifactSpec(
         "replay_gate_place",
         "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/summary.json",
-        (
-            "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/summary.json",
-            "experiments/brace/replay_audit_v2/place_container_plate/summary.json",
-        ),
+    ),
+    ArtifactSpec("replay_gate_place", "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/checks.jsonl"),
+    ArtifactSpec("replay_gate_place", "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/failures.jsonl"),
+    ArtifactSpec("replay_gate_place", "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/diagnostics.jsonl"),
+    ArtifactSpec("replay_gate_place", "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/protocol.v2.3.json"),
+    ArtifactSpec(
+        "replay_gate_place",
+        "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/source_run.json",
+        required=False,
     ),
     ArtifactSpec(
         "replay_gate_dump",
         "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
-        (
-            "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
-            "experiments/brace/replay_audit_v2/dump_bin_bigbin/summary.json",
-        ),
+    ),
+    ArtifactSpec("replay_gate_dump", "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/checks.jsonl"),
+    ArtifactSpec("replay_gate_dump", "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/failures.jsonl"),
+    ArtifactSpec("replay_gate_dump", "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/diagnostics.jsonl"),
+    ArtifactSpec("replay_gate_dump", "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/protocol.v2.3.json"),
+    ArtifactSpec(
+        "replay_gate_dump",
+        "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/source_run.json",
+        required=False,
     ),
     ArtifactSpec(
         "anchor_smoke",
         "experiments/brace/anchor_smoke/summary.json",
-        ("experiments/brace/anchor_smoke/summary.json",),
+        required=False,
     ),
     ArtifactSpec(
         "seeds_confirm",
         "experiments/brace/seeds/place_container_plate_confirm_seeds.json",
-        ("experiments/brace/seeds/place_container_plate_confirm_seeds.json",),
         required=False,
-    ),
-    ArtifactSpec(
-        "working_copy_place",
-        "experiments/brace/branches/checks.jsonl",
-        ("experiments/brace/branches/checks.jsonl",),
-        required=False,
-        git_track=False,
-    ),
-    ArtifactSpec(
-        "working_copy_confirm",
-        "experiments/brace/branches_confirm/checks.jsonl",
-        ("experiments/brace/branches_confirm/checks.jsonl",),
-        required=False,
-        git_track=False,
-    ),
-    ArtifactSpec(
-        "working_copy_dump",
-        "experiments/brace/branches_dump/checks.jsonl",
-        ("experiments/brace/branches_dump/checks.jsonl",),
-        required=False,
-        git_track=False,
     ),
 )
 
@@ -216,39 +185,24 @@ def count_jsonl_lines(path: Path) -> int | None:
     return count
 
 
-def resolve_source(spec: ArtifactSpec) -> tuple[Path | None, str | None]:
-    for candidate in spec.source_paths:
-        path = repo_path(candidate)
-        if path.is_file():
-            return path, candidate
-    return None, None
-
-
 def inspect_artifact(spec: ArtifactSpec) -> dict[str, Any]:
-    source_path, source_rel = resolve_source(spec)
-    repo_target = repo_path(spec.repo_path)
+    source_path = repo_path(spec.repo_path)
     entry: dict[str, Any] = {
         "bundle_id": spec.bundle_id,
         "repo_path": spec.repo_path,
         "required": spec.required,
         "git_track": spec.git_track,
-        "source_path": source_rel,
-        "exists": source_path is not None,
-        "status": "present" if source_path is not None else "missing",
+        "source_path": spec.repo_path,
+        "exists": source_path.is_file(),
+        "status": "present" if source_path.is_file() else "missing",
     }
-    if source_path is None:
+    if not source_path.is_file():
         return entry
 
     entry["size_bytes"] = source_path.stat().st_size
     entry["sha256"] = file_sha256(source_path)
     if source_path.suffix == ".jsonl":
         entry["line_count"] = count_jsonl_lines(source_path)
-
-    if repo_target.is_file() and repo_target != source_path:
-        local_hash = file_sha256(repo_target)
-        entry["local_sha256"] = local_hash
-        if local_hash != entry["sha256"]:
-            entry["status"] = "stale"
     return entry
 
 
@@ -277,7 +231,7 @@ def build_inventory() -> dict[str, Any]:
     if protocol_path.is_file():
         protocol_revision = read_json(protocol_path).get("protocol_revision")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "hostname": socket.gethostname(),
         "git_commit": git_commit(),
@@ -293,16 +247,33 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
         "",
         "## Workflow (cloud pull-only, local push)",
         "",
-        "1. **Cloud** (read-only git): `git pull` → run experiments → `artifact-inventory`",
+        "1. **Cloud** (read-only git): `git pull` → run stages → **promote-run** → `artifact-inventory`",
         "2. **Download** inventory + JSON files to your **local** repo (scp/rsync/tar; see below)",
         "3. **Local**: `validate-artifacts --inventory sync/LATEST` → `git add` → `git commit` → `git push`",
         "",
         "Cloud machines typically **cannot push**; this checklist is the handoff manifest.",
+        "Mutable working copies under `runs/` are never git-tracked.",
         "",
         f"Generated: {inventory['generated_at']} UTC",
         f"Host: {inventory['hostname']}",
         f"Git commit: {inventory.get('git_commit') or 'unknown'}",
         f"Protocol: v{inventory.get('protocol_revision') or '?'}",
+        "",
+        "## Promote before inventory",
+        "",
+        "```bash",
+        "# After audit-v2 (place example):",
+        "BRACE_PROMOTE_RUN=$(cat experiments/brace/runs/LATEST_AUDIT_place_container_plate) \\",
+        "  BRACE_PROMOTE_TARGET=archive/replay_audit_v2_place_v2.3_gate \\",
+        "  bash experiments/brace/run_all.sh promote-run",
+        "",
+        "# After branch:",
+        "BRACE_PROMOTE_RUN=$(cat experiments/brace/runs/LATEST_branches) \\",
+        "  BRACE_PROMOTE_TARGET=archive/branches_place_pilot_valid_v2.3 \\",
+        "  bash experiments/brace/run_all.sh promote-run",
+        "",
+        "# Or use archive_*.sh wrappers (they call promote-run internally).",
+        "```",
         "",
         "## Also download (for local validation)",
         "",
@@ -327,8 +298,8 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
             "",
             "Replace `REMOTE_HOST` and `REMOTE_REPO` before running.",
             "",
-            "| Status | Repo path | Source | SHA256 | Size |",
-            "|--------|-----------|--------|--------|------|",
+            "| Status | Repo path | SHA256 | Size |",
+            "|--------|-----------|--------|------|",
         ]
     )
     for entry in inventory["artifacts"]:
@@ -336,7 +307,7 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
             continue
         size = entry.get("size_bytes", 0)
         lines.append(
-            f"| {entry['status']} | `{entry['repo_path']}` | `{entry['source_path']}` | "
+            f"| {entry['status']} | `{entry['repo_path']}` | "
             f"`{entry.get('sha256', '')[:16]}…` | {size} |"
         )
 
@@ -345,11 +316,10 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
         if not entry.get("git_track") or not entry.get("exists"):
             continue
         dest = entry["repo_path"]
-        src = entry["source_path"]
         lines.append("```bash")
         lines.append(f"mkdir -p \"$(dirname {dest})\"")
         lines.append(
-            f"scp REMOTE_HOST:{remote_repo}/{src} {dest}"
+            f"scp REMOTE_HOST:{remote_repo}/{dest} {dest}"
         )
         lines.append("```")
         lines.append("")
@@ -360,6 +330,7 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
             "",
             "```bash",
             "tar czf /tmp/brace_evidence_json.tgz \\",
+            "  experiments/brace/records/ \\",
             "  experiments/brace/archive/ \\",
             "  experiments/brace/datasets/ \\",
             "  experiments/brace/seeds/place_container_plate_confirm_seeds.json \\",
@@ -367,11 +338,27 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
             "# then: scp REMOTE_HOST:/tmp/brace_evidence_json.tgz . && tar xzf brace_evidence_json.tgz",
             "```",
             "",
+            "## Cloud place replay gate rerun (one-time recovery)",
+            "",
+            "```bash",
+            "git pull",
+            "export BRACE_TASKS=place_container_plate",
+            "export BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced_pilot",
+            "bash experiments/brace/run_all.sh audit-v2",
+            "BRACE_PROMOTE_RUN=$(cat experiments/brace/runs/LATEST_AUDIT_place_container_plate) \\",
+            "  BRACE_PROMOTE_TARGET=archive/replay_audit_v2_place_v2.3_gate \\",
+            "  bash experiments/brace/run_all.sh promote-run",
+            "bash experiments/brace/run_all.sh archive-replay-gate  # optional legacy extract",
+            "bash experiments/brace/run_all.sh artifact-inventory",
+            "tar czf /tmp/brace_evidence_json.tgz experiments/brace/archive/ experiments/brace/sync/",
+            "```",
+            "",
             "## After download (local machine only)",
             "",
             "```bash",
             "git pull",
             "python experiments/brace/validate_artifacts.py --inventory experiments/brace/sync/LATEST",
+            "bash experiments/brace/run_all.sh audit-mutable-paths",
             "git add experiments/brace/archive experiments/brace/datasets experiments/brace/seeds experiments/brace/sync",
             "git commit -m \"Sync BRACE evidence JSON from cloud inventory.\"",
             "git push",
@@ -423,6 +410,12 @@ def main() -> int:
     args = parser.parse_args()
 
     inventory = build_inventory()
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record("artifact_inventory", summary=inventory)
+    except Exception:
+        pass
     inventory_path = write_inventory_outputs(
         inventory,
         inventory_dir=repo_path(args.inventory_dir),

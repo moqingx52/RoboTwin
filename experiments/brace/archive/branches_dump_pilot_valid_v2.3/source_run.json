@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "recovered_at": "2026-08-01T19:32:15Z",
+  "source": "records/recovery_inbox",
+  "note": "Manual recovery from cloud inbox. Re-run audit-v2 for place/dump replay gate summaries.",
+  "skipped": [
+    "archive/replay_audit_v2_place_v2.3_gate/summary.json (failed extract)"
+  ],
+  "target": "archive/branches_dump_pilot_valid_v2.3"
+}

@@ -19,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from experiments.brace.replay_audit import read_json, write_json_atomic
+from experiments.brace.resolve_artifact import resolve_anchor_smoke_summary, resolve_branch_dir
 
 
 def load_screen_protocol(path: Path) -> dict[str, Any]:
@@ -94,16 +95,37 @@ def main() -> int:
     parser.add_argument("--task", default="place_container_plate")
     parser.add_argument("--run-label", default="place_pilot_v2.3")
     parser.add_argument("--state", type=Path, default=BRACE_DIR / "run_states" / "screen.json")
+    parser.add_argument("--gpus", nargs="*", type=int, default=[])
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    anchor_summary = BRACE_DIR / "anchor_smoke" / "summary.json"
-    if not anchor_summary.is_file() or not read_json(anchor_summary).get("passed"):
-        raise SystemExit(f"anchor smoke gate not passed: {anchor_summary}")
+    anchor_path = resolve_anchor_smoke_summary(brace_dir=BRACE_DIR)
+    if anchor_path is None or not read_json(anchor_path).get("passed"):
+        raise SystemExit(f"anchor smoke gate not passed: {anchor_path or 'not found'}")
+
+    branch_dir = resolve_branch_dir("branches", brace_dir=BRACE_DIR)
+    if branch_dir is None or not read_json(branch_dir / "summary.json").get("passed"):
+        raise SystemExit(f"branch gate not passed: {branch_dir or 'not found'}")
 
     state = create_state(args.stage, task=args.task, run_label=args.run_label, protocol_path=args.protocol)
+    if args.state == BRACE_DIR / "run_states" / "screen.json":
+        run_state_dir = BRACE_DIR / "runs" / f"screen_state_{args.task}"
+        run_state_dir.mkdir(parents=True, exist_ok=True)
+        args.state = run_state_dir / "screen.json"
     args.state.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(args.state, state)
+    try:
+        from experiments.brace.stage_records import emit_stage_record
+
+        emit_stage_record(
+            "screen_plan" if args.dry_run else "screen",
+            summary=state,
+            summary_path=args.state,
+            tasks=[args.task],
+            label=args.run_label,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: failed to emit stage record: {exc}", file=sys.stderr)
     print(json.dumps({"job_count": len(state["jobs"]), "state": str(args.state)}, indent=2))
     if args.dry_run:
         return 0

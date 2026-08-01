@@ -13,3 +13,4 @@ bash experiments/brace/run_all.sh collect-trace-pilot
 bash experiments/brace/run_all.sh verify-traced
 bash experiments/brace/run_all.sh audit-v2
 bash experiments/brace/run_all.sh branch
+bash experiments/brace/archive_place_pilot.sh

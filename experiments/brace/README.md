@@ -36,11 +36,12 @@ Stage 2 branch pilots:
   - Rolling log: `docs/brace_experiment_log.md`
   - Roadmap: `docs/brace_track_abc_roadmap.md`
 
-`branch` requires each task in `BRACE_TASKS` to have
-`replay_audit_v2/summary.json` → `tasks.<task>.replay_gate_passed=true`.
+`branch` requires each task in `BRACE_TASKS` to pass replay audit v2
+(`tasks.<task>.replay_gate_passed=true`), resolved via `runs/LATEST_AUDIT_<task>`
+→ `archive/replay_audit_v2_*_gate/` → legacy path (deprecated).
 For a single-task pilot, set `BRACE_TASKS=place_container_plate` and use
 `experiments/brace/rollouts_traced_pilot/` via `run_place_pilot.sh`.
-For dump A2: `bash experiments/brace/run_dump_pilot.sh` → `branches_dump/`.
+For dump A2: `bash experiments/brace/run_dump_pilot.sh` → `runs/.../branches_dump/`.
 
 ## Unified cloud entry
 
@@ -94,9 +95,40 @@ Pointers (cloud-local, not git-tracked):
 - `runs/LATEST` — most recent run directory
 - `runs/LATEST_AUDIT_<task>` — latest audit output for a task
 - `runs/LATEST_<branch_label>` — latest branch output
+- `records/<UTC>_<stage>_<task>.json` — stage metadata (auto-emitted)
+- `records/index.jsonl` — chronological index; `bash experiments/brace/run_all.sh list-records`
+- `records/bundles/<record_id>/` — copied JSON/JSONL evidence (no HDF5/checkpoints)
 
-**Promote** validated outputs into frozen `archive/` before syncing to git.
+Human conclusions belong in `docs/` (private). Machine gate metadata and a
+self-contained JSON evidence copy go to `records/`. Full artifacts stay in
+`runs/`; git-synced evidence only after `promote-run` → `archive/`.
+
+**Promote** validated outputs into frozen `archive/` before syncing to git:
+
+`audit-v2`, `export-verified-chunks`, and the place/dump/confirm wrapper scripts
+promote automatically after a passing stage. Set `BRACE_AUTO_PROMOTE=0` for a
+recovery rerun or when selecting a new versioned target. Failed stages are not
+promoted, but their JSON evidence remains in `records/bundles/`.
+
+```bash
+# After audit-v2
+BRACE_PROMOTE_RUN=$(cat experiments/brace/runs/LATEST_AUDIT_place_container_plate) \
+  BRACE_PROMOTE_TARGET=archive/replay_audit_v2_place_v2.3_gate \
+  bash experiments/brace/run_all.sh promote-run
+
+# After branch (or use archive_place_pilot.sh wrapper)
+BRACE_PROMOTE_RUN=$(cat experiments/brace/runs/LATEST_branches) \
+  BRACE_PROMOTE_TARGET=archive/branches_place_pilot_valid_v2.3 \
+  bash experiments/brace/run_all.sh promote-run
+
+# After export-verified-chunks
+BRACE_PROMOTE_RUN=$(cat experiments/brace/runs/LATEST_export_place_pilot_v2.3) \
+  BRACE_PROMOTE_TARGET=datasets/ \
+  bash experiments/brace/run_all.sh promote-run
+```
+
 Set `BRACE_LEGACY_MUTABLE_OUTPUTS=1` only to reproduce old scripts.
+Run `bash experiments/brace/run_all.sh audit-mutable-paths` in CI to catch regressions.
 
 ```bash
 bash experiments/brace/run_all.sh list-runs
@@ -105,9 +137,9 @@ bash experiments/brace/run_all.sh list-runs
 Cloud machines usually **can pull but not push**. Evidence JSON flows:
 
 ```text
-Cloud: git pull → experiments → artifact-inventory
+Cloud: git pull → stages → promote-run → artifact-inventory
           ↓ scp/rsync/tar (CHECKLIST.md lists paths + SHA256)
-Local: validate-artifacts → git add → git commit → git push
+Local: validate-artifacts → audit-mutable-paths → git add → git commit → git push
 ```
 
 **On cloud** (scan only, no git commit):
