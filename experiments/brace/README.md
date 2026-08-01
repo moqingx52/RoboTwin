@@ -14,7 +14,8 @@ docs/brace_audit_v2_design.md
 | Version | Script | Protocol | Purpose |
 |---------|--------|----------|---------|
 | v1 (archived) | `replay_audit.py` | `archive/protocol.v1.frozen.json` | Waypoint replay baseline (80% NO-GO) |
-| **v2.2 (current)** | `replay_audit_v2.py` | `protocol.v2.2.json` | Symmetry-aware actor metrics + separate gates |
+| **v2.3 (current)** | `replay_audit_v2.py` | `protocol.v2.3.json` | Chunk-boundary branch harness + symmetry-aware actor metrics |
+| v2.2 (archived) | `replay_audit_v2.py` | `protocol.v2.2.json` | Symmetry-aware actor metrics + separate gates |
 | v2.1 (archived) | `replay_audit_v2.py` | `protocol.v2.1.json` | Separate restore + replay gates |
 | v2.0 (diagnostic) | `replay_audit_v2.py` | `protocol.v2.json` | Mixed pass-rate gate (superseded) |
 
@@ -40,10 +41,12 @@ bash experiments/brace/run_all.sh verify
 bash experiments/brace/run_all.sh collect-trace-smoke   # 2-4 per task
 bash experiments/brace/run_all.sh collect-trace-audit   # 20 per task
 bash experiments/brace/run_all.sh verify-traced
-bash experiments/brace/run_all.sh audit-v2
+BRACE_TASKS=place_container_plate BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced_pilot \
+  bash experiments/brace/run_all.sh audit-v2
 
-# After v2 gate passes
-bash experiments/brace/run_all.sh branch
+# After v2 gate passes (set BRACE_TASKS for single-task pilot)
+BRACE_TASKS=place_container_plate BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced_pilot \
+  bash experiments/brace/run_all.sh branch
 bash experiments/brace/run_all.sh screen
 bash experiments/brace/run_all.sh full
 ```

@@ -219,6 +219,7 @@ case "${stage}" in
       --protocol "${protocol_v2}" \
       --rollout-dir "${traced_rollout_dir}" \
       --output-dir "${brace_dir}/replay_audit_v2" \
+      --tasks "${tasks[@]}" \
       --workers "${audit_workers}" \
       --workers-per-gpu "${audit_workers_per_gpu}" \
       --gpus "${gpu_ids[@]}" \

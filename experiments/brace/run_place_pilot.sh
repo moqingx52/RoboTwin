@@ -10,4 +10,5 @@ export BRACE_TRACED_ROLLOUT_DIR="${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/r
 bash experiments/brace/run_all.sh select-pilot-seeds
 bash experiments/brace/run_all.sh collect-trace-pilot
 BRACE_TRACED_ROLLOUT_DIR="${BRACE_TRACED_ROLLOUT_DIR}" bash experiments/brace/run_all.sh verify-traced
+BRACE_TASKS=place_container_plate BRACE_TRACED_ROLLOUT_DIR="${BRACE_TRACED_ROLLOUT_DIR}" bash experiments/brace/run_all.sh audit-v2
 BRACE_TASKS=place_container_plate BRACE_TRACED_ROLLOUT_DIR="${BRACE_TRACED_ROLLOUT_DIR}" bash experiments/brace/run_all.sh branch
