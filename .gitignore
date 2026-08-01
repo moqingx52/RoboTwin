@@ -71,8 +71,41 @@ policy/DP/data/
 policy/DP/data_phase1_200/
 policy/DP/data_phase3/
 
+# BRACE runtime (large HDF5 / logs stay untracked)
+experiments/brace/rollouts_traced/
+experiments/brace/rollouts_traced_pilot/
+experiments/brace/logs/
+experiments/brace/run_states/
+experiments/brace/inventory/
+experiments/brace/branches/
+experiments/brace/branches_confirm/
+experiments/brace/branches_dump/
+experiments/brace/replay_audit_v2/
+experiments/brace/sync/.cache/
+
+# BRACE evidence chain JSON (track in git)
+!experiments/brace/archive/**/
+!experiments/brace/archive/**/*
+!experiments/brace/datasets/
+!experiments/brace/datasets/*.jsonl
+!experiments/brace/datasets/*.json
+!experiments/brace/seeds/
+!experiments/brace/seeds/*.json
+!experiments/brace/anchor_smoke/
+!experiments/brace/anchor_smoke/*.json
+!experiments/brace/sync/
+!experiments/brace/sync/inventories/
+!experiments/brace/sync/inventories/*.json
+!experiments/brace/sync/LATEST
+
 /*.json*
 /*.txt
 
-# Experiment reports and paper drafts
-docs/
+# Experiment reports and paper drafts (un-ignore BRACE docs + paper only)
+docs/*
+!docs/brace*/
+!docs/brace*/
+!docs/brace*/**
+!docs/brace_artifact_sync_checklist.md
+!docs/paper/
+!docs/paper/**

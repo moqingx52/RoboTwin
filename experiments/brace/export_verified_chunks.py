@@ -296,6 +296,20 @@ def main() -> int:
     output_dir = repo_path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    checks_path = branch_dir / "checks.jsonl"
+    if not checks_path.is_file():
+        fallback = REPO_ROOT / "experiments" / "brace" / "branches" / "checks.jsonl"
+        raise SystemExit(
+            f"missing {checks_path}\n"
+            f"Archive place pilot without checks.jsonl cannot export B1.\n"
+            f"Fix on cloud:\n"
+            f"  cp experiments/brace/branches/checks.jsonl {branch_dir}/\n"
+            f"  bash experiments/brace/archive_place_pilot.sh\n"
+            f"Or export from working copy:\n"
+            f"  BRACE_BRANCH_DIR=experiments/brace/branches ... export-verified-chunks"
+            + (f"\n(found fallback at {fallback})" if fallback.is_file() else "")
+        )
+
     payload = export_datasets(
         task=args.task,
         branch_dir=branch_dir,

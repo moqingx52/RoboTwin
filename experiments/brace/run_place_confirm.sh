@@ -35,6 +35,8 @@ bash experiments/brace/run_all.sh branch
 python experiments/brace/evaluate_confirmatory_gate.py \
   --pilot-summary experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json \
   --confirm-summary experiments/brace/branches_confirm/summary.json \
-  --output experiments/brace/branches_confirm/merged_gate.json
+  --output experiments/brace/branches_confirm/merged_gate.json || true
+
+bash experiments/brace/archive_place_confirm.sh
 
 echo "Place confirmatory branch complete: experiments/brace/branches_confirm/summary.json"

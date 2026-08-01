@@ -74,6 +74,9 @@ Stages:
   collect-trace-pilot  Collect traced rollouts for Stage-2 pilot seeds.
   verify-traced        Verify traced rollout shards and schema v2 HDF5.
   inventory-traced     Inventory mixed-outcome seed counts (directed collection).
+  artifact-inventory   Scan evidence bundles; write sync inventory + checklist (cloud-friendly).
+  validate-artifacts   Validate archives/manifests against optional remote inventory snapshot.
+  merge-audit-v2       Merge per-task replay audit summaries into combined gate file.
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
   anchor-smoke         Frozen-denoiser anchor structural smoke (screen_protocol.v1).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
@@ -160,9 +163,17 @@ require_gate() {
 
 require_task_replay_gates() {
   local path=$1
-  local task
+  local task task_summary
   for task in "${tasks[@]}"; do
-    if [[ "$(jq -r --arg task "${task}" '.tasks[$task].replay_gate_passed // false' "${path}")" != "true" ]]; then
+    task_summary="${brace_dir}/replay_audit_v2/${task}/summary.json"
+    if [[ -s "${task_summary}" ]]; then
+      if [[ "$(jq -r '.tasks[$task].replay_gate_passed // false' --arg task "${task}" "${task_summary}")" != "true" ]]; then
+        echo "Replay audit v2 per-task gate has not passed for ${task}: ${task_summary}" >&2
+        exit 2
+      fi
+      continue
+    fi
+    if [[ ! -s "${path}" ]] || [[ "$(jq -r --arg task "${task}" '.tasks[$task].replay_gate_passed // false' "${path}")" != "true" ]]; then
       echo "Replay audit v2 per-task gate has not passed for ${task}: ${path}" >&2
       exit 2
     fi
@@ -258,10 +269,11 @@ case "${stage}" in
       echo "replay_audit_v2.py is not implemented yet." >&2
       exit 2
     fi
+    audit_output_dir="${BRACE_AUDIT_OUTPUT_DIR:-${brace_dir}/replay_audit_v2}"
     exec python experiments/brace/replay_audit_v2.py \
       --protocol "${protocol_v2}" \
       --rollout-dir "${traced_rollout_dir}" \
-      --output-dir "${brace_dir}/replay_audit_v2" \
+      --output-dir "${audit_output_dir}" \
       --tasks "${tasks[@]}" \
       --workers "${audit_workers}" \
       --workers-per-gpu "${audit_workers_per_gpu}" \
@@ -329,6 +341,38 @@ case "${stage}" in
         --rollout-dir "${traced_rollout_dir}" \
         --output "${brace_dir}/inventory/${task}_traced.json"
     done
+    ;;
+
+  artifact-inventory)
+    mkdir -p "${brace_dir}/sync/inventories"
+    python experiments/brace/inventory_artifacts.py \
+      --remote-repo "${BRACE_REMOTE_REPO:-/workspace/RoboTwin}" \
+      "$@"
+    ;;
+
+  validate-artifacts)
+    inventory_arg=()
+    if [[ -n "${BRACE_SYNC_INVENTORY:-}" ]]; then
+      inventory_arg=(--inventory "${BRACE_SYNC_INVENTORY}")
+    fi
+    python experiments/brace/validate_artifacts.py \
+      "${inventory_arg[@]}" \
+      --run-label "${dataset_run_label}" \
+      "$@"
+    ;;
+
+  merge-audit-v2)
+    merge_inputs=()
+    if [[ -n "${BRACE_AUDIT_MERGE_INPUTS:-}" ]]; then
+      read -r -a merge_inputs <<< "${BRACE_AUDIT_MERGE_INPUTS}"
+    else
+      for task in "${tasks[@]}"; do
+        merge_inputs+=("${brace_dir}/replay_audit_v2/${task}/summary.json")
+      done
+    fi
+    python experiments/brace/merge_replay_audit_summaries.py \
+      --output "${brace_dir}/replay_audit_v2/combined_summary.json" \
+      $(printf ' --input %q' "${merge_inputs[@]}")
     ;;
 
   export-verified-chunks)

@@ -75,3 +75,26 @@ Traced collection uses `task_config/demo_brace_trace.yml` and extends HDF5 with:
 - all dynamic actors (`deskbin` + `garbage_*` for `dump_bin_bigbin`)
 
 The entry never delegates to the old CPST `prep/screen/full` stages.
+
+## Evidence sync (cloud without git push)
+
+Remote runs can scan artifacts and emit a download checklist:
+
+```bash
+bash experiments/brace/run_all.sh artifact-inventory
+# → experiments/brace/sync/inventories/<timestamp>.json
+# → docs/brace_artifact_sync_checklist.md
+```
+
+After copying JSON files to the local repo paths listed in the checklist:
+
+```bash
+bash experiments/brace/archive_place_pilot.sh
+bash experiments/brace/archive_dump_pilot.sh
+bash experiments/brace/archive_place_confirm.sh
+python experiments/brace/validate_artifacts.py --inventory experiments/brace/sync/LATEST
+```
+
+Per-task replay audit outputs should live under `replay_audit_v2/<task>/` and be
+merged with `bash experiments/brace/run_all.sh merge-audit-v2`.
+HDF5 under `rollouts_traced*` is not tracked in git.

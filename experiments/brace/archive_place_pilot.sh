@@ -47,14 +47,5 @@ done
 
 sha256sum "${manifest_files[@]}" > "${archive_dir}/MANIFEST.sha256"
 
-if [[ -f experiments/brace/replay_audit_v2/summary.json ]]; then
-  dump_archive=experiments/brace/archive/replay_audit_v2_dump_v2.3_gate
-  mkdir -p "${dump_archive}"
-  if [[ ! -f "${dump_archive}/summary.json" ]]; then
-    jq 'del(.tasks.place_container_plate) | .tasks |= with_entries(select(.key == "dump_bin_bigbin"))' \
-      experiments/brace/replay_audit_v2/summary.json > "${dump_archive}/summary.json" || true
-  fi
-fi
-
 echo "Archived to ${archive_dir}"
 cat "${archive_dir}/MANIFEST.sha256"
