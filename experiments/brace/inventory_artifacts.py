@@ -340,7 +340,7 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
             f"`{entry.get('sha256', '')[:16]}…` | {size} |"
         )
 
-    lines.extend(["", "## Copy commands", ""])
+    lines.extend(["", "## Copy commands (run on **local** machine)", ""])
     for entry in inventory["artifacts"]:
         if not entry.get("git_track") or not entry.get("exists"):
             continue
@@ -356,13 +356,25 @@ def render_checklist(inventory: dict[str, Any], *, remote_repo: str) -> str:
 
     lines.extend(
         [
-            "## After download (local machine)",
+            "## One-shot tarball (optional, on cloud)",
             "",
             "```bash",
-            "bash experiments/brace/archive_place_pilot.sh",
-            "bash experiments/brace/archive_dump_pilot.sh",
-            "bash experiments/brace/archive_place_confirm.sh  # if confirm artifacts present",
+            "tar czf /tmp/brace_evidence_json.tgz \\",
+            "  experiments/brace/archive/ \\",
+            "  experiments/brace/datasets/ \\",
+            "  experiments/brace/seeds/place_container_plate_confirm_seeds.json \\",
+            "  experiments/brace/sync/",
+            "# then: scp REMOTE_HOST:/tmp/brace_evidence_json.tgz . && tar xzf brace_evidence_json.tgz",
+            "```",
+            "",
+            "## After download (local machine only)",
+            "",
+            "```bash",
+            "git pull",
             "python experiments/brace/validate_artifacts.py --inventory experiments/brace/sync/LATEST",
+            "git add experiments/brace/archive experiments/brace/datasets experiments/brace/seeds experiments/brace/sync",
+            "git commit -m \"Sync BRACE evidence JSON from cloud inventory.\"",
+            "git push",
             "```",
             "",
             "HDF5 under `experiments/brace/rollouts_traced*` is **not** tracked in git.",
