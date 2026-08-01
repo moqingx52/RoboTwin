@@ -152,15 +152,14 @@ class TrackCScaffoldTest(unittest.TestCase):
         merged = merge_summaries([dump_summary])
         self.assertTrue(merged["tasks"]["dump_bin_bigbin"]["replay_gate_passed"])
 
-    def test_validate_artifacts_warns_on_missing_checks(self) -> None:
+    def test_validate_restored_branch_artifacts(self) -> None:
         result = run_validation(
             inventory_path=None,
             missing_only=False,
             strict_json=False,
             run_label="place_pilot_v2.3",
         )
-        self.assertFalse(result["passed"])
-        self.assertTrue(any("checks.jsonl" in error for error in result["errors"]))
+        self.assertTrue(result["passed"], result)
 
 
 if __name__ == "__main__":

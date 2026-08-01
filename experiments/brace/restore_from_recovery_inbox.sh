@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Restore BRACE evidence from records/recovery_inbox/ to canonical paths.
-# Skips place replay summary.json (failed extract; re-run audit-v2 instead).
+# Rebuilds the place replay summary from complete checks; rejects the failed extract.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${repo_root}"
 
 inbox=experiments/brace/records/recovery_inbox
+proto=experiments/brace/protocol.v2.3.json
 if [[ ! -d "${inbox}" ]]; then
   echo "Missing ${inbox}. Extract recovery_inbox.tar.gz first:" >&2
   echo "  tar xzf recovery_inbox.tar.gz -C experiments/brace/records/" >&2
@@ -27,9 +28,9 @@ copy_with_backup() {
   mkdir -p "$(dirname "${dest}")"
   if [[ -f "${dest}" ]]; then
     mkdir -p "${backup}/$(dirname "${dest}")"
-    cp -a "${dest}" "${backup}/${dest}"
+    cp "${dest}" "${backup}/${dest}"
   fi
-  cp -a "${src}" "${dest}"
+  cp "${src}" "${dest}"
   echo "RESTORED ${dest}"
 }
 
@@ -53,12 +54,28 @@ copy_with_backup \
   "${inbox}/archive/replay_audit_v2_dump_v2.3_gate/summary.json" \
   experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/summary.json
 
-# Place replay gate: auxiliary jsonl only — NOT failed summary
-for name in checks.jsonl failures.jsonl diagnostics.jsonl; do
+# Place replay gate: checks/failures are valid; recovered summary/diagnostics
+# belonged to a failed local preflight and must not be promoted.
+for name in checks.jsonl failures.jsonl; do
   copy_with_backup \
     "${inbox}/archive/replay_audit_v2_place_v2.3_gate/${name}" \
     "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/${name}"
 done
+place_replay_dir=experiments/brace/archive/replay_audit_v2_place_v2.3_gate
+: > "${place_replay_dir}/diagnostics.jsonl"
+copy_with_backup "${proto}" "${place_replay_dir}/protocol.v2.3.json"
+python experiments/brace/rebuild_replay_summary_from_checks.py \
+  --checks "${place_replay_dir}/checks.jsonl" \
+  --protocol experiments/brace/protocol.v2.3.json \
+  --task place_container_plate \
+  --output "${place_replay_dir}/summary.json"
+sha256sum \
+  "${place_replay_dir}/checks.jsonl" \
+  "${place_replay_dir}/diagnostics.jsonl" \
+  "${place_replay_dir}/failures.jsonl" \
+  "${place_replay_dir}/protocol.v2.3.json" \
+  "${place_replay_dir}/summary.json" \
+  > "${place_replay_dir}/MANIFEST.sha256"
 
 # Datasets
 for name in place_pilot_v2.3_B1.jsonl place_pilot_v2.3_N1.jsonl place_pilot_v2.3_summary.json; do
@@ -78,7 +95,6 @@ for task_file in place_container_plate_pilot.json dump_bin_bigbin_pilot.json; do
 done
 
 # Protocol copies (canonical)
-proto=experiments/brace/protocol.v2.3.json
 for bundle in \
   branches_place_pilot_valid_v2.3 \
   branches_dump_pilot_valid_v2.3 \
@@ -125,8 +141,8 @@ note = {
     "schema_version": 1,
     "recovered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "source": "records/recovery_inbox",
-    "note": "Manual recovery from cloud inbox. Re-run audit-v2 for place/dump replay gate summaries.",
-    "skipped": ["archive/replay_audit_v2_place_v2.3_gate/summary.json (failed extract)"],
+    "note": "Manual recovery from cloud inbox. Place replay summary rebuilt from complete checks; dump audit details still require recovery or rerun.",
+    "skipped": ["recovered place replay summary/diagnostics (failed local preflight, replaced from checks)"],
 }
 for bundle in [
     "branches_place_pilot_valid_v2.3",
@@ -142,7 +158,6 @@ PY
 echo ""
 echo "=== Restore complete ==="
 echo "NOT restored (re-run required):"
-echo "  - archive/replay_audit_v2_place_v2.3_gate/summary.json"
 echo "  - archive/replay_audit_v2_dump_v2.3_gate/checks.jsonl (+ failures/diagnostics)"
 echo ""
 echo "Verify:"

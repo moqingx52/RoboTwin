@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "source": "records/recovery_inbox/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
+  "summary_sha256": "0ae69b8a221bf8793cee8ad2234c4b9b0956d273af5a5714a4d26c5193eda0f3",
+  "recovery_method": "summary-only recovery",
+  "note": "Gate summary is valid, but checks.jsonl, failures.jsonl, and diagnostics.jsonl were not present in the recovered bundle."
+}

@@ -62,8 +62,8 @@ def validate_source_run(archive_dir: Path, errors: list[str], warnings: list[str
         warnings.append(f"missing source_run.json (pre-promote-run archive): {archive_dir}")
         return
     payload = read_json(source_run)
-    if not payload.get("source_run_dir"):
-        errors.append(f"source_run.json missing source_run_dir: {source_run}")
+    if not payload.get("source_run_dir") and not payload.get("source"):
+        errors.append(f"source_run.json missing source lineage: {source_run}")
 
 
 def validate_manifest(archive_dir: Path, errors: list[str], warnings: list[str]) -> None:

@@ -1,0 +1,114 @@
+{
+  "artifacts": {
+    "checks": "checks.jsonl",
+    "diagnostics": "diagnostics.jsonl",
+    "failures": "failures.jsonl"
+  },
+  "complete": true,
+  "control_trace_replay": {
+    "failed_checks": 1,
+    "pass_rate": 0.9833333333333333,
+    "passed": true,
+    "passed_checks": 59,
+    "required_pass_rate": 0.95,
+    "total_checks": 60
+  },
+  "expected_checks": 120,
+  "expected_replay_checks": 60,
+  "expected_restore_checks": 60,
+  "failed_checks": 1,
+  "git_commit": null,
+  "metric_errors": {
+    "end_effector_rotation_error": {
+      "maximum": 5.022747999867427e-05,
+      "median": 0.0,
+      "p95": 2.778597439220901e-05
+    },
+    "end_effector_translation_error": {
+      "maximum": 7.734678781975776e-06,
+      "median": 0.0,
+      "p95": 2.423786787630602e-06
+    },
+    "joint_max_error": {
+      "maximum": 0.001099228858947754,
+      "median": 0.0003198981285095215,
+      "p95": 0.0008525989949703213
+    },
+    "object_rotation_error": {
+      "maximum": 0.05029374029754939,
+      "median": 3.449875458418177e-05,
+      "p95": 0.02919832405678686
+    },
+    "object_translation_error": {
+      "maximum": 0.0026321866769264454,
+      "median": 1.7050236292114697e-07,
+      "p95": 0.0021093636717997816
+    }
+  },
+  "minimum_pass_rate": 0.95,
+  "pass_rate": 0.9916666666666667,
+  "passed": true,
+  "passed_checks": 119,
+  "per_actor_failure_counts": {
+    "place_container_plate": {
+      "container:rotation": 1
+    }
+  },
+  "per_task_control_trace_replay_minimum_pass_rate": 0.95,
+  "preflight_errors": [],
+  "protocol_path": "/home/gsy/work/RoboTwin/experiments/brace/protocol.v2.3.json",
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "recovery_provenance": {
+    "checks_path": "/home/gsy/work/RoboTwin/experiments/brace/archive/replay_audit_v2_place_v2.3_gate/checks.jsonl",
+    "checks_sha256": "29d1afeba3fb3c3a968e133b6d7f03495fbb42f8b386f6c9b0f6dbf6c2ef58ec",
+    "method": "rebuild_from_checks",
+    "note": "Original summary was unavailable or mismatched; no unavailable metadata was imputed."
+  },
+  "restore_determinism": {
+    "failed_checks": 0,
+    "pass_rate": 1.0,
+    "passed": true,
+    "passed_checks": 60,
+    "required_pass_rate": 1.0,
+    "total_checks": 60
+  },
+  "schema_version": 2,
+  "tasks": {
+    "place_container_plate": {
+      "available_trajectories": null,
+      "control_trace_replay": {
+        "failed_checks": 1,
+        "pass_rate": 0.9833333333333333,
+        "passed": true,
+        "passed_checks": 59,
+        "total_checks": 60
+      },
+      "pass_rate": 0.9916666666666667,
+      "passed_checks": 119,
+      "preflight_errors": [],
+      "replay_gate_passed": true,
+      "requested_trajectories": 20,
+      "restore_determinism": {
+        "failed_checks": 0,
+        "pass_rate": 1.0,
+        "passed": true,
+        "passed_checks": 60,
+        "total_checks": 60
+      },
+      "selected_failures": 10,
+      "selected_successes": 10,
+      "selected_trajectories": 20,
+      "snapshots_per_trajectory": 3,
+      "total_checks": 120
+    }
+  },
+  "thresholds": {
+    "end_effector_rotation_error": 0.05,
+    "end_effector_translation_error": 0.005,
+    "joint_max_error": 0.01,
+    "object_rotation_error": 0.05,
+    "object_translation_error": 0.005
+  },
+  "total_checks": 120
+}

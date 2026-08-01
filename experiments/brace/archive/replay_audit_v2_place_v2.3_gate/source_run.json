@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "source": "records/recovery_inbox/archive/replay_audit_v2_place_v2.3_gate/checks.jsonl",
+  "checks_sha256": "29d1afeba3fb3c3a968e133b6d7f03495fbb42f8b386f6c9b0f6dbf6c2ef58ec",
+  "recovery_method": "summary rebuilt from complete checks.jsonl",
+  "note": "The recovered summary/diagnostics belonged to a failed local preflight and were rejected. Gate statistics are reconstructed only from the 120 recovered checks."
+}
