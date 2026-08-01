@@ -30,7 +30,18 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 def load_inventory(path: Path) -> dict[str, Any]:
     if path.name == "LATEST":
         pointer = path.read_text(encoding="utf-8").strip()
-        path = path.parent / pointer
+        candidates = [
+            path.parent / pointer,
+            path.parent / "inventories" / Path(pointer).name,
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                path = candidate
+                break
+        else:
+            raise FileNotFoundError(
+                f"inventory pointer not found: {pointer} (tried {', '.join(str(c) for c in candidates)})"
+            )
     return read_json(path)
 
 

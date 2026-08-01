@@ -371,7 +371,7 @@ def write_inventory_outputs(
     inventory_path = inventory_dir / f"{timestamp}.json"
     write_json_atomic(inventory_path, inventory)
     latest_pointer = inventory_dir.parent / "LATEST"
-    latest_pointer.write_text(inventory_path.name + "\n", encoding="utf-8")
+    latest_pointer.write_text(f"inventories/{inventory_path.name}\n", encoding="utf-8")
     checklist_path.parent.mkdir(parents=True, exist_ok=True)
     checklist_path.write_text(render_checklist(inventory, remote_repo=remote_repo), encoding="utf-8")
     return inventory_path
