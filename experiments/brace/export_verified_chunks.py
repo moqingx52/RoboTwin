@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 from collections import Counter, defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +21,7 @@ for import_path in (REPO_ROOT, REPO_ROOT / "experiments" / "phase1"):
         sys.path.insert(0, str(import_path))
 
 from experiments.brace.collect_branches import summarize_branch_rows
-from experiments.brace.control_trace import load_brace_trace, policy_chunk_actions
+from experiments.brace.control_trace import load_brace_trace, load_policy_chunk_indices, policy_chunk_actions
 from experiments.brace.replay_audit import (
     Candidate,
     collect_candidates,
@@ -77,6 +79,43 @@ def _candidate_rows_by_point(rows: list[dict[str, Any]]) -> dict[tuple[int, int,
     return result
 
 
+def _index_success_candidate(candidate: Candidate) -> tuple[int, int, str, tuple[int, ...]]:
+    indices = tuple(sorted(load_policy_chunk_indices(candidate.path)))
+    return (candidate.env_seed, candidate.rollout_id, str(candidate.path), indices)
+
+
+def index_success_chunk_indices(
+    successes: list[Candidate],
+    *,
+    workers: int,
+) -> dict[int, list[Candidate]]:
+    if not successes:
+        return {}
+
+    chunk_to_candidates: dict[int, list[Candidate]] = defaultdict(list)
+    workers = max(1, min(workers, len(successes)))
+    print(f"Indexing policy chunk indices for {len(successes)} success trajectories with workers={workers}", flush=True)
+
+    if workers == 1:
+        indexed = [_index_success_candidate(candidate) for candidate in successes]
+    else:
+        indexed = []
+        completed = 0
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_index_success_candidate, candidate): candidate for candidate in successes}
+            for future in as_completed(futures):
+                indexed.append(future.result())
+                completed += 1
+                if completed == 1 or completed % 25 == 0 or completed == len(successes):
+                    print(f"  indexed {completed}/{len(successes)} trajectories", flush=True)
+
+    for env_seed, rollout_id, path_text, indices in indexed:
+        candidate = Candidate(env_seed=env_seed, rollout_id=rollout_id, success=True, path=Path(path_text))
+        for chunk_index in indices:
+            chunk_to_candidates[int(chunk_index)].append(candidate)
+    return chunk_to_candidates
+
+
 def build_b1_records(
     *,
     task: str,
@@ -128,7 +167,7 @@ def build_n1_records(
     *,
     task: str,
     b1_records: list[dict[str, Any]],
-    rollout_dir: Path,
+    chunk_to_candidates: dict[int, list[Candidate]],
     selection_seed: int,
     protocol: dict[str, Any],
     run_label: str,
@@ -137,20 +176,11 @@ def build_n1_records(
         return []
 
     ckpt = checkpoint_metadata(protocol, task)
-    candidates, _ = collect_candidates(task, rollout_dir)
-    successes = [item for item in candidates if item.success]
-    if not successes:
-        raise ValueError(f"no success trajectories for N1 sampling in {task}")
-
     chunk_hist = Counter(int(record["branch_chunk_index"]) for record in b1_records)
     rng = random.Random(selection_seed)
     records: list[dict[str, Any]] = []
     for chunk_index, count in sorted(chunk_hist.items()):
-        pool = []
-        for candidate in successes:
-            trace = load_brace_trace(candidate.path)
-            if any(int(chunk["chunk_index"]) == chunk_index for chunk in trace["policy_chunks"]):
-                pool.append(candidate)
+        pool = list(chunk_to_candidates.get(chunk_index, []))
         if not pool:
             raise ValueError(f"no success trajectories with chunk_index={chunk_index} for N1")
         rng.shuffle(pool)
@@ -186,6 +216,7 @@ def export_datasets(
     protocol: dict[str, Any],
     run_label: str,
     n1_seed: int,
+    workers: int,
 ) -> dict[str, Any]:
     summary = read_json(branch_dir / "summary.json")
     checks = read_jsonl(branch_dir / "checks.jsonl")
@@ -197,7 +228,9 @@ def export_datasets(
     candidate_rows = _candidate_rows_by_point(checks)
     successes, _ = collect_candidates(task, rollout_dir)
     success_by_key = {(item.env_seed, item.rollout_id): item for item in successes if item.success}
+    success_candidates = [item for item in successes if item.success]
 
+    print(f"Building B1 from {len(accepted_points)} accepted points", flush=True)
     b1_records = build_b1_records(
         task=task,
         accepted_points=accepted_points,
@@ -206,10 +239,12 @@ def export_datasets(
         protocol=protocol,
         run_label=run_label,
     )
+    chunk_to_candidates = index_success_chunk_indices(success_candidates, workers=workers)
+    print(f"Building N1 matched to {len(b1_records)} B1 chunks", flush=True)
     n1_records = build_n1_records(
         task=task,
         b1_records=b1_records,
-        rollout_dir=rollout_dir,
+        chunk_to_candidates=chunk_to_candidates,
         selection_seed=n1_seed,
         protocol=protocol,
         run_label=run_label,
@@ -223,6 +258,8 @@ def export_datasets(
         "accepted_points": len(accepted_points),
         "b1_chunks": len(b1_records),
         "n1_chunks": len(n1_records),
+        "indexed_success_trajectories": len(success_candidates),
+        "export_workers": workers,
         "recomputed_accepted_points": recomputed["accepted_points"],
         "records": {"B1": b1_records, "N1": n1_records},
     }
@@ -237,7 +274,15 @@ def main() -> int:
     parser.add_argument("--run-label", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--n1-seed", type=int, default=0)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=min(os.cpu_count() or 1, 96),
+        help="Parallel workers for N1 chunk-index scanning (HDF5 metadata only).",
+    )
     args = parser.parse_args()
+    if args.workers < 1:
+        raise SystemExit("--workers must be >= 1")
 
     protocol = read_json(repo_path(args.protocol))
     branch_dir = repo_path(args.branch_dir)
@@ -252,6 +297,7 @@ def main() -> int:
         protocol=protocol,
         run_label=args.run_label,
         n1_seed=args.n1_seed,
+        workers=args.workers,
     )
     write_jsonl_atomic(output_dir / f"{args.run_label}_B1.jsonl", payload["records"]["B1"])
     write_jsonl_atomic(output_dir / f"{args.run_label}_N1.jsonl", payload["records"]["N1"])

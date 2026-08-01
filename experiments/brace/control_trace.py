@@ -84,6 +84,18 @@ def trace_has_chunk_index(trace: dict[str, Any], chunk_index: int) -> bool:
     return any(int(chunk["chunk_index"]) == int(chunk_index) for chunk in trace["policy_chunks"])
 
 
+def load_policy_chunk_indices(hdf5_path: Path) -> set[int]:
+    """Read only /policy_chunks/chunk_index (fast path for dataset export)."""
+    import h5py
+
+    with h5py.File(hdf5_path, "r") as root:
+        if root.attrs.get("brace_schema_version", 0) != SCHEMA_VERSION:
+            raise ValueError(f"missing or unsupported brace_schema_version in {hdf5_path}")
+        if "policy_chunks" not in root or "chunk_index" not in root["policy_chunks"]:
+            raise ValueError(f"missing /policy_chunks/chunk_index in {hdf5_path}")
+        return {int(value) for value in root["policy_chunks"]["chunk_index"][()]}
+
+
 def build_branch_context(trace: dict[str, Any], snapshot: dict[str, Any]) -> BranchContext:
     control_steps = trace["control_steps"]
     if not control_steps:

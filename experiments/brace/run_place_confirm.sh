@@ -18,11 +18,18 @@ BRACE_TRACED_ROLLOUT_DIR="${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/rollouts
   bash experiments/brace/run_all.sh select-confirm-seeds
 
 export BRACE_PILOT_SEEDS_FILE=experiments/brace/seeds/place_container_plate_confirm_seeds.json
+if [[ ! -s "${BRACE_PILOT_SEEDS_FILE}" ]]; then
+  echo "Missing ${BRACE_PILOT_SEEDS_FILE}; select-confirm-seeds failed." >&2
+  exit 2
+fi
 export BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced_pilot
 export BRACE_BRANCH_OUTPUT_DIR=experiments/brace/branches_confirm
 
-bash experiments/brace/run_all.sh collect-trace-pilot
-bash experiments/brace/run_all.sh verify-traced
+if [[ ! -s experiments/brace/rollouts_traced_pilot/place_container_plate/manifest.jsonl ]]; then
+  bash experiments/brace/run_all.sh collect-trace-pilot
+  bash experiments/brace/run_all.sh verify-traced
+fi
+
 bash experiments/brace/run_all.sh branch
 
 python experiments/brace/evaluate_confirmatory_gate.py \

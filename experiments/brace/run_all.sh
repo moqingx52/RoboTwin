@@ -343,7 +343,8 @@ case "${stage}" in
         --task "${task}" \
         --run-label "${dataset_run_label}" \
         --output-dir "${dataset_dir}" \
-        --n1-seed "${BRACE_N1_SEED:-0}"
+        --n1-seed "${BRACE_N1_SEED:-0}" \
+        --workers "${BRACE_EXPORT_WORKERS:-96}"
     done
     ;;
 

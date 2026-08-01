@@ -724,7 +724,11 @@ def main() -> int:
     harness_invalid_reason: str | None = None
 
     for task in tasks:
-        seeds_file = args.seeds_file or (REPO_ROOT / "experiments" / "brace" / "seeds" / f"{task}_pilot_seeds.json")
+        seeds_file = (
+            repo_path(args.seeds_file)
+            if args.seeds_file is not None
+            else (REPO_ROOT / "experiments" / "brace" / "seeds" / f"{task}_pilot_seeds.json")
+        )
         if not seeds_file.is_file():
             errors.append(f"{task}: missing pilot seeds file {seeds_file}")
             continue
