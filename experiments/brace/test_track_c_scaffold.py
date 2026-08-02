@@ -592,6 +592,85 @@ class TrackCScaffoldTest(unittest.TestCase):
                 migrated_rows.extend(payload["rows"])
             self.assertCountEqual(migrated_rows, rows)
 
+    def test_anchor_probe_split_disjoint_by_env_seed(self) -> None:
+        from experiments.brace.anchor_probe_split import build_anchor_probe_split
+
+        manifest = {
+            "manifest_sha256": "abc123",
+            "episodes": [
+                {"preservation_group": "base_solved", "env_seed": 10},
+                {"preservation_group": "base_solved", "env_seed": 11},
+                {"preservation_group": "base_solved", "env_seed": 12},
+                {"preservation_group": "boundary", "env_seed": 20},
+                {"preservation_group": "boundary", "env_seed": 21},
+                {"preservation_group": "boundary", "env_seed": 22},
+            ],
+        }
+        split = build_anchor_probe_split(manifest, split_seed=7, holdout_fraction=0.5)
+        self.assertTrue(split.train_env_seeds.isdisjoint(split.probe_env_seeds))
+        self.assertGreater(len(split.train_env_seeds), 0)
+        self.assertGreater(len(split.probe_env_seeds), 0)
+        self.assertEqual(split.split_sha256, split.to_dict()["split_sha256"])
+
+    def test_anchor_probe_split_filters_sampler_pools(self) -> None:
+        from experiments.brace.anchor_probe_split import sequence_indices_for_env_seeds
+        from experiments.brace.preservation_sampler import PreservationGroupBatchSampler
+
+        groups = np.asarray([1, 1, 1, 1, 2, 2, 2, 2], dtype=np.int64)
+        env_seeds = np.asarray([10, 11, 12, 13, 20, 21, 22, 23], dtype=np.int64)
+
+        class _Dataset:
+            sample_preservation_groups = groups
+            sample_env_seeds = env_seeds
+
+        train_indices = sequence_indices_for_env_seeds(_Dataset(), {10, 11, 20, 21})
+        sampler = PreservationGroupBatchSampler(
+            groups,
+            batch_size=4,
+            preservation_group_ids={"base_solved": 1, "boundary": 2},
+            samples_per_group=2,
+            seed=0,
+            num_batches=5,
+            allowed_indices=train_indices,
+        )
+        for batch in sampler:
+            batch_seeds = set(env_seeds[batch].tolist())
+            self.assertTrue(batch_seeds.issubset({10, 11, 20, 21}))
+
+    def test_materialize_probe_draws_does_not_reset_global_rng(self) -> None:
+        import torch
+        from experiments.brace.anchor_probe_eval import materialize_probe_draws
+
+        class _Teacher:
+            noise_scheduler = type("NS", (), {"config": type("C", (), {"num_train_timesteps": 10})})()
+
+            def eval(self):
+                return self
+
+            def predict_action(self, obs):
+                batch = next(iter(obs.values())).shape[0]
+                return {"action_pred": torch.zeros(batch, 2, device=obs["x"].device)}
+
+            def make_noisy_action(self, clean_action, noise, timesteps):
+                return clean_action + noise
+
+            def denoise_action(self, obs, noisy_action, timesteps):
+                return noisy_action
+
+        class _Cfg:
+            pass
+
+        batch = {
+            "obs": {"x": torch.zeros(4, 1)},
+            "sample_preservation_group": torch.tensor([1, 1, 2, 2], dtype=torch.long),
+        }
+        torch.manual_seed(123)
+        _ = torch.rand(10)
+        state_before = torch.get_rng_state()
+        materialize_probe_draws(_Teacher(), batch, _Cfg(), seed=99, device=torch.device("cpu"))
+        state_after = torch.get_rng_state()
+        self.assertTrue(torch.equal(state_before, state_after))
+
 
 if __name__ == "__main__":
     unittest.main()

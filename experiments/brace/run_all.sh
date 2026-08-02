@@ -119,6 +119,8 @@ Stages:
   prepare-hard-seeds   Base ID probe + select held-out hard eval seeds for screen.
   anchor-smoke         Frozen-denoiser anchor smoke (unit + training-path gate).
   anchor-feasibility   GPU diagnostic with pre-registered optimizer steps (not smoke).
+                       Writes feasibility_trajectory.jsonl + probe trajectory for forensics.
+                       screen.v1.2 gate remains fail-closed until calibrated protocol.
   branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.

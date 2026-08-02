@@ -924,6 +924,7 @@ def create_dataloader(
     group_stratified_rollout: bool = False,
     preservation_stratified: bool = False,
     preservation_group_ids: dict[str, int] | None = None,
+    allowed_indices: np.ndarray | None = None,
 ):
     if preservation_stratified:
         if not hasattr(dataset, "sample_preservation_groups") or dataset.sample_preservation_groups is None:
@@ -941,6 +942,7 @@ def create_dataloader(
             samples_per_group,
             seed=seed,
             num_batches=num_batches,
+            allowed_indices=allowed_indices,
         )
     else:
         batch_sampler = BatchSampler(

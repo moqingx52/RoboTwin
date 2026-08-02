@@ -8,11 +8,19 @@ from pathlib import Path
 from typing import Any
 
 import hydra
+import numpy as np
 import torch
 from omegaconf import OmegaConf
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+from experiments.brace.anchor_probe_eval import evaluate_probe_draws, materialize_probe_draws
+from experiments.brace.anchor_probe_split import (
+    AnchorProbeSplit,
+    build_anchor_probe_split,
+    build_fixed_stratified_batch,
+    sequence_indices_for_env_seeds,
+)
 from experiments.brace.anchor_training_smoke import (
     bootstrap_workspace,
     build_anchor_dataloader,
@@ -23,7 +31,7 @@ from experiments.brace.anchor_training_smoke import (
     iter_postprocessed_batches,
     load_workspace,
 )
-from experiments.brace.replay_audit import git_commit
+from experiments.brace.replay_audit import git_commit, write_json_atomic
 from experiments.brace.screen_gates import (
     evaluate_constraint_feasibility,
     summarize_feasibility_trajectory,
@@ -54,31 +62,11 @@ def _anchor_env_seeds(batch: dict[str, Any]) -> list[int]:
     return [int(value) for value in seeds.detach().cpu().tolist()]
 
 
-@torch.no_grad()
-def evaluate_fixed_probe(
-    workspace,
-    probe_batch: dict[str, Any],
-    *,
-    probe_seed: int,
-    device: torch.device,
-) -> tuple[dict[str, float], dict[str, float]]:
-    from diffusion_policy.workspace.robotworkspace import compute_brace_anchor_loss
-
-    generator = torch.Generator(device=device)
-    generator.manual_seed(probe_seed)
-    torch.manual_seed(probe_seed)
-    reference_student = workspace.ema_model if workspace.cfg.training.use_ema else None
-    _, constraints, _, monitor = compute_brace_anchor_loss(
-        workspace.model,
-        workspace.brace_teacher,
-        probe_batch,
-        workspace.cfg,
-        workspace.brace_dual_state,
-        reference_student=reference_student,
-    )
-    raw = {group: float(value.detach().item()) for group, value in constraints.items()}
-    ema = {key: float(value.detach().item()) for key, value in monitor.items()}
-    return raw, ema
+def _grad_vector_from_grads(grads) -> torch.Tensor | None:
+    chunks = [grad.detach().reshape(-1) for grad in grads if grad is not None]
+    if not chunks:
+        return None
+    return torch.cat(chunks, dim=0)
 
 
 def run_feasibility_diagnostic(
@@ -96,7 +84,10 @@ def run_feasibility_diagnostic(
 
     gate = protocol.get("constraint_feasibility", {})
     steps = int(gate.get("diagnostic_steps", 200))
+    scheduler_total_steps = int(gate.get("scheduler_total_steps", steps))
     probe_seed = int(gate.get("probe_seed", 42))
+    holdout_fraction = float(gate.get("probe_holdout_fraction", 0.5))
+    checkpoint_steps = [int(step) for step in gate.get("checkpoint_steps", [])]
     train_protocol = protocol.get("training", {})
     dual_lr = float(protocol["anchor_smoke"]["dual_lr"])
 
@@ -115,6 +106,13 @@ def run_feasibility_diagnostic(
         output_dir=work_dir,
     )
     anchor_manifest = json.loads((anchor_zarr_path / "brace_anchor_manifest.json").read_text(encoding="utf-8"))
+    probe_split: AnchorProbeSplit = build_anchor_probe_split(
+        anchor_manifest,
+        split_seed=probe_seed,
+        holdout_fraction=holdout_fraction,
+    )
+    split_path = work_dir / "anchor_probe_split.json"
+    write_json_atomic(split_path, probe_split.to_dict())
 
     cfg = build_training_config(
         task=task,
@@ -131,13 +129,45 @@ def run_feasibility_diagnostic(
     bootstrap_workspace(workspace, base_checkpoint)
     device = torch.device(workspace.cfg.training.device)
 
+    group_map = {
+        str(key): int(value)
+        for key, value in dict(
+            OmegaConf.select(cfg, "training.brace_anchor.groups", default={"base_solved": 1, "boundary": 2})
+        ).items()
+    }
+    loader_cfg = OmegaConf.select(workspace.cfg, "training.brace_anchor.dataloader", default=workspace.cfg.dataloader)
+    samples_per_group = int(loader_cfg.batch_size) // len(group_map)
+
+    anchor_dataset_for_split, _ = build_anchor_dataloader(workspace, anchor_zarr_path, allowed_indices=None)
+    train_indices = sequence_indices_for_env_seeds(anchor_dataset_for_split, probe_split.train_env_seeds)
+    probe_indices = sequence_indices_for_env_seeds(anchor_dataset_for_split, probe_split.probe_env_seeds)
+    probe_batch_idx = build_fixed_stratified_batch(
+        anchor_dataset_for_split,
+        probe_indices,
+        group_map,
+        samples_per_group,
+        seed=probe_seed,
+    )
+    probe_batch_np = anchor_dataset_for_split[probe_batch_idx]
+    probe_batch = anchor_dataset_for_split.postprocess(probe_batch_np, device)
+    probe_env_seeds = sorted({int(value) for value in _anchor_env_seeds(probe_batch)})
+    probe_draws = materialize_probe_draws(
+        workspace.brace_teacher,
+        probe_batch,
+        workspace.cfg,
+        seed=probe_seed,
+        device=device,
+    )
+
     sft_dataset, sft_loader = build_sft_dataloader(workspace)
-    anchor_dataset, anchor_loader = build_anchor_dataloader(workspace, anchor_zarr_path)
+    anchor_dataset, anchor_loader = build_anchor_dataloader(
+        workspace,
+        anchor_zarr_path,
+        allowed_indices=train_indices,
+        seed=int(protocol.get("train_seed", 0)),
+    )
     sft_iter = iter_postprocessed_batches(sft_dataset, sft_loader, device)
     anchor_iter = iter_postprocessed_batches(anchor_dataset, anchor_loader, device)
-
-    probe_batch = next(anchor_iter)
-    probe_env_seeds = _anchor_env_seeds(probe_batch)
 
     ema = None
     if workspace.cfg.training.use_ema:
@@ -150,20 +180,15 @@ def run_feasibility_diagnostic(
         workspace.cfg.training.lr_scheduler,
         optimizer=workspace.optimizer,
         num_warmup_steps=int(workspace.cfg.training.lr_warmup_steps),
-        num_training_steps=steps,
+        num_training_steps=scheduler_total_steps,
         last_epoch=int(workspace.global_step) - 1,
     )
 
-    group_ids = {
-        str(key): int(value)
-        for key, value in dict(
-            OmegaConf.select(cfg, "training.brace_anchor.groups", default={"base_solved": 1, "boundary": 2})
-        ).items()
-    }
-    expected_group_values = set(group_ids.values())
+    expected_group_values = set(group_map.values())
     teacher_hash_before = module_sha256(workspace.brace_teacher)
     log_rows: list[dict[str, Any]] = []
     probe_rows: list[dict[str, Any]] = []
+    checkpoint_artifacts: dict[str, Any] = {}
 
     for step in range(steps):
         batch = next(sft_iter)
@@ -192,29 +217,30 @@ def run_feasibility_diagnostic(
         scaled_anchor = anchor_term / grad_accum
         scaled_total = total_loss / grad_accum
 
-        sft_grads = torch.autograd.grad(
-            scaled_raw,
-            params,
-            retain_graph=True,
-            allow_unused=True,
-        )
-        anchor_grads = torch.autograd.grad(
-            scaled_anchor,
-            params,
-            retain_graph=True,
-            allow_unused=True,
-        )
-        sft_grad_vec = torch.cat(
-            [grad.detach().reshape(-1) for grad in sft_grads if grad is not None],
-            dim=0,
-        ) if any(grad is not None for grad in sft_grads) else None
-        anchor_grad_vec = torch.cat(
-            [grad.detach().reshape(-1) for grad in anchor_grads if grad is not None],
-            dim=0,
-        ) if any(grad is not None for grad in anchor_grads) else None
+        sft_grads = torch.autograd.grad(scaled_raw, params, retain_graph=True, allow_unused=True)
+        anchor_grads = torch.autograd.grad(scaled_anchor, params, retain_graph=True, allow_unused=True)
+        sft_grad_vec = _grad_vector_from_grads(sft_grads)
+        anchor_grad_vec = _grad_vector_from_grads(anchor_grads)
         grad_norm_sft = float(sft_grad_vec.norm()) if sft_grad_vec is not None else 0.0
         grad_norm_anchor = float(anchor_grad_vec.norm()) if anchor_grad_vec is not None else 0.0
         grad_cosine = _cosine_similarity(sft_grad_vec, anchor_grad_vec)
+
+        group_grad_metrics: dict[str, float] = {}
+        for group, constraint in anchor_constraints.items():
+            group_grads = torch.autograd.grad(
+                constraint / grad_accum,
+                params,
+                retain_graph=True,
+                allow_unused=True,
+            )
+            group_vec = _grad_vector_from_grads(group_grads)
+            group_norm = float(group_vec.norm()) if group_vec is not None else 0.0
+            group_grad_metrics[f"grad_norm_constraint/{group}"] = group_norm
+            group_grad_metrics[f"grad_cosine_sft_{group}"] = _cosine_similarity(sft_grad_vec, group_vec)
+            dual_value = float(workspace.brace_dual_state.as_dict().get(group, 0.0))
+            group_grad_metrics[f"lambda_grad_scale/{group}"] = (
+                dual_value * group_norm / max(grad_norm_sft, 1e-12)
+            )
 
         workspace.optimizer.zero_grad(set_to_none=True)
         scaled_total.backward()
@@ -227,11 +253,12 @@ def run_feasibility_diagnostic(
                 ema.step(workspace.model)
             workspace.brace_dual_state.update(anchor_constraints, anchor_epsilons, dual_lr)
 
-        probe_raw, probe_monitor = evaluate_fixed_probe(
-            workspace,
-            probe_batch,
-            probe_seed=probe_seed,
-            device=device,
+        probe_raw, probe_monitor = evaluate_probe_draws(
+            workspace.model,
+            workspace.brace_teacher,
+            probe_draws,
+            workspace.cfg,
+            reference_student=reference_student,
         )
         dual_values = workspace.brace_dual_state.as_dict()
         row = {
@@ -245,8 +272,10 @@ def run_feasibility_diagnostic(
             "grad_norm_anchor": grad_norm_anchor,
             "grad_norm_total": grad_norm_total,
             "grad_cosine_sft_anchor": grad_cosine,
+            "anchor_to_sft_grad_ratio": grad_norm_anchor / max(grad_norm_sft, 1e-12),
             "anchor_env_seeds": _anchor_env_seeds(anchor_batch),
             "probe_env_seeds": probe_env_seeds,
+            **group_grad_metrics,
         }
         for group, value in anchor_constraints.items():
             row[f"brace_constraint/{group}"] = float(value.detach().item())
@@ -254,10 +283,6 @@ def run_feasibility_diagnostic(
             row[f"brace_monitor/{key}"] = float(value.detach().item())
         for group, value in dual_values.items():
             row[f"brace_dual/{group}"] = float(value)
-            if group in anchor_constraints:
-                row[f"brace_dual_force_ratio/{group}"] = (
-                    float(value) * float(anchor_constraints[group].detach().item()) / max(grad_norm_sft, 1e-12)
-                )
         for group, value in probe_raw.items():
             row[f"probe_constraint/{group}"] = float(value)
         for key, value in probe_monitor.items():
@@ -270,6 +295,12 @@ def run_feasibility_diagnostic(
                 **{f"brace_monitor/{key}": value for key, value in probe_monitor.items()},
             }
         )
+        if checkpoint_steps and (step + 1) in checkpoint_steps:
+            checkpoint_artifacts[str(step + 1)] = {
+                "probe_constraints": dict(probe_raw),
+                "dual": dict(dual_values),
+                "lr": float(lr_scheduler.get_last_lr()[0]),
+            }
 
     teacher_hash_after = module_sha256(workspace.brace_teacher)
     teacher_hash_stable = teacher_hash_before == teacher_hash_after == workspace.brace_teacher_sha256
@@ -292,27 +323,36 @@ def run_feasibility_diagnostic(
 
     passed = bool(feasibility_train["passed"] and teacher_hash_stable)
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "stage": "anchor_feasibility",
+        "exploratory": bool(protocol.get("exploratory", False)),
         "protocol_revision": protocol.get("protocol_revision"),
         "passed": passed,
         "complete": True,
         "diagnostic_steps": steps,
+        "scheduler_total_steps": scheduler_total_steps,
         "feasibility": feasibility_train,
         "feasibility_on_probe": feasibility_probe,
         "trajectory_summary": trajectory_summary,
         "probe_summary": probe_summary,
         "gate_note": (
             "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; "
-            "tail/probe summaries are forensic-only until a calibrated protocol is frozen."
+            "held-out probe tail summaries are forensic-only until a calibrated protocol is frozen."
         ),
         "dataset_manifest_sha256": manifest_sha256,
         "anchor_manifest_sha256": anchor_manifest.get("manifest_sha256"),
+        "probe_split_sha256": probe_split.split_sha256,
+        "probe_split_path": str(split_path),
+        "rollout_dir": str(traced_root),
         "teacher_hash_before": teacher_hash_before,
         "teacher_hash_end": teacher_hash_after,
         "teacher_hash_stable": teacher_hash_stable,
         "probe_seed": probe_seed,
         "probe_env_seeds": probe_env_seeds,
+        "train_env_seed_count": len(probe_split.train_env_seeds),
+        "probe_env_seed_count": len(probe_split.probe_env_seeds),
+        "checkpoint_steps": checkpoint_steps,
+        "checkpoint_artifacts": checkpoint_artifacts,
         "trajectory_path": str(trajectory_path),
         "probe_trajectory_path": str(probe_trajectory_path),
         "git_commit": git_commit(),

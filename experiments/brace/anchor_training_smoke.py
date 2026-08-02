@@ -199,7 +199,7 @@ def build_sft_dataloader(workspace):
     return dataset, loader
 
 
-def build_anchor_dataloader(workspace, anchor_zarr_path: Path):
+def build_anchor_dataloader(workspace, anchor_zarr_path: Path, *, allowed_indices=None, seed: int | None = None):
     import hydra
     from diffusion_policy.dataset.base_dataset import BaseImageDataset
     from diffusion_policy.workspace.robotworkspace import create_dataloader
@@ -221,6 +221,8 @@ def build_anchor_dataloader(workspace, anchor_zarr_path: Path):
         dataset,
         preservation_stratified=True,
         preservation_group_ids=group_map,
+        allowed_indices=allowed_indices,
+        seed=int(seed if seed is not None else workspace.cfg.training.seed),
         **loader_cfg,
     )
     return dataset, loader

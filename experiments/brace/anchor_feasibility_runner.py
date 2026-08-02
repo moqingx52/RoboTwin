@@ -33,7 +33,7 @@ def run_anchor_feasibility(
 ) -> dict:
     if not torch.cuda.is_available():
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "stage": "anchor_feasibility",
             "passed": False,
             "complete": False,

@@ -15,6 +15,7 @@ class PreservationGroupBatchSampler:
         *,
         seed: int = 0,
         num_batches: int | None = None,
+        allowed_indices: np.ndarray | None = None,
     ):
         if preservation_groups is None or len(preservation_groups) == 0:
             raise ValueError("preservation_stratified sampler requires preservation group labels")
@@ -33,6 +34,14 @@ class PreservationGroupBatchSampler:
             if indices.size == 0:
                 raise ValueError(f"anchor replay set missing preservation group {name} (id={group_id})")
             self.indices_by_group[name] = indices.astype(np.int64, copy=False)
+        if allowed_indices is not None:
+            allowed = np.asarray(allowed_indices, dtype=np.int64)
+            for name in self.group_ids:
+                pool = self.indices_by_group[name]
+                filtered = np.intersect1d(pool, allowed, assume_unique=False)
+                if filtered.size == 0:
+                    raise ValueError(f"anchor split left no samples for preservation group {name}")
+                self.indices_by_group[name] = filtered.astype(np.int64, copy=False)
         self.rng = np.random.default_rng(seed)
         self.num_batch = (
             int(num_batches)
