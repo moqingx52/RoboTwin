@@ -16,6 +16,7 @@ from experiments.brace.inventory_artifacts import build_inventory, inspect_artif
 from experiments.brace.inventory_traced_rollouts import inventory_task
 from experiments.brace.merge_replay_audit_summaries import merge_summaries
 from experiments.brace.orchestrate import prepare_resume_state, summarize_screen
+from experiments.brace.run_eval_group import seed_shards_from_partial
 from experiments.brace.promote_run import copy_file
 from experiments.brace.replay_audit import write_json_atomic
 from experiments.brace.resolve_artifact import resolve_audit_summary, resolve_branch_dir
@@ -333,6 +334,63 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertEqual(state["jobs"]["eval:N1:epoch1"]["status"], "pending")
         self.assertEqual(state["jobs"]["eval:N1:epoch1"]["attempts"], 0)
         self.assertNotIn("exit_code", state["jobs"]["eval:N1:epoch1"])
+
+    def test_partial_eval_rows_are_migrated_to_resume_shards(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seeds = root / "seeds.json"
+            hard = root / "hard.json"
+            output = root / "eval"
+            task_dir = output / "place_container_plate"
+            task_dir.mkdir(parents=True)
+            seeds.write_text(
+                json.dumps({"eval_id": [10, 11], "train_rollout": [20, 21]}),
+                encoding="utf-8",
+            )
+            hard.write_text(json.dumps({"hard_seeds": [30, 31]}), encoding="utf-8")
+            rows = [
+                {"split": "id_heldout", "env_seed": 10, "repeat": 0, "policy_seed": 2000, "success": True},
+                {"split": "train_seen", "env_seed": 20, "repeat": 0, "policy_seed": 2000, "success": False},
+            ]
+            parent = {
+                "task_name": "place_container_plate",
+                "task_config": "demo_clean",
+                "variant": "B1_epoch1",
+                "ckpt_path": "checkpoint.ckpt",
+                "hard_seeds": [30, 31],
+                "hard_seed_source": str(hard),
+                "rows": rows,
+                "splits": {},
+                "progress": {"complete": False, "completed_episodes": 2},
+            }
+            (task_dir / "B1_epoch1.json").write_text(json.dumps(parent), encoding="utf-8")
+            command = [
+                "python", "eval_per_seed.py",
+                "--task", "place_container_plate",
+                "--task-config", "demo_clean",
+                "--variant", "B1_epoch1",
+                "--ckpt-path", "checkpoint.ckpt",
+                "--output-dir", str(output),
+                "--seeds-file", str(seeds),
+                "--hard-seeds-file", str(hard),
+                "--id-seed-count", "2",
+                "--train-seed-count", "2",
+                "--hard-seed-count", "2",
+                "--id-repeats", "1",
+                "--train-repeats", "1",
+                "--hard-repeats", "1",
+                "--policy-seed-offset", "2000",
+                "--resume",
+            ]
+            self.assertEqual(seed_shards_from_partial(command, 3), 2)
+            migrated_rows = []
+            for shard in range(3):
+                path = task_dir / f"B1_epoch1_shard_{shard:02d}_of_03.json"
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(payload["progress"]["num_shards"], 3)
+                self.assertEqual(payload["progress"]["shard_id"], shard)
+                migrated_rows.extend(payload["rows"])
+            self.assertCountEqual(migrated_rows, rows)
 
 
 if __name__ == "__main__":

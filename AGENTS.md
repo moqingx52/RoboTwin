@@ -63,9 +63,12 @@ jobs across the GPUs passed via `--gpus` or `BRACE_GPU_IDS` in `run_all.sh`.
 
 Scheduling model:
 
-- At most **one job per physical GPU** at a time.
-- DP train and DP eval each load a full checkpoint (~22 GiB on RTX 4090). Treat
-  both as exclusive GPU workloads.
+- At most **one logical scheduler job per physical GPU** at a time.
+- A logical eval job must use `run_eval_group.py` with **3 concurrent shards**
+  on its assigned GPU. A single eval shard uses about 787 MiB in the measured
+  place screen; do not serialize all 60 episodes in one process.
+- DP fine-tuning remains exclusive at one process per GPU (~22 GiB). Do not
+  colocate another logical job with it.
 - The orchestrator must set `CUDA_VISIBLE_DEVICES` for **every** job it launches.
   `eval_per_seed.py` uses logical `cuda:0`, so without that env var all eval jobs
   pile onto physical GPU 0 and can OOM against a concurrent train job.
@@ -98,6 +101,7 @@ python experiments/brace/orchestrate.py screen \
   --run-label place_pilot_v2.3 \
   --traced-rollout-dir experiments/brace/rollouts_traced_pilot \
   --gpus 0 1 2 3 4 5 6 7 \
+  --eval-workers-per-gpu 3 \
   --max-retries 1
 ```
 

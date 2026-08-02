@@ -65,6 +65,17 @@ def main():
         "hard_seeds": meta["hard_seeds"],
         "hard_seed_source": meta["hard_seed_source"],
         "rows": rows,
+        "progress": {
+            "complete": True,
+            "completed_episodes": len(rows),
+            "id_repeats": meta.get("progress", {}).get("id_repeats"),
+            "train_repeats": meta.get("progress", {}).get("train_repeats"),
+            "hard_repeats": meta.get("progress", {}).get("hard_repeats"),
+            "policy_seed_offset": meta.get("progress", {}).get("policy_seed_offset"),
+            "shard_id": 0,
+            "num_shards": 1,
+            "merged_from_shards": args.num_shards,
+        },
     }
     out_path = task_dir / f"{args.variant}.json"
     write_json(out_path, summary)

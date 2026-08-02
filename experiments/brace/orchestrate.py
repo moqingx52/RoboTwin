@@ -104,8 +104,15 @@ def compute_steps_per_epoch(path: Path, batch_size: int) -> int:
     return steps
 
 
-def eval_command(task: str, variant: str, ckpt: Path, output_dir: Path) -> list[str]:
-    return [
+def eval_command(
+    task: str,
+    variant: str,
+    ckpt: Path,
+    output_dir: Path,
+    *,
+    workers_per_gpu: int,
+) -> list[str]:
+    leaf_command = [
         "python",
         str(PHASE1_DIR / "eval_per_seed.py"),
         "--task",
@@ -135,6 +142,14 @@ def eval_command(task: str, variant: str, ckpt: Path, output_dir: Path) -> list[
         "--policy-seed-offset",
         "2000",
         "--resume",
+    ]
+    return [
+        "python",
+        str(BRACE_DIR / "run_eval_group.py"),
+        "--workers",
+        str(workers_per_gpu),
+        "--",
+        *leaf_command,
     ]
 
 
@@ -194,7 +209,14 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
         "dependency": None,
         "artifact": str(base_artifact),
         "log": str(run_dir / "logs" / "eval_base.log"),
-        "command": eval_command(task, "base", base_checkpoint(task), eval_dir),
+        "command": eval_command(
+            task,
+            "base",
+            base_checkpoint(task),
+            eval_dir,
+            workers_per_gpu=args.eval_workers_per_gpu,
+        ),
+        "eval_workers_per_gpu": args.eval_workers_per_gpu,
         "attempts": 0,
     }
     if not base_checkpoint(task).is_file():
@@ -253,13 +275,20 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
                 "dependency": train_id,
                 "artifact": str(artifact),
                 "log": str(run_dir / "logs" / f"{eval_id.replace(':', '_')}.log"),
-                "command": eval_command(task, f"{method}_epoch{epoch}", ckpt, eval_dir),
+                "command": eval_command(
+                    task,
+                    f"{method}_epoch{epoch}",
+                    ckpt,
+                    eval_dir,
+                    workers_per_gpu=args.eval_workers_per_gpu,
+                ),
+                "eval_workers_per_gpu": args.eval_workers_per_gpu,
                 "attempts": 0,
             }
             dependency = eval_id
 
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "stage": "development_screen",
         "status": "planned" if args.dry_run else "running",
         "task": task,
@@ -273,6 +302,7 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
         "created_at": datetime.now(timezone.utc).isoformat(),
         "datasets": datasets,
         "steps_per_epoch": steps_per_epoch,
+        "eval_workers_per_gpu": args.eval_workers_per_gpu,
         "missing_inputs": sorted(set(missing_inputs)),
         "jobs": jobs,
         "events": [],
@@ -487,6 +517,45 @@ def prepare_resume_state(state: dict[str, Any]) -> dict[str, Any]:
     return state
 
 
+def refresh_eval_commands(state: dict[str, Any], workers_per_gpu: int) -> None:
+    """Upgrade incomplete legacy eval jobs to the per-GPU sharded runner."""
+    task = state["task"]
+    for job in state["jobs"].values():
+        if job.get("kind") != "eval" or artifact_complete(job):
+            continue
+        method = job.get("method")
+        epoch = int(job.get("epoch", 0))
+        if method == "base":
+            variant = "base"
+            checkpoint = base_checkpoint(task)
+        else:
+            variant = f"{method}_epoch{epoch}"
+            dependency = state["jobs"].get(job.get("dependency"), {})
+            checkpoint_value = dependency.get("artifact")
+            if not checkpoint_value:
+                raise RuntimeError(f"Cannot resolve checkpoint for {job['id']}")
+            checkpoint = Path(checkpoint_value)
+        artifact = Path(job["artifact"])
+        output_dir = artifact.parents[1]
+        job["command"] = eval_command(
+            task,
+            variant,
+            checkpoint,
+            output_dir,
+            workers_per_gpu=workers_per_gpu,
+        )
+        job["eval_workers_per_gpu"] = workers_per_gpu
+    state["eval_workers_per_gpu"] = workers_per_gpu
+    state["schema_version"] = max(3, int(state.get("schema_version", 1)))
+    state.setdefault("events", []).append(
+        {
+            "event": "eval_commands_refreshed",
+            "workers_per_gpu": workers_per_gpu,
+            "at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+
 def load_screen_state(args) -> tuple[Path, Path, dict[str, Any] | None]:
     if args.state:
         state_path = args.state
@@ -535,9 +604,17 @@ def main() -> int:
     parser.add_argument("--state", type=Path)
     parser.add_argument("--gpus", nargs="*", type=int, default=[0])
     parser.add_argument("--max-retries", type=int, default=1)
+    parser.add_argument(
+        "--eval-workers-per-gpu",
+        type=int,
+        default=3,
+        help="Concurrent simulator/eval shards inside each logical eval job.",
+    )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.eval_workers_per_gpu < 1:
+        raise SystemExit("--eval-workers-per-gpu must be >= 1")
     if args.stage == "full":
         raise SystemExit("Full evaluation remains gated on a passing developmental screen and expanded confirm data.")
     protocol = read_json(args.protocol)
@@ -553,6 +630,7 @@ def main() -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "logs").mkdir(exist_ok=True)
     if state is not None and args.resume:
+        refresh_eval_commands(state, args.eval_workers_per_gpu)
         write_json_atomic(state_path, state)
     if state is None:
         state = create_state(args, protocol, run_dir)
