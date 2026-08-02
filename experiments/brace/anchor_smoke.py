@@ -106,7 +106,7 @@ def main() -> int:
     parser.add_argument("--run-label", default=None)
     parser.add_argument("--dataset", default="N1")
     parser.add_argument("--checkpoint", type=Path, default=None)
-    parser.add_argument("--traced-rollout-dir", type=Path, default=Path("experiments/brace/rollouts_traced_pilot"))
+    parser.add_argument("--traced-rollout-dir", type=Path, default=Path("experiments/brace/rollouts_traced"))
     parser.add_argument("--structural-only", action="store_true")
     args = parser.parse_args()
 

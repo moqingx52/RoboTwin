@@ -190,7 +190,7 @@ def main() -> int:
     parser.add_argument("--run-label", required=True)
     parser.add_argument("--dataset", default="N1")
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--traced-rollout-dir", type=Path, default=BRACE_DIR / "rollouts_traced_pilot")
+    parser.add_argument("--traced-rollout-dir", type=Path, default=BRACE_DIR / "rollouts_traced")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     protocol_path = repo_path(args.protocol)

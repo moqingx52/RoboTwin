@@ -22,7 +22,12 @@ BRACE_DIR = REPO_ROOT / "experiments" / "brace"
 DP_HORIZON = 8
 DP_N_OBS_STEPS = 3
 DP_N_ACTION_STEPS = 6
-DP_HYDRA_CONFIG_PATH = str(DP_DIR / "diffusion_policy" / "config")
+
+
+def hydra_config_path() -> str:
+    """Hydra requires a cwd-relative config_path; absolute paths fail in cloud runs."""
+    config_dir = DP_DIR / "diffusion_policy" / "config"
+    return os.path.relpath(config_dir, Path.cwd())
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(DP_DIR) not in sys.path:
@@ -59,7 +64,7 @@ def build_training_config(
     batch_size: int,
     rollout_per_batch: int,
 ) -> OmegaConf:
-    with initialize(version_base=None, config_path=DP_HYDRA_CONFIG_PATH):
+    with initialize(version_base=None, config_path=hydra_config_path()):
         cfg = compose(
             config_name="robot_dp_14",
             overrides=[
@@ -200,9 +205,10 @@ def build_anchor_dataloader(workspace, anchor_zarr_path: Path):
 
     anchor_cfg = OmegaConf.create(OmegaConf.to_container(workspace.cfg.task.dataset, resolve=True))
     anchor_cfg.zarr_path = str(anchor_zarr_path)
+    loader_cfg = OmegaConf.select(workspace.cfg, "training.brace_anchor.dataloader", default=workspace.cfg.dataloader)
+    anchor_cfg.batch_size = int(loader_cfg.batch_size)
     dataset = hydra.utils.instantiate(anchor_cfg)
     assert isinstance(dataset, BaseImageDataset)
-    loader_cfg = OmegaConf.select(workspace.cfg, "training.brace_anchor.dataloader", default=workspace.cfg.dataloader)
     group_map = {
         str(key): int(value)
         for key, value in dict(
@@ -421,7 +427,7 @@ def main() -> int:
     parser.add_argument("--run-label", required=True)
     parser.add_argument("--dataset", default="N1")
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--traced-rollout-dir", type=Path, default=BRACE_DIR / "rollouts_traced_pilot")
+    parser.add_argument("--traced-rollout-dir", type=Path, default=BRACE_DIR / "rollouts_traced")
     parser.add_argument("--work-dir", type=Path, default=None)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()

@@ -74,7 +74,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", default="place_container_plate")
     parser.add_argument("--run-label", default="place_pilot_v2.3")
-    parser.add_argument("--traced-rollout-dir", type=Path, default=Path("experiments/brace/rollouts_traced_pilot"))
+    parser.add_argument("--traced-rollout-dir", type=Path, default=Path("experiments/brace/rollouts_traced"))
     parser.add_argument("--prepare-only", action="store_true")
     args = parser.parse_args()
     payload = check_assets(

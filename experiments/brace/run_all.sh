@@ -131,7 +131,8 @@ Environment (v2 audit / branch):
   BRACE_PROTOCOL_V2_PATH   Protocol file for audit-v2 and branch (default:
                            experiments/brace/protocol.v2.3.json). Set explicitly when
                            reproducing archived v2.3 runs.
-  BRACE_TRACED_ROLLOUT_DIR Traced HDF5 root (e.g. rollouts_traced_pilot for Stage 2).
+  BRACE_TRACED_ROLLOUT_DIR Traced HDF5 root. Use rollouts_traced for anchor/screen;
+                           rollouts_traced_pilot is for Stage-2 branch collection only.
   BRACE_AUDIT_RUN_DIR      Explicit replay-audit run dir; must have replay_gate_passed=true.
   BRACE_BRANCH_OUTPUT_DIR  Branch summary/checks output dir (default: experiments/brace/branches).
   BRACE_PILOT_SEEDS_FILE   Override pilot/confirm seeds JSON for collect/verify/branch.
@@ -706,7 +707,7 @@ PY
       --task "${tasks[0]}" \
       --run-label "${dataset_run_label}" \
       --checkpoint "policy/DP/checkpoints/${tasks[0]}-demo_clean-200-0/600.ckpt" \
-      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}"
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}"
     ;;
 
   anchor-feasibility)
@@ -721,7 +722,7 @@ PY
       --task "${tasks[0]}" \
       --run-label "${dataset_run_label}" \
       --checkpoint "policy/DP/checkpoints/${tasks[0]}-demo_clean-200-0/600.ckpt" \
-      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}" \
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}" \
       --output "${feas_output}"
     if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
       echo "${feas_run_dir}" > "${brace_dir}/runs/LATEST_anchor_feasibility"
@@ -881,7 +882,7 @@ PY
     fi
     exec python experiments/brace/orchestrate.py screen \
       --protocol "${screen_protocol}" \
-      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}" \
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}" \
       --gpus "${gpu_ids[@]}" \
       "$@"
     ;;

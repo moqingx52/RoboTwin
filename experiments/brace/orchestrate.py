@@ -772,7 +772,7 @@ def main() -> int:
     parser.add_argument("--protocol", type=Path, default=BRACE_DIR / "screen_protocol.v1.1.json")
     parser.add_argument("--task", default="place_container_plate")
     parser.add_argument("--run-label", default="place_pilot_v2.3")
-    parser.add_argument("--traced-rollout-dir", type=Path, default=BRACE_DIR / "rollouts_traced_pilot")
+    parser.add_argument("--traced-rollout-dir", type=Path, default=BRACE_DIR / "rollouts_traced")
     parser.add_argument("--anchor-summary", type=Path)
     parser.add_argument("--state", type=Path)
     parser.add_argument("--gpus", nargs="*", type=int, default=[0])

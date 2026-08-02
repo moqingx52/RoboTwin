@@ -78,9 +78,13 @@ Recommended launch on the measured 8x4090 cloud:
 ```bash
 export BRACE_TASKS=place_container_plate
 export BRACE_GPU_IDS="0 1 2 3 4 5 6 7"
-export BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced_pilot
+export BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced
 bash experiments/brace/run_all.sh screen
 ```
+
+Anchor smoke, anchor-feasibility, and screen require the full traced corpus
+(`rollouts_traced`) so anchor replay can populate `base_solved` and `boundary`.
+Use `rollouts_traced_pilot` only for Stage-2 branch collection.
 
 Resume a failed or interrupted developmental screen (after syncing code):
 
@@ -99,7 +103,7 @@ python experiments/brace/orchestrate.py screen \
   --protocol experiments/brace/screen_protocol.v1.1.json \
   --task place_container_plate \
   --run-label place_pilot_v2.3 \
-  --traced-rollout-dir experiments/brace/rollouts_traced_pilot \
+  --traced-rollout-dir experiments/brace/rollouts_traced \
   --gpus 0 1 2 3 4 5 6 7 \
   --eval-workers-per-gpu 3 \
   --max-retries 1
