@@ -19,6 +19,10 @@ from omegaconf import OmegaConf
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DP_DIR = REPO_ROOT / "policy" / "DP"
 BRACE_DIR = REPO_ROOT / "experiments" / "brace"
+DP_HORIZON = 8
+DP_N_OBS_STEPS = 3
+DP_N_ACTION_STEPS = 6
+DP_HYDRA_CONFIG_PATH = str(DP_DIR / "diffusion_policy" / "config")
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(DP_DIR) not in sys.path:
@@ -55,48 +59,43 @@ def build_training_config(
     batch_size: int,
     rollout_per_batch: int,
 ) -> OmegaConf:
-    previous = os.getcwd()
-    os.chdir(DP_DIR)
-    try:
-        with initialize(version_base=None, config_path="diffusion_policy/config"):
-            cfg = compose(
-                config_name="robot_dp_14",
-                overrides=[
-                    f"task.name={task}",
-                    f"task.dataset.zarr_path={zarr_path}",
-                    "task.dataset.load_to_memory=False",
-                    f"dataloader.batch_size={batch_size}",
-                    "dataloader.num_batches=1",
-                    f"dataloader.rollout_per_batch={rollout_per_batch}",
-                    "training.debug=False",
-                    f"training.seed={train_seed}",
-                    "training.device=cuda:0",
-                    "training.resume=False",
-                    f"training.resume_from_ckpt={base_checkpoint}",
-                    "training.resume_training_ckpt=null",
-                    "training.checkpoint_name=anchor_smoke",
-                    "training.num_epochs=1",
-                    "training.stop_after_epoch=1",
-                    "training.checkpoint_every=1",
-                    "training.normalizer_source=checkpoint",
-                    "training.loss_mode=pooled",
-                    "training.brace_anchor.enabled=true",
-                    f"training.brace_anchor.dataset.zarr_path={anchor_zarr_path}",
-                    f"optimizer.lr={learning_rate}",
-                    "exp_name=anchor_smoke",
-                    "logging.mode=offline",
-                    "setting=demo_clean",
-                    "expert_data_num=200",
-                    "head_camera_type=D435",
-                ],
-            )
-        head_camera_cfg = get_camera_config(cfg.head_camera_type)
-        cfg.task.image_shape = [3, head_camera_cfg["h"], head_camera_cfg["w"]]
-        cfg.task.shape_meta.obs.head_cam.shape = [3, head_camera_cfg["h"], head_camera_cfg["w"]]
-        OmegaConf.resolve(cfg)
-        return cfg
-    finally:
-        os.chdir(previous)
+    with initialize(version_base=None, config_path=DP_HYDRA_CONFIG_PATH):
+        cfg = compose(
+            config_name="robot_dp_14",
+            overrides=[
+                f"task.name={task}",
+                f"task.dataset.zarr_path={zarr_path}",
+                "task.dataset.load_to_memory=False",
+                f"dataloader.batch_size={batch_size}",
+                "dataloader.num_batches=1",
+                f"dataloader.rollout_per_batch={rollout_per_batch}",
+                "training.debug=False",
+                f"training.seed={train_seed}",
+                "training.device=cuda:0",
+                "training.resume=False",
+                f"training.resume_from_ckpt={base_checkpoint}",
+                "training.resume_training_ckpt=null",
+                "training.checkpoint_name=anchor_smoke",
+                "training.num_epochs=1",
+                "training.stop_after_epoch=1",
+                "training.checkpoint_every=1",
+                "training.normalizer_source=checkpoint",
+                "training.loss_mode=pooled",
+                "training.brace_anchor.enabled=true",
+                f"training.brace_anchor.dataset.zarr_path={anchor_zarr_path}",
+                f"optimizer.lr={learning_rate}",
+                "exp_name=anchor_smoke",
+                "logging.mode=offline",
+                "setting=demo_clean",
+                "expert_data_num=200",
+                "head_camera_type=D435",
+            ],
+        )
+    head_camera_cfg = get_camera_config(cfg.head_camera_type)
+    cfg.task.image_shape = [3, head_camera_cfg["h"], head_camera_cfg["w"]]
+    cfg.task.shape_meta.obs.head_cam.shape = [3, head_camera_cfg["h"], head_camera_cfg["w"]]
+    OmegaConf.resolve(cfg)
+    return cfg
 
 
 def ensure_screen_zarr(
@@ -118,6 +117,9 @@ def ensure_screen_zarr(
             manifest,
             zarr_path,
             traced_root=traced_root,
+            horizon=DP_HORIZON,
+            n_obs_steps=DP_N_OBS_STEPS,
+            n_action_steps=DP_N_ACTION_STEPS,
         )
     return zarr_path, file_sha256(manifest)
 
@@ -149,6 +151,8 @@ def bootstrap_workspace(workspace, base_checkpoint: Path) -> None:
     workspace.brace_teacher.to(device)
     workspace.brace_teacher.eval()
     workspace.brace_teacher.requires_grad_(False)
+    if workspace.brace_dual_state is not None:
+        workspace.brace_dual_state.to(device)
     if workspace.ema_model is not None:
         workspace.ema_model.to(device)
 
