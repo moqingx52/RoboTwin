@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 REQUIRED_ANCHOR_GROUPS = ("base_solved", "boundary")
+
+# NOTE: screen.v1.2 reuses anchor_smoke.identity_epsilon for feasibility gating.
+# That value validates implementation correctness (same-weight student≈teacher),
+# not a behavior-calibrated preservation budget. See Phase 2 protocol split.
 
 
 def hard_for_checkpoint_selection(protocol: dict[str, Any]) -> bool:
@@ -40,6 +45,61 @@ def parse_training_logs(log_path: Path) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             continue
     return rows
+
+
+def summarize_feasibility_trajectory(
+    rows: list[dict[str, Any]],
+    *,
+    epsilon: float,
+    tail_fraction: float = 0.2,
+    prefix: str = "",
+) -> dict[str, Any]:
+    """Forensic window stats; not used for frozen screen.v1.2 pass/fail."""
+    if not rows:
+        return {"rows": 0}
+
+    tail_count = max(1, int(math.ceil(len(rows) * tail_fraction)))
+    warmup_rows = rows[:-tail_count] if len(rows) > tail_count else []
+    tail_rows = rows[-tail_count:]
+    summary: dict[str, Any] = {
+        "rows": len(rows),
+        "tail_fraction": tail_fraction,
+        "tail_rows": len(tail_rows),
+    }
+
+    for group in REQUIRED_ANCHOR_GROUPS:
+        train_key = f"brace_constraint/{group}"
+        warmup_vals = [float(row[train_key]) for row in warmup_rows if train_key in row]
+        tail_vals = [float(row[train_key]) for row in tail_rows if train_key in row]
+        all_vals = [float(row[train_key]) for row in rows if train_key in row]
+        ema_key = f"brace_monitor/{group}_ema_drift"
+        tail_ema = [float(row[ema_key]) for row in tail_rows if ema_key in row]
+        group_summary: dict[str, Any] = {}
+        if warmup_vals:
+            group_summary[f"{prefix}warmup_max"] = float(max(warmup_vals))
+        if tail_vals:
+            arr = np.asarray(tail_vals, dtype=np.float64)
+            group_summary[f"{prefix}tail_mean"] = float(arr.mean())
+            group_summary[f"{prefix}tail_p90"] = float(np.percentile(arr, 90))
+            group_summary[f"{prefix}tail_violation_fraction"] = float(np.mean(arr > epsilon))
+            if len(tail_vals) >= 2:
+                xs = np.arange(len(tail_vals), dtype=np.float64)
+                slope = float(np.polyfit(xs, arr, 1)[0])
+                group_summary[f"{prefix}tail_slope"] = slope
+        if all_vals:
+            group_summary[f"{prefix}full_mean"] = float(np.mean(all_vals))
+            group_summary[f"{prefix}full_p90"] = float(np.percentile(all_vals, 90))
+        if tail_ema:
+            group_summary[f"{prefix}tail_ema_mean"] = float(np.mean(tail_ema))
+        dual_key = f"brace_dual/{group}"
+        if rows and dual_key in rows[-1]:
+            group_summary[f"{prefix}dual_final"] = float(rows[-1][dual_key])
+        summary[group] = group_summary
+
+    dual_keys = [key for key in rows[-1] if key.startswith("brace_dual/")]
+    if dual_keys:
+        summary[f"{prefix}dual_final"] = {key.split("/", 1)[1]: float(rows[-1][key]) for key in dual_keys}
+    return summary
 
 
 def evaluate_constraint_feasibility(

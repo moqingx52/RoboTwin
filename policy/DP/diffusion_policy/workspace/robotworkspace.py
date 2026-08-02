@@ -82,6 +82,8 @@ def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state, *, refer
         ).values()
     }
     max_per_group = int(OmegaConf.select(cfg, "training.brace_anchor.samples_per_group", default=8))
+    # identity_epsilon is an implementation smoke tolerance; preservation budgets
+    # should be calibrated separately in the screen protocol (see screen.v1.3 plan).
     epsilon_cfg = OmegaConf.select(cfg, "training.brace_anchor.epsilon", default=1e-4)
     if isinstance(epsilon_cfg, (float, int)):
         epsilons = {group: float(epsilon_cfg) for group in group_sources}

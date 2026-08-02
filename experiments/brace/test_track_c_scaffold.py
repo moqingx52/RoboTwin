@@ -23,7 +23,7 @@ from experiments.brace.run_eval_group import seed_shards_from_partial
 from experiments.brace.promote_run import copy_file
 from experiments.brace.replay_audit import write_json_atomic
 from experiments.brace.resolve_artifact import resolve_audit_summary, resolve_branch_dir
-from experiments.brace.screen_gates import compute_forgetting_gate, evaluate_constraint_feasibility
+from experiments.brace.screen_gates import compute_forgetting_gate, evaluate_constraint_feasibility, summarize_feasibility_trajectory
 from experiments.brace.stage_records import emit_stage_record, list_records, resolve_latest_record
 from experiments.brace.validate_artifacts import run_validation
 
@@ -148,6 +148,23 @@ class TrackCScaffoldTest(unittest.TestCase):
             )
             self.assertTrue(summary["passed"])
             self.assertGreater(summary["forgetting_rate_u1"], summary["forgetting_rate_b2"])
+
+    def test_summarize_feasibility_trajectory_reports_tail_window(self) -> None:
+        rows = []
+        for step in range(10):
+            rows.append(
+                {
+                    "step": step,
+                    "brace_constraint/base_solved": 0.02 if step < 8 else 0.001,
+                    "brace_constraint/boundary": 0.02 if step < 8 else 0.001,
+                    "brace_monitor/base_solved_ema_drift": 0.015 if step < 8 else 0.001,
+                    "brace_dual/base_solved": 0.01 * step,
+                }
+            )
+        summary = summarize_feasibility_trajectory(rows, epsilon=1e-4, tail_fraction=0.2)
+        self.assertEqual(summary["rows"], 10)
+        self.assertGreater(summary["base_solved"]["tail_mean"], 0.0)
+        self.assertLess(summary["base_solved"]["tail_mean"], summary["base_solved"]["full_mean"])
 
     def test_anchor_smoke_passes(self) -> None:
         protocol = json.loads(
