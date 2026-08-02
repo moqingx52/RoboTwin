@@ -29,6 +29,13 @@ from experiments.brace.validate_artifacts import run_validation
 
 
 class TrackCScaffoldTest(unittest.TestCase):
+    def test_hydra_config_path_is_relative_to_script(self) -> None:
+        script_dir = Path(__file__).resolve().parent
+        config_dir = (script_dir / "../../policy/DP/diffusion_policy/config").resolve()
+        rel = os.path.relpath(config_dir, script_dir)
+        self.assertEqual(rel, "../../policy/DP/diffusion_policy/config")
+        self.assertTrue((config_dir / "robot_dp_14.yaml").is_file())
+
     def test_run_all_shell_syntax(self) -> None:
         result = subprocess.run(
             ["bash", "-n", "experiments/brace/run_all.sh"],

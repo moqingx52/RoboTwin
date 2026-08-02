@@ -25,9 +25,11 @@ DP_N_ACTION_STEPS = 6
 
 
 def hydra_config_path() -> str:
-    """Hydra requires a cwd-relative config_path; absolute paths fail in cloud runs."""
+    """Hydra resolves config_path relative to this script's directory, not cwd."""
     config_dir = DP_DIR / "diffusion_policy" / "config"
-    return os.path.relpath(config_dir, Path.cwd())
+    return os.path.relpath(config_dir, Path(__file__).resolve().parent)
+
+
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(DP_DIR) not in sys.path:
