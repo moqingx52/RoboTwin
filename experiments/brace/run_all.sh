@@ -25,7 +25,7 @@ branch_prepare_workers=${BRACE_BRANCH_PREPARE_WORKERS:-96}
 branch_output_dir=${BRACE_BRANCH_OUTPUT_DIR:-${brace_dir}/branches}
 dataset_dir=${BRACE_DATASET_DIR:-${brace_dir}/datasets}
 dataset_run_label=${BRACE_DATASET_RUN_LABEL:-place_pilot_v2.3}
-screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.json}
+screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.1.json}
 
 # shellcheck source=experiments/brace/run_paths.sh
 source "${repo_root}/experiments/brace/run_paths.sh"
@@ -665,6 +665,10 @@ PY
       fi
     fi
     require_gate "${anchor_summary}" "Frozen-denoiser anchor smoke gate has not passed"
+    if [[ "$(jq -r '.protocol_revision // ""' "${anchor_summary}")" != "$(jq -r '.protocol_revision' "${screen_protocol}")" ]]; then
+      echo "Anchor smoke protocol does not match screen protocol: ${anchor_summary}" >&2
+      exit 2
+    fi
     if [[ ! -f experiments/brace/orchestrate.py ]]; then
       echo "BRACE orchestrate.py is not implemented yet; screen cannot start." >&2
       exit 2

@@ -190,31 +190,60 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
     def set_normalizer(self, normalizer: LinearNormalizer):
         self.normalizer.load_state_dict(normalizer.state_dict())
 
-    def compute_loss(self, batch, per_sample=False):
+    def _observation_condition(self, obs_dict):
+        """Encode observations into the conditioning used by the denoiser.
+
+        Keeping this separate from random noise/timestep generation lets BRACE
+        evaluate a frozen teacher and a student on exactly the same ``x_t``.
+        """
+        nobs = self.normalizer.normalize(obs_dict)
+        value = next(iter(nobs.values()))
+        batch_size = value.shape[0]
+        local_cond = None
+        global_cond = None
+        if self.obs_as_global_cond:
+            this_nobs = dict_apply(nobs, lambda x: x[:, :self.n_obs_steps, ...].reshape(-1, *x.shape[2:]))
+            nobs_features = self.obs_encoder(this_nobs)
+            global_cond = nobs_features.reshape(batch_size, -1)
+        else:
+            this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
+            nobs_features = self.obs_encoder(this_nobs)
+            nobs_features = nobs_features.reshape(batch_size, value.shape[1], -1)
+            local_cond = nobs_features
+        return local_cond, global_cond
+
+    def denoise_action(self, obs_dict, noisy_action, timesteps):
+        """Predict diffusion output for a caller-supplied noisy action.
+
+        BRACE relies on this deterministic interface to enforce shared clean
+        action, noise, timestep, and noisy action between teacher and student.
+        The current RoboTwin policy uses global observation conditioning.
+        """
+        if not self.obs_as_global_cond:
+            raise NotImplementedError("caller-supplied denoising currently requires obs_as_global_cond=True")
+        local_cond, global_cond = self._observation_condition(obs_dict)
+        return self.model(noisy_action, timesteps, local_cond=local_cond, global_cond=global_cond)
+
+    def make_noisy_action(self, clean_action, noise, timesteps):
+        normalized = self.normalizer["action"].normalize(clean_action)
+        return self.noise_scheduler.add_noise(normalized, noise, timesteps)
+
+    def compute_loss(self, batch, per_sample=False, noise=None, timesteps=None):
         # normalize input
         assert "valid_mask" not in batch
-        nobs = self.normalizer.normalize(batch["obs"])
         nactions = self.normalizer["action"].normalize(batch["action"])
         batch_size = nactions.shape[0]
         horizon = nactions.shape[1]
 
         # handle different ways of passing observation
-        local_cond = None
-        global_cond = None
+        local_cond, global_cond = self._observation_condition(batch["obs"])
         trajectory = nactions
         cond_data = trajectory
-        if self.obs_as_global_cond:
-            # reshape B, T, ... to B*T
-            this_nobs = dict_apply(nobs, lambda x: x[:, :self.n_obs_steps, ...].reshape(-1, *x.shape[2:]))
-            nobs_features = self.obs_encoder(this_nobs)
-            # reshape back to B, Do
-            global_cond = nobs_features.reshape(batch_size, -1)
-        else:
-            # reshape B, T, ... to B*T
+        if not self.obs_as_global_cond:
+            local_cond = None
+            nobs = self.normalizer.normalize(batch["obs"])
             this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
-            nobs_features = self.obs_encoder(this_nobs)
-            # reshape back to B, T, Do
-            nobs_features = nobs_features.reshape(batch_size, horizon, -1)
+            nobs_features = self.obs_encoder(this_nobs).reshape(batch_size, horizon, -1)
             cond_data = torch.cat([nactions, nobs_features], dim=-1)
             trajectory = cond_data.detach()
 
@@ -222,15 +251,21 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         condition_mask = self.mask_generator(trajectory.shape)
 
         # Sample noise that we'll add to the images
-        noise = torch.randn(trajectory.shape, device=trajectory.device)
+        if noise is None:
+            noise = torch.randn(trajectory.shape, device=trajectory.device)
+        elif noise.shape != trajectory.shape:
+            raise ValueError(f"noise shape {tuple(noise.shape)} != trajectory shape {tuple(trajectory.shape)}")
         bsz = trajectory.shape[0]
         # Sample a random timestep for each image
-        timesteps = torch.randint(
-            0,
-            self.noise_scheduler.config.num_train_timesteps,
-            (bsz, ),
-            device=trajectory.device,
-        ).long()
+        if timesteps is None:
+            timesteps = torch.randint(
+                0,
+                self.noise_scheduler.config.num_train_timesteps,
+                (bsz, ),
+                device=trajectory.device,
+            ).long()
+        elif timesteps.shape != (bsz,):
+            raise ValueError(f"timesteps shape {tuple(timesteps.shape)} != ({bsz},)")
         # Add noise to the clean images according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
         noisy_trajectory = self.noise_scheduler.add_noise(trajectory, noise, timesteps)

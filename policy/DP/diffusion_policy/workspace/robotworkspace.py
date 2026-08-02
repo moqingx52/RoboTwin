@@ -8,8 +8,10 @@ if __name__ == "__main__":
     os.chdir(ROOT_DIR)
 
 import os
+import hashlib
 import hydra
 import torch
+import torch.nn as nn
 from omegaconf import OmegaConf
 import pathlib
 from torch.utils.data import DataLoader
@@ -27,6 +29,85 @@ from diffusion_policy.model.diffusion.ema_model import EMAModel
 from diffusion_policy.model.common.lr_scheduler import get_scheduler
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
+
+
+class BraceDualState(nn.Module):
+    """Checkpointable non-negative multipliers for BRACE protection groups."""
+
+    def __init__(self, groups):
+        super().__init__()
+        self.groups = tuple(groups)
+        self.register_buffer("values", torch.zeros(len(self.groups), dtype=torch.float32))
+
+    def update(self, constraints, epsilons, lr):
+        with torch.no_grad():
+            for idx, group in enumerate(self.groups):
+                if group in constraints:
+                    self.values[idx].add_(lr * (constraints[group].detach() - epsilons[group])).clamp_(min=0.0)
+
+    def as_dict(self):
+        return {group: float(self.values[idx].detach().cpu()) for idx, group in enumerate(self.groups)}
+
+
+def module_sha256(module):
+    digest = hashlib.sha256()
+    for name, value in sorted(module.state_dict().items()):
+        digest.update(name.encode("utf-8"))
+        array = value.detach().cpu().contiguous().numpy()
+        digest.update(str(array.dtype).encode("ascii"))
+        digest.update(str(array.shape).encode("ascii"))
+        digest.update(array.tobytes())
+    return digest.hexdigest()
+
+
+def _index_obs(obs, indices):
+    return {key: value.index_select(0, indices) for key, value in obs.items()}
+
+
+def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state):
+    """Functional denoiser constraint with shared teacher action, noise and t."""
+    source = batch.get("sample_source")
+    if source is None:
+        raise ValueError("BRACE anchor requires batch['sample_source'] group labels")
+    group_sources = {"base_solved": 0, "boundary": 1}
+    configured = OmegaConf.select(cfg, "training.brace_anchor.groups", default=group_sources)
+    group_sources = {str(key): int(value) for key, value in dict(configured).items()}
+    max_per_group = int(OmegaConf.select(cfg, "training.brace_anchor.samples_per_group", default=8))
+    epsilon_cfg = OmegaConf.select(cfg, "training.brace_anchor.epsilon", default=1e-4)
+    if isinstance(epsilon_cfg, (float, int)):
+        epsilons = {group: float(epsilon_cfg) for group in group_sources}
+    else:
+        epsilons = {group: float(epsilon_cfg[group]) for group in group_sources}
+
+    constraints = {}
+    weighted = student.model.weight.new_zeros(()) if hasattr(student.model, "weight") else next(student.parameters()).new_zeros(())
+    student_was_training = student.training
+    student.eval()  # fixes crop selection; gradients remain enabled
+    teacher.eval()
+    try:
+        for dual_idx, (group, source_id) in enumerate(group_sources.items()):
+            indices = torch.nonzero(source == source_id, as_tuple=False).flatten()[:max_per_group]
+            if indices.numel() == 0:
+                continue
+            obs = _index_obs(batch["obs"], indices)
+            with torch.no_grad():
+                clean_action = teacher.predict_action(obs)["action_pred"]
+                noise = torch.randn_like(clean_action)
+                timesteps = torch.randint(
+                    0,
+                    teacher.noise_scheduler.config.num_train_timesteps,
+                    (clean_action.shape[0],),
+                    device=clean_action.device,
+                ).long()
+                noisy_action = teacher.make_noisy_action(clean_action, noise, timesteps)
+                teacher_pred = teacher.denoise_action(obs, noisy_action, timesteps)
+            student_pred = student.denoise_action(obs, noisy_action, timesteps)
+            constraint = torch.mean((student_pred - teacher_pred.detach()) ** 2)
+            constraints[group] = constraint
+            weighted = weighted + dual_state.values[dual_idx] * (constraint - epsilons[group])
+    finally:
+        student.train(student_was_training)
+    return weighted, constraints, epsilons
 
 
 def _masked_mean(values, mask, weights=None):
@@ -123,7 +204,7 @@ def apply_normalizer_from_config(model, ema_model, dataset, cfg):
 
 
 class RobotWorkspace(BaseWorkspace):
-    include_keys = ["global_step", "epoch"]
+    include_keys = ["global_step", "epoch", "brace_teacher_sha256"]
 
     def __init__(self, cfg: OmegaConf, output_dir=None):
         super().__init__(cfg, output_dir=output_dir)
@@ -143,6 +224,19 @@ class RobotWorkspace(BaseWorkspace):
 
         # configure training state
         self.optimizer = hydra.utils.instantiate(cfg.optimizer, params=self.model.parameters())
+
+        self.brace_teacher = None
+        self.brace_dual_state = None
+        self.brace_teacher_sha256 = None
+        if bool(OmegaConf.select(cfg, "training.brace_anchor.enabled", default=False)):
+            groups = OmegaConf.select(
+                cfg,
+                "training.brace_anchor.groups",
+                default={"base_solved": 0, "boundary": 1},
+            )
+            self.brace_teacher = copy.deepcopy(self.model)
+            self.brace_teacher.requires_grad_(False)
+            self.brace_dual_state = BraceDualState(dict(groups).keys())
 
         # configure training state
         self.global_step = 0
@@ -182,6 +276,22 @@ class RobotWorkspace(BaseWorkspace):
             self.global_step = 0
             self.epoch = 0
 
+        anchor_enabled = bool(OmegaConf.select(cfg, "training.brace_anchor.enabled", default=False))
+        if anchor_enabled:
+            if not resume_training_ckpt:
+                # The base checkpoint predates BRACE. Freeze the just-loaded raw
+                # model as pi0; EMA/reference choice is therefore explicit.
+                self.brace_teacher.load_state_dict(self.model.state_dict())
+                self.brace_teacher_sha256 = module_sha256(self.brace_teacher)
+                self.brace_dual_state.values.zero_()
+            else:
+                actual_teacher_hash = module_sha256(self.brace_teacher)
+                if self.brace_teacher_sha256 != actual_teacher_hash:
+                    raise RuntimeError(
+                        "Frozen BRACE teacher hash changed across resume: "
+                        f"stored={self.brace_teacher_sha256}, actual={actual_teacher_hash}"
+                    )
+
         # configure dataset
         dataset: BaseImageDataset
         dataset = hydra.utils.instantiate(cfg.task.dataset)
@@ -215,6 +325,10 @@ class RobotWorkspace(BaseWorkspace):
         ema: EMAModel = None
         if cfg.training.use_ema:
             ema = hydra.utils.instantiate(cfg.ema, model=self.ema_model)
+            # EMAModel is a lightweight helper rather than a workspace member;
+            # reconstruct its schedule position from the checkpointed step.
+            ema.optimization_step = int(self.global_step)
+            ema.decay = ema.get_decay(ema.optimization_step)
 
         # configure env
         # env_runner: BaseImageRunner
@@ -245,6 +359,12 @@ class RobotWorkspace(BaseWorkspace):
         self.model.to(device)
         if self.ema_model is not None:
             self.ema_model.to(device)
+        if self.brace_teacher is not None:
+            self.brace_teacher.to(device)
+            self.brace_teacher.eval()
+            self.brace_teacher.requires_grad_(False)
+        if self.brace_dual_state is not None:
+            self.brace_dual_state.to(device)
         optimizer_to(self.optimizer, device)
 
         # save batch for sampling
@@ -267,7 +387,20 @@ class RobotWorkspace(BaseWorkspace):
         )
 
         with JsonLogger(log_path) as json_logger:
-            for local_epoch_idx in range(self.epoch, cfg.training.num_epochs):
+            stop_after_epoch = OmegaConf.select(
+                cfg,
+                "training.stop_after_epoch",
+                default=cfg.training.num_epochs,
+            )
+            if stop_after_epoch is None:
+                stop_after_epoch = cfg.training.num_epochs
+            stop_after_epoch = int(stop_after_epoch)
+            if not self.epoch <= stop_after_epoch <= cfg.training.num_epochs:
+                raise ValueError(
+                    f"Expected current epoch <= stop_after_epoch <= num_epochs, got "
+                    f"{self.epoch} <= {stop_after_epoch} <= {cfg.training.num_epochs}"
+                )
+            for local_epoch_idx in range(self.epoch, stop_after_epoch):
                 step_log = dict()
                 # ========= train for this epoch ==========
                 if cfg.training.freeze_encoder:
@@ -287,7 +420,19 @@ class RobotWorkspace(BaseWorkspace):
                             train_sampling_batch = batch
                         # compute loss
                         raw_loss, loss_aux = aggregate_training_loss(self.model, batch, cfg)
-                        loss = raw_loss / cfg.training.gradient_accumulate_every
+                        anchor_constraints = {}
+                        anchor_epsilons = {}
+                        anchor_term = raw_loss.new_zeros(())
+                        if anchor_enabled:
+                            anchor_term, anchor_constraints, anchor_epsilons = compute_brace_anchor_loss(
+                                self.model,
+                                self.brace_teacher,
+                                batch,
+                                cfg,
+                                self.brace_dual_state,
+                            )
+                        total_loss = raw_loss + anchor_term
+                        loss = total_loss / cfg.training.gradient_accumulate_every
                         loss.backward()
 
                         # step optimizer
@@ -305,6 +450,9 @@ class RobotWorkspace(BaseWorkspace):
                             self.optimizer.step()
                             self.optimizer.zero_grad()
                             lr_scheduler.step()
+                            if anchor_enabled:
+                                dual_lr = float(OmegaConf.select(cfg, "training.brace_anchor.dual_lr"))
+                                self.brace_dual_state.update(anchor_constraints, anchor_epsilons, dual_lr)
 
                         # update ema
                         if cfg.training.use_ema:
@@ -316,11 +464,18 @@ class RobotWorkspace(BaseWorkspace):
                         train_losses.append(raw_loss_cpu)
                         step_log = {
                             "train_loss": raw_loss_cpu,
+                            "total_loss": float(total_loss.detach().item()),
                             "global_step": self.global_step,
                             "epoch": self.epoch,
                             "lr": lr_scheduler.get_last_lr()[0],
                             "normalizer_source": normalizer_source,
                         }
+                        if anchor_enabled:
+                            step_log["brace_teacher_sha256"] = self.brace_teacher_sha256
+                            for group, value in anchor_constraints.items():
+                                step_log[f"brace_constraint/{group}"] = float(value.detach().item())
+                            for group, value in self.brace_dual_state.as_dict().items():
+                                step_log[f"brace_dual/{group}"] = value
                         if loss_aux and (
                             log_source_loss_every > 0 and self.global_step % log_source_loss_every == 0
                         ):
@@ -397,7 +552,7 @@ class RobotWorkspace(BaseWorkspace):
                 # checkpoint
                 if (
                     ((self.epoch + 1) % cfg.training.checkpoint_every) == 0
-                    or (self.epoch + 1) == cfg.training.num_epochs
+                    or (self.epoch + 1) == stop_after_epoch
                 ):
                     # checkpointing
                     save_name = OmegaConf.select(cfg, "training.checkpoint_name", default=None)

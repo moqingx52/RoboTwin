@@ -119,10 +119,25 @@ training:
   lambda_prefix: 0.0
   log_source_loss_every: 50
   log_source_grad_norm_every: 0
+  brace_anchor:
+    enabled: false
+    # Raw-model pi0 is frozen after loading resume_from_ckpt. Group IDs match
+    # episode_source in BRACE screen zarr datasets.
+    reference: raw
+    groups:
+      base_solved: 0
+      boundary: 1
+    epsilon:
+      base_solved: 0.0001
+      boundary: 0.0001
+    dual_lr: 0.01
+    samples_per_group: 8
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 500
   num_epochs: 600
+  # Optional resumable early stop while num_epochs remains the fixed scheduler horizon.
+  stop_after_epoch: null
   gradient_accumulate_every: 1
   # EMA destroys performance when used with BatchNorm
   # replace BatchNorm with GroupNorm.

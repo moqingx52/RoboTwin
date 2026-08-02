@@ -13,6 +13,7 @@ from experiments.brace.evaluate_confirmatory_gate import merge_task_points
 from experiments.brace.inventory_artifacts import build_inventory, inspect_artifact, ArtifactSpec
 from experiments.brace.inventory_traced_rollouts import inventory_task
 from experiments.brace.merge_replay_audit_summaries import merge_summaries
+from experiments.brace.orchestrate import summarize_screen
 from experiments.brace.promote_run import copy_file
 from experiments.brace.replay_audit import write_json_atomic
 from experiments.brace.resolve_artifact import resolve_audit_summary, resolve_branch_dir
@@ -151,6 +152,45 @@ class TrackCScaffoldTest(unittest.TestCase):
         )
         merged = merge_summaries([dump_summary])
         self.assertTrue(merged["tasks"]["dump_bin_bigbin"]["replay_gate_passed"])
+
+    def test_development_screen_summary_uses_all_three_splits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jobs = {}
+
+            def write_eval(job_id, method, epoch, values):
+                path = root / f"{method}_{epoch}.json"
+                payload = {
+                    "splits": {
+                        split: {"mean_sr": value}
+                        for split, value in zip(("id_heldout", "train_seen", "hard_20"), values)
+                    }
+                }
+                path.write_text(json.dumps(payload), encoding="utf-8")
+                jobs[job_id] = {"artifact": str(path)}
+
+            write_eval("eval:base", "base", 0, (0.5, 0.5, 0.5))
+            scores = {
+                "N1": (0.45, 0.40, 0.20),
+                "B1": (0.45, 0.40, 0.30),
+                "B2": (0.46, 0.42, 0.35),
+                "B3": (0.48, 0.45, 0.40),
+            }
+            for method, values in scores.items():
+                write_eval(f"eval:{method}:epoch1", method, 1, values)
+            state = {
+                "task": "place_container_plate",
+                "run_label": "test",
+                "jobs": jobs,
+            }
+            protocol = {
+                "screen_epochs": [1],
+                "promotion": {"id_fraction_of_base": 0.8, "train_fraction_of_base": 0.75},
+            }
+            summary = summarize_screen(state, protocol)
+            self.assertTrue(summary["passed"])
+            self.assertEqual(summary["screens"]["integration_B1_B2_B3"]["best_method"], "B3")
+            self.assertAlmostEqual(summary["methods"]["B1"]["1"]["selection_score"], 0.6)
 
     def test_validate_restored_branch_artifacts(self) -> None:
         result = run_validation(

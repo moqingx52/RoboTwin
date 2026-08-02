@@ -66,7 +66,9 @@ BRACE_TASKS=place_container_plate \
 BRACE_TRACED_ROLLOUT_DIR=experiments/brace/rollouts_traced_pilot \
   bash experiments/brace/run_all.sh branch
 
-bash experiments/brace/run_all.sh screen
+# After a passing screen.v1.1 executable anchor smoke:
+BRACE_TASKS=place_container_plate bash experiments/brace/run_all.sh anchor-smoke
+BRACE_TASKS=place_container_plate bash experiments/brace/run_all.sh screen
 bash experiments/brace/run_all.sh full
 ```
 
@@ -166,3 +168,19 @@ Optional one-shot from cloud: tarball `archive/`, `datasets/`, `sync/` and scp t
 Per-task replay audit outputs should live under `replay_audit_v2/<task>/`;
 extract gate JSON with `bash experiments/brace/run_all.sh archive-replay-gate` before inventory.
 HDF5 under `rollouts_traced*` is not tracked in git.
+
+## Developmental place screen
+
+`screen_protocol.v1.json` remains the original frozen design. The executable
+optimizer/data settings are versioned in `screen_protocol.v1.1.json`; existing v1
+evidence is never rewritten. The trainer now provides:
+
+- matched B1/N1 chunk zarr construction without writing to `rollouts_traced_pilot/`;
+- B1/N1 SFT and B2/B3 frozen raw-teacher constraints with shared action/noise/timestep;
+- checkpoint/resume with stable teacher hash, dual variables, LR and EMA schedule position;
+- fixed 20 ID + 20 train + 20 Hard evaluation at epochs 1/3/5/7/10;
+- timestamped run state plus automatic JSON evidence bundling in `records/bundles/`.
+
+U1 aliases the matched-random N1 data/trajectory in this developmental screen, so
+U1 and B2 have identical optimizer examples. The 11+11 manifests are explicitly
+developmental evidence and cannot produce a paper-ready promotion.
