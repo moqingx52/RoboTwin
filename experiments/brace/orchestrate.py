@@ -392,7 +392,15 @@ class Runner:
         handle = log_path.open("a", encoding="utf-8")
         handle.write("COMMAND " + json.dumps(command) + "\n")
         handle.flush()
-        process = subprocess.Popen(command, cwd=REPO_ROOT, stdout=handle, stderr=subprocess.STDOUT)
+        env = os.environ.copy()
+        env["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        process = subprocess.Popen(
+            command,
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=handle,
+            stderr=subprocess.STDOUT,
+        )
         job.update(status="running", gpu=gpu, pid=process.pid, attempts=int(job["attempts"]) + 1)
         self.running[gpu] = (job["id"], process, handle)
         self.state["events"].append({"event": "launched", "job": job["id"], "gpu": gpu, "pid": process.pid})
@@ -467,6 +475,55 @@ class Runner:
         return 130
 
 
+def prepare_resume_state(state: dict[str, Any]) -> dict[str, Any]:
+    for job in state["jobs"].values():
+        if job["status"] == "failed":
+            job["status"] = "pending"
+            job["attempts"] = 0
+            job.pop("exit_code", None)
+            job.pop("gpu", None)
+            job.pop("pid", None)
+    state["status"] = "running"
+    return state
+
+
+def load_screen_state(args) -> tuple[Path, Path, dict[str, Any] | None]:
+    if args.state:
+        state_path = args.state
+        state = read_json(state_path) if state_path.is_file() else None
+        run_dir = state_path.parent
+        if state is not None and args.resume:
+            prepare_resume_state(state)
+        return run_dir, state_path, state
+
+    state = None
+    run_dir: Path | None = None
+    state_path: Path | None = None
+    pointer = BRACE_DIR / "runs" / "LATEST_SCREEN_DEVELOPMENT"
+    if not args.dry_run and pointer.is_file():
+        candidate_dir = Path(pointer.read_text(encoding="utf-8").strip())
+        candidate_state = candidate_dir / "state.json"
+        if candidate_state.is_file():
+            candidate = read_json(candidate_state)
+            resumable_statuses = {"running", "interrupted", "blocked"}
+            if args.resume:
+                resumable_statuses = resumable_statuses | {"failed"}
+            if (
+                candidate.get("task") == args.task
+                and candidate.get("run_label") == args.run_label
+                and candidate.get("status") in resumable_statuses
+            ):
+                run_dir = candidate_dir
+                state_path = candidate_state
+                state = candidate
+                if args.resume:
+                    prepare_resume_state(state)
+    if state is None:
+        run_dir = BRACE_DIR / "runs" / f"{utc_id()}_screen_{args.task}_development"
+        state_path = run_dir / "state.json"
+    return run_dir, state_path, state
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stage", choices=["screen", "full"])
@@ -478,37 +535,25 @@ def main() -> int:
     parser.add_argument("--state", type=Path)
     parser.add_argument("--gpus", nargs="*", type=int, default=[0])
     parser.add_argument("--max-retries", type=int, default=1)
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if args.stage == "full":
         raise SystemExit("Full evaluation remains gated on a passing developmental screen and expanded confirm data.")
     protocol = read_json(args.protocol)
 
-    if args.state:
-        state_path = args.state
-        state = read_json(state_path) if state_path.is_file() else None
-        run_dir = state_path.parent
-    else:
-        state = None
-        pointer = BRACE_DIR / "runs" / "LATEST_SCREEN_DEVELOPMENT"
-        if not args.dry_run and pointer.is_file():
-            candidate_dir = Path(pointer.read_text(encoding="utf-8").strip())
-            candidate_state = candidate_dir / "state.json"
-            if candidate_state.is_file():
-                candidate = read_json(candidate_state)
-                if (
-                    candidate.get("task") == args.task
-                    and candidate.get("run_label") == args.run_label
-                    and candidate.get("status") in {"running", "interrupted", "blocked"}
-                ):
-                    run_dir = candidate_dir
-                    state_path = candidate_state
-                    state = candidate
-        if state is None:
-            run_dir = BRACE_DIR / "runs" / f"{utc_id()}_screen_{args.task}_development"
-            state_path = run_dir / "state.json"
+    run_dir, state_path, state = load_screen_state(args)
+    if args.resume and args.state and state is None:
+        raise SystemExit(f"Cannot resume: missing state file {args.state}")
+    if args.resume and not args.state and state is None:
+        raise SystemExit(
+            "Cannot resume: no matching LATEST_SCREEN_DEVELOPMENT run for "
+            f"task={args.task} run_label={args.run_label}"
+        )
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "logs").mkdir(exist_ok=True)
+    if state is not None and args.resume:
+        write_json_atomic(state_path, state)
     if state is None:
         state = create_state(args, protocol, run_dir)
         meta = {

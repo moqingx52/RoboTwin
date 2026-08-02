@@ -15,7 +15,7 @@ from experiments.brace.evaluate_confirmatory_gate import merge_task_points
 from experiments.brace.inventory_artifacts import build_inventory, inspect_artifact, ArtifactSpec
 from experiments.brace.inventory_traced_rollouts import inventory_task
 from experiments.brace.merge_replay_audit_summaries import merge_summaries
-from experiments.brace.orchestrate import summarize_screen
+from experiments.brace.orchestrate import prepare_resume_state, summarize_screen
 from experiments.brace.promote_run import copy_file
 from experiments.brace.replay_audit import write_json_atomic
 from experiments.brace.resolve_artifact import resolve_audit_summary, resolve_branch_dir
@@ -290,6 +290,49 @@ class TrackCScaffoldTest(unittest.TestCase):
             run_label="place_pilot_v2.3",
         )
         self.assertTrue(result["passed"], result)
+
+    def test_orchestrate_launch_pins_cuda_visible_devices(self) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from experiments.brace.orchestrate import Runner
+
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "job.log"
+            state = {
+                "jobs": {
+                    "eval:test": {
+                        "id": "eval:test",
+                        "status": "pending",
+                        "command": ["python", "-c", "print(0)"],
+                        "log": str(log_path),
+                        "attempts": 0,
+                    }
+                },
+                "events": [],
+            }
+            args = MagicMock()
+            args.max_retries = 1
+            runner = Runner(args, Path(tmp) / "state.json", state, {})
+            with patch("experiments.brace.orchestrate.subprocess.Popen") as popen:
+                popen.return_value = MagicMock(pid=123, poll=MagicMock(return_value=None))
+                runner.launch(3, state["jobs"]["eval:test"])
+            _, kwargs = popen.call_args
+            self.assertEqual(kwargs["env"]["CUDA_VISIBLE_DEVICES"], "3")
+
+    def test_prepare_resume_state_resets_failed_jobs(self) -> None:
+        state = {
+            "status": "failed",
+            "jobs": {
+                "eval:base": {"status": "completed", "attempts": 1},
+                "eval:N1:epoch1": {"status": "failed", "attempts": 2, "exit_code": 1, "gpu": 0},
+            },
+        }
+        prepare_resume_state(state)
+        self.assertEqual(state["status"], "running")
+        self.assertEqual(state["jobs"]["eval:base"]["status"], "completed")
+        self.assertEqual(state["jobs"]["eval:N1:epoch1"]["status"], "pending")
+        self.assertEqual(state["jobs"]["eval:N1:epoch1"]["attempts"], 0)
+        self.assertNotIn("exit_code", state["jobs"]["eval:N1:epoch1"])
 
 
 if __name__ == "__main__":
