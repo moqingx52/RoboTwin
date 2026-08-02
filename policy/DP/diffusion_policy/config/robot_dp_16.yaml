@@ -122,13 +122,23 @@ training:
     enabled: false
     reference: raw
     groups:
-      base_solved: 0
-      boundary: 1
+      base_solved: 1
+      boundary: 2
+    monitor_only_groups:
+      hard_monitor: 3
     epsilon:
       base_solved: 0.0001
       boundary: 0.0001
     dual_lr: 0.01
     samples_per_group: 8
+    dataset:
+      zarr_path: null
+    dataloader:
+      batch_size: 16
+      shuffle: true
+      num_workers: 0
+      pin_memory: false
+      persistent_workers: false
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 500

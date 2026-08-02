@@ -60,8 +60,8 @@ def run_unit_anchor_smoke(protocol: dict[str, Any]) -> dict[str, Any]:
     def constraint_once(student_model, teacher_model, dual_state):
         constraints = []
         term = student_model.model.weight.new_zeros(())
-        for dual_index, source_id in enumerate((0, 1)):
-            indices = torch.nonzero(batch["sample_source"] == source_id, as_tuple=False).flatten()
+        for dual_index, group_id in enumerate((1, 2)):
+            indices = torch.nonzero(batch["sample_preservation_group"] == group_id, as_tuple=False).flatten()
             obs = {key: value.index_select(0, indices) for key, value in batch["obs"].items()}
             with torch.no_grad():
                 clean = teacher_model.predict_action(obs)["action_pred"]
@@ -84,7 +84,7 @@ def run_unit_anchor_smoke(protocol: dict[str, Any]) -> dict[str, Any]:
     dual = TinyDual()
     batch = {
         "obs": {"agent_pos": torch.randn(6, 4, 1)},
-        "sample_source": torch.tensor([0, 0, 0, 1, 1, 1]),
+        "sample_preservation_group": torch.tensor([1, 1, 1, 2, 2, 2]),
     }
     _, identity_constraints = constraint_once(student, teacher, dual)
     identity_violation = max(float(value.detach()) for value in identity_constraints)

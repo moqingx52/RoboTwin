@@ -21,11 +21,40 @@ DP_DIR = REPO_ROOT / "policy" / "DP"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from experiments.brace.anchor_smoke import anchor_gate_passed
+from experiments.brace.anchor_smoke import anchor_feasibility_gate_passed, anchor_gate_passed
 from experiments.brace.replay_audit import git_commit, read_json, write_json_atomic
+from experiments.brace.screen_gates import (
+    REQUIRED_ANCHOR_GROUPS,
+    compute_forgetting_gate,
+    load_base_solved_seeds,
+    load_or_evaluate_feasibility,
+    selection_score,
+)
 
 TRAIN_METHODS = ("N1", "B1", "B2", "B3")
 METHOD_DATASET = {"N1": "N1", "U1": "N1", "B1": "B1", "B2": "N1", "B3": "B1"}
+
+
+def screen_epochs(protocol: dict[str, Any]) -> list[int]:
+    mode = protocol.get("screen_mode", "full")
+    micro = protocol.get("micro_screen_epochs", {})
+    if mode in micro:
+        return [int(epoch) for epoch in micro[mode]]
+    return [int(epoch) for epoch in protocol.get("screen_epochs", [1, 3, 5, 7, 10])]
+
+
+def active_train_methods(protocol: dict[str, Any]) -> tuple[str, ...]:
+    mode = protocol.get("screen_mode", "full")
+    if mode == "preservation_only":
+        return ("N1", "B2")
+    if mode == "credit_only":
+        return ("N1", "B1")
+    if mode == "integration":
+        return ("B1", "B2", "B3")
+    configured = protocol.get("active_methods")
+    if configured:
+        return tuple(method for method in configured if method in TRAIN_METHODS)
+    return TRAIN_METHODS
 
 
 def utc_id() -> str:
@@ -58,6 +87,19 @@ def hard_seeds(task: str) -> Path:
 
 def screen_manifest(run_label: str, dataset: str) -> Path:
     return BRACE_DIR / "datasets" / f"{run_label}_{dataset}.jsonl"
+
+
+def resolve_anchor_feasibility(explicit: Path | None) -> Path | None:
+    if explicit is not None:
+        return explicit
+    pointer = BRACE_DIR / "runs" / "LATEST_anchor_feasibility"
+    if pointer.is_file():
+        run_dir = Path(pointer.read_text(encoding="utf-8").strip())
+        candidate = run_dir / "summary.json"
+        if candidate.is_file():
+            return candidate
+    legacy = BRACE_DIR / "anchor_feasibility" / "summary.json"
+    return legacy if legacy.is_file() else None
 
 
 def resolve_anchor_summary(explicit: Path | None) -> Path:
@@ -158,6 +200,8 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
     run_label = args.run_label
     train_cfg = protocol["training"]
     checkpoint_label = run_dir.name.split("_screen_", 1)[0]
+    train_methods = active_train_methods(protocol)
+    epochs = screen_epochs(protocol)
     jobs: dict[str, dict[str, Any]] = {}
     datasets: dict[str, str] = {}
     missing_inputs: list[str] = []
@@ -168,7 +212,8 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
     else:
         steps_per_epoch = compute_steps_per_epoch(expert, int(train_cfg["batch_size"]))
 
-    for dataset in ("B1", "N1"):
+    prepare_datasets = sorted({METHOD_DATASET[method] for method in train_methods})
+    for dataset in prepare_datasets:
         manifest = screen_manifest(run_label, dataset)
         output = run_dir / "datasets" / f"{task}_{dataset}.zarr"
         datasets[dataset] = str(output)
@@ -196,6 +241,33 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
         }
         if not manifest.is_file():
             missing_inputs.append(str(manifest))
+
+    anchor_output = run_dir / "datasets" / f"{task}_anchor_replay.zarr"
+    datasets["anchor"] = str(anchor_output)
+    needs_anchor = any(method in ("B2", "B3") for method in train_methods)
+    if needs_anchor:
+        anchor_dependency = f"prepare:{prepare_datasets[0]}" if prepare_datasets else None
+        jobs["prepare:anchor"] = {
+            "id": "prepare:anchor",
+            "kind": "prepare",
+            "status": "pending",
+            "dependency": anchor_dependency,
+            "artifact": str(anchor_output / "brace_anchor_manifest.json"),
+            "log": str(run_dir / "logs" / "prepare_anchor.log"),
+            "command": [
+                "python",
+                str(BRACE_DIR / "build_anchor_replay_set.py"),
+                "--task",
+                task,
+                "--rollout-dir",
+                str(args.traced_rollout_dir),
+                "--hard-seeds-file",
+                str(hard_seeds(task)),
+                "--output",
+                str(anchor_output),
+            ],
+            "attempts": 0,
+        }
 
     eval_dir = run_dir / "eval"
     base_id = "eval:base"
@@ -232,10 +304,22 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
             missing_inputs.append(
                 f"passing {protocol['protocol_revision']} training-path anchor smoke:{anchor_summary}"
             )
+    if needs_anchor:
+        feasibility_summary = resolve_anchor_feasibility(getattr(args, "anchor_feasibility_summary", None))
+        if feasibility_summary is None or not feasibility_summary.is_file():
+            missing_inputs.append("passing anchor feasibility diagnostic (run anchor-feasibility stage)")
+        else:
+            feasibility_payload = read_json(feasibility_summary)
+            if not anchor_feasibility_gate_passed(feasibility_payload, protocol["protocol_revision"]):
+                missing_inputs.append(
+                    f"passing {protocol['protocol_revision']} anchor feasibility:{feasibility_summary}"
+                )
 
-    for method in TRAIN_METHODS:
+    for method in train_methods:
         dependency = f"prepare:{METHOD_DATASET[method]}"
-        for epoch in protocol["screen_epochs"]:
+        if needs_anchor and method in ("B2", "B3"):
+            dependency = "prepare:anchor"
+        for epoch in epochs:
             train_id = f"train:{method}:epoch{epoch}"
             ckpt = checkpoint_path(task, checkpoint_label, method, int(protocol["train_seed"]), int(epoch))
             jobs[train_id] = {
@@ -261,6 +345,8 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
                     str(train_cfg["learning_rate"]),
                     str(train_cfg["rollout_per_batch"]),
                     str(train_cfg["batch_size"]),
+                    datasets.get("anchor", ""),
+                    str(args.protocol),
                 ],
                 "attempts": 0,
             }
@@ -297,6 +383,9 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
         "checkpoint_label": checkpoint_label,
         "protocol_path": str(args.protocol),
         "protocol_sha256": file_sha256(args.protocol),
+        "screen_mode": protocol.get("screen_mode", "full"),
+        "active_methods": list(train_methods),
+        "screen_epochs": epochs,
         "anchor_summary": str(anchor_summary),
         "git_commit": git_commit(),
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -318,42 +407,96 @@ def split_metrics(payload: dict[str, Any]) -> dict[str, float]:
 
 def summarize_screen(state: dict[str, Any], protocol: dict[str, Any]) -> dict[str, Any]:
     base = split_metrics(read_json(Path(state["jobs"]["eval:base"]["artifact"])))
+    epochs = state.get("screen_epochs") or screen_epochs(protocol)
+    train_methods = tuple(state.get("active_methods") or active_train_methods(protocol))
+    run_dir = Path(state["run_dir"])
+    base_solved_seeds = load_base_solved_seeds(run_dir, state["task"])
+    preservation_cfg = protocol.get("preservation_metrics", {})
+    base_eval_path = Path(state["jobs"]["eval:base"]["artifact"])
     methods: dict[str, Any] = {}
-    for method in TRAIN_METHODS:
+    for method in train_methods:
         methods[method] = {}
-        for epoch in protocol["screen_epochs"]:
-            payload = read_json(Path(state["jobs"][f"eval:{method}:epoch{epoch}"]["artifact"]))
+        for epoch in epochs:
+            eval_path = Path(state["jobs"][f"eval:{method}:epoch{epoch}"]["artifact"])
+            train_job = state["jobs"].get(f"train:{method}:epoch{epoch}")
+            train_path = Path(train_job["artifact"]) if train_job else None
+            payload = read_json(eval_path)
             metrics = split_metrics(payload)
-            normalized = {
-                split: metrics[split] / max(base[split], 0.05)
-                for split in metrics
-            }
+            id_train_gate = (
+                metrics["id_heldout"] >= protocol["promotion"]["id_fraction_of_base"] * base["id_heldout"]
+                and metrics["train_seen"] >= protocol["promotion"]["train_fraction_of_base"] * base["train_seen"]
+            )
+            feasibility = None
+            if method in ("B2", "B3"):
+                if train_path is None:
+                    feasibility = {
+                        "passed": False,
+                        "missing_groups": list(REQUIRED_ANCHOR_GROUPS),
+                        "groups": {},
+                        "error": "missing_train_artifact",
+                    }
+                else:
+                    feasibility = load_or_evaluate_feasibility(train_path, protocol)
+            forgetting = None
+            if method == "B2" and "N1" in methods and str(epoch) in methods["N1"]:
+                u1_eval = Path(state["jobs"][f"eval:N1:epoch{epoch}"]["artifact"])
+                forgetting = compute_forgetting_gate(
+                    base_eval=base_eval_path,
+                    u1_eval=u1_eval,
+                    b2_eval=eval_path,
+                    base_solved_seeds=base_solved_seeds,
+                    protocol=protocol,
+                )
+            eligible = id_train_gate
+            failure_reasons = []
+            if not id_train_gate:
+                failure_reasons.append("id_train_gate_failed")
+            if method in ("B2", "B3"):
+                if feasibility is None or not feasibility.get("passed"):
+                    eligible = False
+                    failure_reasons.append("constraint_feasibility_failed")
+            if method == "B2":
+                if forgetting is None or not forgetting.get("passed"):
+                    eligible = False
+                    failure_reasons.append("forgetting_gate_failed")
             methods[method][str(epoch)] = {
                 "metrics": metrics,
-                "normalized": normalized,
-                "id_train_gate": (
-                    metrics["id_heldout"] >= protocol["promotion"]["id_fraction_of_base"] * base["id_heldout"]
-                    and metrics["train_seen"] >= protocol["promotion"]["train_fraction_of_base"] * base["train_seen"]
-                ),
-                "selection_score": min(normalized.values()),
-                "artifact": state["jobs"][f"eval:{method}:epoch{epoch}"]["artifact"],
+                "id_train_gate": id_train_gate,
+                "selection_score": selection_score(metrics, base, protocol),
+                "constraint_feasibility": feasibility,
+                "forgetting_gate": forgetting,
+                "eligible": eligible,
+                "failure_reasons": failure_reasons,
+                "artifact": str(eval_path),
             }
-    methods["U1"] = methods["N1"]
+    methods["U1"] = methods.get("N1", {})
 
     def best(method: str) -> dict[str, Any] | None:
-        eligible = [
-            dict(value, epoch=int(epoch))
-            for epoch, value in methods[method].items()
-            if value["id_train_gate"]
-        ]
+        if method not in methods:
+            return None
+        eligible = [dict(value, epoch=int(epoch)) for epoch, value in methods[method].items() if value["eligible"]]
         return max(eligible, key=lambda row: (row["selection_score"], -row["epoch"])) if eligible else None
 
     bests = {method: best(method) for method in ("N1", "U1", "B1", "B2", "B3")}
+    credit_margin = None
+    if bests["B1"] and bests["N1"]:
+        credit_margin = bests["B1"]["selection_score"] - bests["N1"]["selection_score"]
     credit_passed = bool(
-        bests["B1"] and bests["N1"] and bests["B1"]["selection_score"] > bests["N1"]["selection_score"]
+        bests["B1"]
+        and bests["N1"]
+        and credit_margin is not None
+        and credit_margin > float(protocol.get("screens", {}).get("credit", {}).get("min_score_margin", 0.0))
     )
+    preservation_margin = None
+    if bests["B2"] and bests["U1"]:
+        preservation_margin = bests["B2"]["selection_score"] - bests["U1"]["selection_score"]
     preservation_passed = bool(
-        bests["B2"] and bests["U1"] and bests["B2"]["selection_score"] > bests["U1"]["selection_score"]
+        bests["B2"]
+        and bests["U1"]
+        and preservation_margin is not None
+        and preservation_margin > 0.0
+        and bests["B2"].get("constraint_feasibility", {}).get("passed")
+        and bests["B2"].get("forgetting_gate", {}).get("passed")
     )
     integration_best = max(
         ((method, bests[method]) for method in ("B1", "B2", "B3") if bests[method]),
@@ -361,30 +504,58 @@ def summarize_screen(state: dict[str, Any], protocol: dict[str, Any]) -> dict[st
         default=None,
     )
     integration_passed = bool(credit_passed and preservation_passed and integration_best and integration_best[0] == "B3")
+    screen_mode = protocol.get("screen_mode", "full")
+    if screen_mode == "preservation_only":
+        passed = preservation_passed
+    elif screen_mode == "credit_only":
+        passed = credit_passed
+    else:
+        passed = bool(credit_passed and preservation_passed and integration_passed)
     return {
-        "schema_version": 1,
+        "schema_version": 3,
         "complete": True,
-        "passed": bool(credit_passed and preservation_passed and integration_passed),
+        "passed": passed,
         "developmental_only": True,
         "paper_claim_ready": False,
+        "screen_mode": screen_mode,
         "task": state["task"],
         "run_label": state["run_label"],
         "base": base,
         "methods": methods,
         "best_eligible": bests,
+        "gate_margins": {
+            "credit_B1_minus_N1": credit_margin,
+            "preservation_B2_minus_U1": preservation_margin,
+        },
         "screens": {
-            "credit_B1_vs_N1": {"passed": credit_passed},
-            "preservation_U1_vs_B2": {"passed": preservation_passed, "U1_alias": "N1"},
+            "credit_B1_vs_N1": {
+                "passed": credit_passed,
+                "margin": credit_margin,
+                "failure_reason": None if credit_passed else "B1 did not beat N1 by required margin",
+            },
+            "preservation_U1_vs_B2": {
+                "passed": preservation_passed,
+                "margin": preservation_margin,
+                "U1_alias": "N1",
+                "failure_reason": None
+                if preservation_passed
+                else (
+                    "B2 did not beat U1/N1"
+                    if bests["B2"] and bests["U1"] and (preservation_margin or 0) <= 0
+                    else "B2 failed constraint feasibility or forgetting gate"
+                ),
+            },
             "integration_B1_B2_B3": {
                 "passed": integration_passed,
                 "best_method": integration_best[0] if integration_best else None,
                 "requires_prior_screens": True,
+                "failure_reason": None if integration_passed else "prior screens failed or B3 not best",
             },
         },
         "limitations": [
-            "11 B1 + 11 matched-random chunks are sufficient only for developmental falsification.",
+            "Developmental screen only; reserve split is never used for checkpoint selection.",
             "U1 uses the N1 matched-random manifest so B2 and U1 see identical optimizer examples.",
-            "No reserve split is inspected and no full/paper screen is promoted from this run.",
+            "Hard split is reported but excluded from checkpoint selection when hard_for_checkpoint_selection=false.",
         ],
     }
 
@@ -424,6 +595,7 @@ class Runner:
         handle.flush()
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        env["BRACE_SCREEN_PROTOCOL_PATH"] = str(self.args.protocol.resolve())
         process = subprocess.Popen(
             command,
             cwd=REPO_ROOT,
@@ -476,6 +648,7 @@ class Runner:
                 summary_path = Path(self.state["run_dir"]) / "summary.json"
                 write_json_atomic(summary_path, summary)
                 self.state["status"] = "completed"
+                self.state["completed_at"] = datetime.now(timezone.utc).isoformat()
                 self.state["summary"] = str(summary_path)
                 self.save()
                 from experiments.brace.stage_records import emit_stage_record
@@ -616,7 +789,10 @@ def main() -> int:
     if args.eval_workers_per_gpu < 1:
         raise SystemExit("--eval-workers-per-gpu must be >= 1")
     if args.stage == "full":
-        raise SystemExit("Full evaluation remains gated on a passing developmental screen and expanded confirm data.")
+        promotion_v12 = BRACE_DIR / "promotions" / "screen_v1.2.json"
+        if not promotion_v12.is_file() or read_json(promotion_v12).get("passed") is not True:
+            raise SystemExit(f"Full evaluation blocked until screen.v1.2 developmental screen passes: {promotion_v12}")
+        raise SystemExit("Full evaluation remains gated on expanded confirm data and passing screen.v1.2 integration.")
     protocol = read_json(args.protocol)
 
     run_dir, state_path, state = load_screen_state(args)
@@ -630,6 +806,13 @@ def main() -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "logs").mkdir(exist_ok=True)
     if state is not None and args.resume:
+        expected_sha = file_sha256(args.protocol)
+        stored_sha = state.get("protocol_sha256")
+        if stored_sha and stored_sha != expected_sha:
+            raise SystemExit(
+                "Cannot resume: protocol sha256 mismatch "
+                f"(state={stored_sha}, cli={expected_sha})"
+            )
         refresh_eval_commands(state, args.eval_workers_per_gpu)
         write_json_atomic(state_path, state)
     if state is None:

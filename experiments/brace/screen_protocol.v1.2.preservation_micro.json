@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "protocol_revision": "screen.v1.2",
+  "status": "frozen",
+  "frozen_on": "2026-08-03",
+  "description": "Preservation micro-screen: U1 vs corrected B2 only.",
+  "base_checkpoint_pattern": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
+  "train_seed": 0,
+  "screen_mode": "preservation_only",
+  "active_methods": ["N1", "B2"],
+  "screen_epochs": [1, 3, 5],
+  "training": {
+    "learning_rate": 0.00005,
+    "batch_size": 128,
+    "rollout_per_batch": 16,
+    "checkpoint_every": 1,
+    "normalizer_source": "checkpoint",
+    "teacher_reference": "raw",
+    "anchor_samples_per_group": 8
+  },
+  "eval": {
+    "id_seeds": 20,
+    "train_seeds": 20,
+    "hard_seeds": 20,
+    "use_reserve_split": false,
+    "hard_for_checkpoint_selection": false
+  },
+  "promotion": {
+    "id_fraction_of_base": 0.8,
+    "train_fraction_of_base": 0.75
+  },
+  "anchor_smoke": {
+    "gate_level": "training_path",
+    "identity_epsilon": 0.0001,
+    "violation_steps": 50,
+    "dual_lr": 0.01,
+    "dual_nonnegativity": true,
+    "teacher_no_grad": true,
+    "shared_noise_timestep": true,
+    "raw_ema_reference_fixed": true,
+    "teacher_hash_stable_on_resume": true,
+    "training_path": {
+      "run_label": "place_pilot_v2.3",
+      "dataset": "N1",
+      "optimizer_steps": 1,
+      "violation_steps": 10
+    }
+  },
+  "constraint_feasibility": {
+    "enabled": true,
+    "mean_tolerance_factor": 2.0,
+    "p90_max_factor": 5.0,
+    "violation_fraction_max": {
+      "base_solved": 0.5,
+      "boundary": 0.5
+    },
+    "require_raw_and_ema": true,
+    "diagnostic_steps": 200,
+    "ineligible_if_infeasible": true
+  },
+  "screens": {
+    "credit": {"methods": ["base", "U1", "N1", "B1"], "requires_b1_beats_n1": false},
+    "preservation": {
+      "methods": ["U1", "B2"],
+      "requires_b2_beats_u1": true,
+      "requires_constraint_feasibility": true,
+      "requires_forgetting_gate": true
+    },
+    "integration": {"methods": ["B1", "B2", "B3"], "requires_prior_screens": false}
+  }
+}

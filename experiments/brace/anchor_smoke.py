@@ -27,6 +27,17 @@ def anchor_gate_passed(summary: dict[str, Any], protocol_revision: str) -> bool:
     )
 
 
+def anchor_feasibility_gate_passed(summary: dict[str, Any], protocol_revision: str) -> bool:
+    return bool(
+        summary.get("passed")
+        and summary.get("complete")
+        and summary.get("stage") == "anchor_feasibility"
+        and summary.get("protocol_revision") == protocol_revision
+        and summary.get("teacher_hash_stable")
+        and summary.get("feasibility", {}).get("passed")
+    )
+
+
 def run_anchor_smoke(
     protocol: dict[str, Any],
     *,

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
 import cv2
@@ -15,6 +16,10 @@ import numpy as np
 import zarr
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from experiments.brace.preservation_groups import PRESERVATION_NONE, SOURCE_EXPERT, SOURCE_ROLLOUT
 
 
 def sha256(path: Path) -> str:
@@ -148,9 +153,15 @@ def build_dataset(
         new_ends = expert_frames + horizon * np.arange(1, len(chunks) + 1, dtype=np.int64)
         meta.create_dataset("episode_ends", data=np.concatenate((expert_ends, new_ends)), dtype="int64")
         source_labels = np.concatenate(
-            (np.zeros(expert_episodes, dtype=np.int64), np.ones(len(chunks), dtype=np.int64))
+            (
+                np.full(expert_episodes, SOURCE_EXPERT, dtype=np.int64),
+                np.full(len(chunks), SOURCE_ROLLOUT, dtype=np.int64),
+            )
         )
         meta.create_dataset("episode_source", data=source_labels, dtype="int64")
+        # SFT screen zarr: chunks are learned via rollout loss; preservation groups live in anchor replay.
+        preservation_labels = np.full(expert_episodes + len(chunks), PRESERVATION_NONE, dtype=np.int64)
+        meta.create_dataset("episode_preservation_group", data=preservation_labels, dtype="int64")
         env_seed = np.concatenate(
             (np.full(expert_episodes, -1, dtype=np.int64), np.asarray([row["env_seed"] for row in rows], dtype=np.int64))
         )

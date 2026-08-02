@@ -133,7 +133,7 @@ def build_b1_records(
 ) -> list[dict[str, Any]]:
     ckpt = checkpoint_metadata(protocol, task)
     records: list[dict[str, Any]] = []
-    for point in accepted_points:
+    for point_id, point in enumerate(accepted_points):
         key = (int(point["env_seed"]), int(point["snapshot_id"]), int(point["physics_step"]))
         row = candidate_rows.get(key)
         if row is None:
@@ -146,6 +146,7 @@ def build_b1_records(
         records.append(
             {
                 "dataset": "B1",
+                "matched_pair_id": point_id,
                 "run_label": run_label,
                 "task": task,
                 "env_seed": int(point["env_seed"]),
@@ -177,9 +178,20 @@ def build_n1_records(
     selection_seed: int,
     protocol: dict[str, Any],
     run_label: str,
-) -> list[dict[str, Any]]:
+    strict_matching: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     if not b1_records:
-        return []
+        return [], {"matched": 0, "dropped": 0}
+
+    if strict_matching:
+        return build_n1_records_strict(
+            task=task,
+            b1_records=b1_records,
+            chunk_to_candidates=chunk_to_candidates,
+            selection_seed=selection_seed,
+            protocol=protocol,
+            run_label=run_label,
+        )
 
     ckpt = checkpoint_metadata(protocol, task)
     chunk_hist = Counter(int(record["branch_chunk_index"]) for record in b1_records)
@@ -211,7 +223,154 @@ def build_n1_records(
                     **ckpt,
                 }
             )
-    return records
+    audit = {
+        "strict_matching": False,
+        "matched": len(records),
+        "dropped": 0,
+        "b1_unique_env_seeds": sorted({int(row["env_seed"]) for row in b1_records}),
+        "n1_unique_env_seeds": sorted({int(row["env_seed"]) for row in records}),
+    }
+    return records, audit
+
+
+def build_n1_records_strict(
+    *,
+    task: str,
+    b1_records: list[dict[str, Any]],
+    chunk_to_candidates: dict[int, list[Candidate]],
+    selection_seed: int,
+    protocol: dict[str, Any],
+    run_label: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    ckpt = checkpoint_metadata(protocol, task)
+    rng = random.Random(selection_seed)
+    records: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    fallback_count = 0
+    duplicate_count = 0
+    credit_cfg = protocol.get("credit_matching", {})
+    max_share = float(credit_cfg.get("max_chunk_share_per_seed", 0.25))
+    fail_closed = bool(credit_cfg.get("fail_closed_on_env_seed_miss", True))
+    exclude_b1 = bool(credit_cfg.get("exclude_b1_trajectory", True))
+
+    def b1_trajectory_key(record: dict[str, Any]) -> tuple[int, int, int, str]:
+        return (
+            int(record["env_seed"]),
+            int(record["success_rollout_id"]),
+            int(record["branch_chunk_index"]),
+            str(record["hdf5_path"]),
+        )
+
+    used_n1_keys: set[tuple[int, int, int, str]] = set()
+
+    for pair_id, b1 in enumerate(b1_records):
+        chunk_index = int(b1["branch_chunk_index"])
+        target_seed = int(b1["env_seed"])
+        b1_key = b1_trajectory_key(b1)
+        pool = [
+            candidate
+            for candidate in chunk_to_candidates.get(chunk_index, [])
+            if candidate.success and int(candidate.env_seed) == target_seed
+        ]
+        if exclude_b1:
+            pool = [
+                candidate
+                for candidate in pool
+                if (int(candidate.env_seed), int(candidate.rollout_id), chunk_index, str(candidate.path)) != b1_key
+            ]
+        if not pool:
+            if fail_closed:
+                dropped.append(
+                    {
+                        "matched_pair_id": pair_id,
+                        "b1_env_seed": target_seed,
+                        "chunk_index": chunk_index,
+                        "reason": "env_seed_pool_empty",
+                    }
+                )
+                continue
+            fallback_count += 1
+            pool = [
+                candidate
+                for candidate in chunk_to_candidates.get(chunk_index, [])
+                if candidate.success
+                and (not exclude_b1 or (int(candidate.env_seed), int(candidate.rollout_id), chunk_index, str(candidate.path)) != b1_key)
+            ]
+        if not pool:
+            dropped.append(
+                {
+                    "matched_pair_id": pair_id,
+                    "b1_env_seed": target_seed,
+                    "chunk_index": chunk_index,
+                    "reason": "empty_pool",
+                }
+            )
+            continue
+        rng.shuffle(pool)
+        candidate = pool[0]
+        n1_key = (int(candidate.env_seed), int(candidate.rollout_id), chunk_index, str(candidate.path))
+        if n1_key in used_n1_keys or n1_key == b1_key:
+            duplicate_count += 1
+            dropped.append(
+                {
+                    "matched_pair_id": pair_id,
+                    "b1_env_seed": target_seed,
+                    "chunk_index": chunk_index,
+                    "reason": "duplicate_or_same_as_b1",
+                }
+            )
+            continue
+        used_n1_keys.add(n1_key)
+        trace = load_brace_trace(candidate.path)
+        chunk = next(item for item in trace["policy_chunks"] if int(item["chunk_index"]) == chunk_index)
+        actions = policy_chunk_actions(chunk["action"])
+        records.append(
+            {
+                "dataset": "N1",
+                "run_label": run_label,
+                "task": task,
+                "env_seed": int(candidate.env_seed),
+                "branch_chunk_index": int(chunk_index),
+                "success_rollout_id": int(candidate.rollout_id),
+                "policy_seed": int(candidate.rollout_id),
+                "hdf5_path": str(candidate.path),
+                "chunk_action_shape": list(actions.shape),
+                "matched_b1_chunk_index": int(chunk_index),
+                "matched_pair_id": pair_id,
+                "matched_b1_env_seed": target_seed,
+                "exact_env_seed_match": int(candidate.env_seed) == target_seed,
+                "interaction_transitions": int(actions.shape[0]),
+                **ckpt,
+            }
+        )
+
+    b1_per_seed = Counter(int(row["env_seed"]) for row in b1_records)
+    n1_per_seed = Counter(int(row["env_seed"]) for row in records)
+    b1_over = {seed: count for seed, count in b1_per_seed.items() if count / max(1, len(b1_records)) > max_share}
+    over_limit = {seed: count for seed, count in n1_per_seed.items() if count / max(1, len(records)) > max_share}
+    exact_pair_matches = sum(1 for row in records if row.get("exact_env_seed_match"))
+    audit = {
+        "strict_matching": True,
+        "matched": len(records),
+        "dropped": len(dropped),
+        "dropped_rows": dropped,
+        "fallback_count": fallback_count,
+        "duplicate_count": duplicate_count,
+        "exact_pair_matches": exact_pair_matches,
+        "b1_unique_env_seeds": sorted(b1_per_seed.keys()),
+        "n1_unique_env_seeds": sorted(n1_per_seed.keys()),
+        "shared_env_seeds": sorted(set(n1_per_seed) & set(b1_per_seed)),
+        "per_seed_chunk_count_b1": dict(b1_per_seed),
+        "per_seed_chunk_count_n1": dict(n1_per_seed),
+        "over_share_limit_b1": b1_over,
+        "over_share_limit_n1": over_limit,
+        "b1_chunk_index_hist": dict(Counter(int(row["branch_chunk_index"]) for row in b1_records)),
+        "n1_chunk_index_hist": dict(Counter(int(row["branch_chunk_index"]) for row in records)),
+        "passed": len(records) == len(b1_records) and not b1_over and not over_limit and duplicate_count == 0,
+    }
+    if not audit["passed"]:
+        raise ValueError(f"strict N1 matching audit failed: {json.dumps(audit, sort_keys=True)}")
+    return records, audit
 
 
 def export_datasets(
@@ -247,13 +406,15 @@ def export_datasets(
     )
     chunk_to_candidates = index_success_chunk_indices(success_candidates, workers=workers)
     print(f"Building N1 matched to {len(b1_records)} B1 chunks", flush=True)
-    n1_records = build_n1_records(
+    strict_matching = bool(protocol.get("credit_matching", {}).get("match_env_seed", False))
+    n1_records, matching_audit = build_n1_records(
         task=task,
         b1_records=b1_records,
         chunk_to_candidates=chunk_to_candidates,
         selection_seed=n1_seed,
         protocol=protocol,
         run_label=run_label,
+        strict_matching=strict_matching,
     )
 
     return {
@@ -267,6 +428,7 @@ def export_datasets(
         "indexed_success_trajectories": len(success_candidates),
         "export_workers": workers,
         "recomputed_accepted_points": recomputed["accepted_points"],
+        "matching_audit": matching_audit,
         "records": {"B1": b1_records, "N1": n1_records},
     }
 
@@ -319,8 +481,12 @@ def main() -> int:
         n1_seed=args.n1_seed,
         workers=args.workers,
     )
+    if payload.get("matching_audit") and not payload["matching_audit"].get("passed", True):
+        raise SystemExit(f"matching audit failed; refusing to promote manifests: {payload['matching_audit']}")
     write_jsonl_atomic(output_dir / f"{args.run_label}_B1.jsonl", payload["records"]["B1"])
     write_jsonl_atomic(output_dir / f"{args.run_label}_N1.jsonl", payload["records"]["N1"])
+    if payload.get("matching_audit"):
+        write_json_atomic(output_dir / f"{args.run_label}_matching_audit.json", payload["matching_audit"])
     summary = {key: value for key, value in payload.items() if key != "records"}
     write_json_atomic(output_dir / f"{args.run_label}_summary.json", summary)
     try:

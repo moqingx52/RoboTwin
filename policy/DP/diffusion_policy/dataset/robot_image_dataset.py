@@ -57,6 +57,17 @@ class RobotImageDataset(BaseImageDataset):
             self.frame_env_seed = np.repeat(episode_env_seed, frame_counts)
         else:
             self.frame_env_seed = None
+        if "episode_preservation_group" in zarr_root["meta"]:
+            episode_preservation = np.asarray(zarr_root["meta/episode_preservation_group"][:], dtype=np.int64)
+            if episode_preservation.shape != episode_ends.shape:
+                raise ValueError(
+                    f"episode_preservation_group shape {episode_preservation.shape} does not match "
+                    f"episode_ends shape {episode_ends.shape}"
+                )
+            frame_counts = np.diff(np.concatenate(([0], episode_ends)))
+            self.frame_preservation_group = np.repeat(episode_preservation, frame_counts)
+        else:
+            self.frame_preservation_group = None
         replay_keys = ["head_camera", "state", "action"]
         if "sample_weight" in zarr_root["data"]:
             replay_keys.append("sample_weight")
@@ -115,6 +126,8 @@ class RobotImageDataset(BaseImageDataset):
     def _refresh_sample_sources(self):
         if self.frame_sources is None:
             self.sample_sources = None
+            self.sample_env_seeds = None
+            self.sample_preservation_groups = None
             self.sample_groups = None
             return
         # SequenceSampler indices are
@@ -125,12 +138,22 @@ class RobotImageDataset(BaseImageDataset):
             dtype=np.int64,
         )
         if self.frame_env_seed is not None:
-            self.sample_groups = np.asarray(
+            self.sample_env_seeds = np.asarray(
                 [self.frame_env_seed[int(row[0])] for row in self.sampler.indices],
                 dtype=np.int64,
             )
+            # Backward-compatible alias used by rollout env-seed stratified sampling.
+            self.sample_groups = self.sample_env_seeds
         else:
+            self.sample_env_seeds = None
             self.sample_groups = None
+        if self.frame_preservation_group is not None:
+            self.sample_preservation_groups = np.asarray(
+                [self.frame_preservation_group[int(row[0])] for row in self.sampler.indices],
+                dtype=np.int64,
+            )
+        else:
+            self.sample_preservation_groups = None
 
     def get_normalizer(self, mode="limits", **kwargs):
         data = {
@@ -182,6 +205,14 @@ class RobotImageDataset(BaseImageDataset):
                 self.buffers_torch["sample_source"] = torch.from_numpy(
                     self.sample_sources[idx].astype(np.int64, copy=False)
                 )
+            if self.sample_preservation_groups is not None:
+                self.buffers_torch["sample_preservation_group"] = torch.from_numpy(
+                    self.sample_preservation_groups[idx].astype(np.int64, copy=False)
+                )
+            if self.sample_env_seeds is not None:
+                self.buffers_torch["sample_env_seed"] = torch.from_numpy(
+                    self.sample_env_seeds[idx].astype(np.int64, copy=False)
+                )
             for k, v in self.sampler.replay_buffer.items():
                 if self.load_to_memory:
                     batch_sample_sequence(
@@ -224,6 +255,12 @@ class RobotImageDataset(BaseImageDataset):
             data["sample_weight"] = samples["sample_weight"].to(device, non_blocking=True).float()
         if "sample_source" in samples:
             data["sample_source"] = samples["sample_source"].to(device, non_blocking=True).long()
+        if "sample_preservation_group" in samples:
+            data["sample_preservation_group"] = samples["sample_preservation_group"].to(
+                device, non_blocking=True
+            ).long()
+        if "sample_env_seed" in samples:
+            data["sample_env_seed"] = samples["sample_env_seed"].to(device, non_blocking=True).long()
         return data
 
 

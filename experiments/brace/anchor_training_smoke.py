@@ -24,6 +24,7 @@ if str(REPO_ROOT) not in sys.path:
 if str(DP_DIR) not in sys.path:
     sys.path.insert(0, str(DP_DIR))
 
+from experiments.brace.build_anchor_replay_set import build_anchor_replay_set
 from experiments.brace.build_screen_dataset import build_dataset, sha256 as file_sha256
 from experiments.brace.replay_audit import git_commit, read_json, repo_path
 
@@ -47,6 +48,7 @@ def build_training_config(
     *,
     task: str,
     zarr_path: Path,
+    anchor_zarr_path: Path,
     base_checkpoint: Path,
     train_seed: int,
     learning_rate: float,
@@ -79,6 +81,7 @@ def build_training_config(
                     "training.normalizer_source=checkpoint",
                     "training.loss_mode=pooled",
                     "training.brace_anchor.enabled=true",
+                    f"training.brace_anchor.dataset.zarr_path={anchor_zarr_path}",
                     f"optimizer.lr={learning_rate}",
                     "exp_name=anchor_smoke",
                     "logging.mode=offline",
@@ -150,10 +153,28 @@ def bootstrap_workspace(workspace, base_checkpoint: Path) -> None:
         workspace.ema_model.to(device)
 
 
-def fetch_batch(workspace):
+def ensure_anchor_zarr(
+    *,
+    task: str,
+    rollout_dir: Path,
+    hard_seeds_file: Path,
+    output_dir: Path,
+) -> Path:
+    zarr_path = output_dir / f"{task}_anchor_replay.zarr"
+    if not (zarr_path / "brace_anchor_manifest.json").is_file():
+        build_anchor_replay_set(
+            task=task,
+            rollout_dir=rollout_dir,
+            output_path=zarr_path,
+            hard_seeds_file=hard_seeds_file,
+        )
+    return zarr_path
+
+
+def build_sft_dataloader(workspace):
+    import hydra
     from diffusion_policy.dataset.base_dataset import BaseImageDataset
     from diffusion_policy.workspace.robotworkspace import apply_normalizer_from_config, create_dataloader
-    import hydra
 
     dataset = hydra.utils.instantiate(workspace.cfg.task.dataset)
     assert isinstance(dataset, BaseImageDataset)
@@ -163,9 +184,58 @@ def fetch_batch(workspace):
         dataset,
         workspace.cfg,
     )
-    train_dataloader = create_dataloader(dataset, **workspace.cfg.dataloader)
-    batch = next(iter(train_dataloader))
+    loader = create_dataloader(dataset, **workspace.cfg.dataloader)
+    return dataset, loader
+
+
+def build_anchor_dataloader(workspace, anchor_zarr_path: Path):
+    import hydra
+    from diffusion_policy.dataset.base_dataset import BaseImageDataset
+    from diffusion_policy.workspace.robotworkspace import create_dataloader
+    from omegaconf import OmegaConf
+
+    anchor_cfg = OmegaConf.create(OmegaConf.to_container(workspace.cfg.task.dataset, resolve=True))
+    anchor_cfg.zarr_path = str(anchor_zarr_path)
+    dataset = hydra.utils.instantiate(anchor_cfg)
+    assert isinstance(dataset, BaseImageDataset)
+    loader_cfg = OmegaConf.select(workspace.cfg, "training.brace_anchor.dataloader", default=workspace.cfg.dataloader)
+    group_map = {
+        str(key): int(value)
+        for key, value in dict(
+            OmegaConf.select(workspace.cfg, "training.brace_anchor.groups", default={"base_solved": 1, "boundary": 2})
+        ).items()
+    }
+    loader = create_dataloader(
+        dataset,
+        preservation_stratified=True,
+        preservation_group_ids=group_map,
+        **loader_cfg,
+    )
+    return dataset, loader
+
+
+def iter_postprocessed_batches(dataset, dataloader, device):
+    iterator = iter(dataloader)
+    while True:
+        try:
+            batch = next(iterator)
+        except StopIteration:
+            iterator = iter(dataloader)
+            batch = next(iterator)
+        yield dataset.postprocess(batch, device)
+
+
+def fetch_anchor_batch(workspace, anchor_zarr_path: Path):
     device = torch.device(workspace.cfg.training.device)
+    dataset, loader = build_anchor_dataloader(workspace, anchor_zarr_path)
+    batch = next(iter(loader))
+    return dataset.postprocess(batch, device)
+
+
+def fetch_batch(workspace):
+    device = torch.device(workspace.cfg.training.device)
+    dataset, loader = build_sft_dataloader(workspace)
+    batch = next(iter(loader))
     return dataset.postprocess(batch, device)
 
 
@@ -220,9 +290,17 @@ def run_training_path_smoke(
             traced_root=traced_root,
             output_dir=work_dir,
         )
+        hard_seeds_file = REPO_ROOT / "experiments" / "phase1" / "eval_results_200" / "hard_eval_seeds" / f"{task}.json"
+        anchor_zarr_path = ensure_anchor_zarr(
+            task=task,
+            rollout_dir=traced_root,
+            hard_seeds_file=hard_seeds_file,
+            output_dir=work_dir,
+        )
         cfg = build_training_config(
             task=task,
             zarr_path=zarr_path,
+            anchor_zarr_path=anchor_zarr_path,
             base_checkpoint=base_checkpoint,
             train_seed=int(protocol.get("train_seed", 0)),
             learning_rate=float(train_protocol.get("learning_rate", 5e-5)),
@@ -232,12 +310,13 @@ def run_training_path_smoke(
         workspace = load_workspace(cfg)
         bootstrap_workspace(workspace, base_checkpoint)
         batch = fetch_batch(workspace)
+        anchor_batch = fetch_anchor_batch(workspace, anchor_zarr_path)
         teacher_hash_before = module_sha256(workspace.brace_teacher)
 
-        anchor_term, identity_constraints, _ = compute_brace_anchor_loss(
+        anchor_term, identity_constraints, _, _ = compute_brace_anchor_loss(
             workspace.model,
             workspace.brace_teacher,
-            batch,
+            anchor_batch,
             workspace.cfg,
             workspace.brace_dual_state,
         )
@@ -254,10 +333,10 @@ def run_training_path_smoke(
         violation_history: list[float] = []
         for _ in range(step_count):
             raw_loss, _ = aggregate_training_loss(workspace.model, batch, workspace.cfg)
-            anchor_term, anchor_constraints, anchor_epsilons = compute_brace_anchor_loss(
+            anchor_term, anchor_constraints, anchor_epsilons, _ = compute_brace_anchor_loss(
                 workspace.model,
                 workspace.brace_teacher,
-                batch,
+                anchor_batch,
                 workspace.cfg,
                 workspace.brace_dual_state,
             )

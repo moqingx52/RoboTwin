@@ -25,11 +25,37 @@ branch_prepare_workers=${BRACE_BRANCH_PREPARE_WORKERS:-96}
 branch_output_dir=${BRACE_BRANCH_OUTPUT_DIR:-${brace_dir}/branches}
 dataset_dir=${BRACE_DATASET_DIR:-${brace_dir}/datasets}
 dataset_run_label=${BRACE_DATASET_RUN_LABEL:-place_pilot_v2.3}
-screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.1.json}
+export_protocol=${BRACE_EXPORT_PROTOCOL_PATH:-${brace_dir}/export_protocol.v1.2.json}
+screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.2.json}
 
 # shellcheck source=experiments/brace/run_paths.sh
 source "${repo_root}/experiments/brace/run_paths.sh"
 export BRACE_RUN_ID="${BRACE_RUN_ID:-$(brace_utc_run_id)}"
+
+require_v12_developmental_pass() {
+  local promotion="${brace_dir}/promotions/screen_v1.2.json"
+  if [[ ! -f "${promotion}" ]]; then
+    echo "Blocked: no passing screen.v1.2 developmental promotion at ${promotion}" >&2
+    exit 2
+  fi
+  if [[ "$(jq -r '.passed // false' "${promotion}")" != "true" ]]; then
+    echo "Blocked: screen.v1.2 developmental screen has not passed: ${promotion}" >&2
+    exit 2
+  fi
+}
+
+block_dump_screen_until_place_pass() {
+  local revision
+  revision="$(jq -r '.protocol_revision // ""' "${screen_protocol}")"
+  if [[ "${revision}" != "screen.v1.2" ]]; then
+    return 0
+  fi
+  for task in "${tasks[@]}"; do
+    if [[ "${task}" == "dump_bin_bigbin" ]]; then
+      require_v12_developmental_pass
+    fi
+  done
+}
 
 pilot_seeds_file_for_task() {
   local task=$1
@@ -92,6 +118,7 @@ Stages:
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
   prepare-hard-seeds   Base ID probe + select held-out hard eval seeds for screen.
   anchor-smoke         Frozen-denoiser anchor smoke (unit + training-path gate).
+  anchor-feasibility   GPU diagnostic with pre-registered optimizer steps (not smoke).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
@@ -579,7 +606,7 @@ PY
     traced_source_dir=${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}
     for task in "${tasks[@]}"; do
       python experiments/brace/export_verified_chunks.py \
-        --protocol "${protocol_v2}" \
+        --protocol "${export_protocol}" \
         --branch-dir "${branch_source_dir}" \
         --rollout-dir "${traced_source_dir}" \
         --task "${task}" \
@@ -682,6 +709,25 @@ PY
       --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}"
     ;;
 
+  anchor-feasibility)
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      feas_run_dir="${brace_dir}/anchor_feasibility"
+    else
+      feas_run_dir="$(brace_stage_output_dir anchor_feasibility anchor_feasibility)"
+    fi
+    feas_output="${feas_run_dir}/summary.json"
+    python experiments/brace/anchor_feasibility_runner.py \
+      --protocol "${screen_protocol}" \
+      --task "${tasks[0]}" \
+      --run-label "${dataset_run_label}" \
+      --checkpoint "policy/DP/checkpoints/${tasks[0]}-demo_clean-200-0/600.ckpt" \
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}" \
+      --output "${feas_output}"
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
+      echo "${feas_run_dir}" > "${brace_dir}/runs/LATEST_anchor_feasibility"
+    fi
+    ;;
+
   select-pilot-seeds)
     if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
       seeds_output_dir="${brace_dir}/seeds"
@@ -776,6 +822,7 @@ PY
 
   screen)
     freeze_guard
+    block_dump_screen_until_place_pass
     require_task_replay_gates
     if ! branch_summary="$(brace_latest_branch_summary branches)"; then
       echo "Branch-quality gate has not passed: no branch summary found" >&2
@@ -802,6 +849,32 @@ PY
       echo "Anchor smoke protocol does not match screen protocol: ${anchor_summary}" >&2
       exit 2
     fi
+    if jq -e '((.active_methods // ["N1","B1","B2","B3"]) | any(. == "B2" or . == "B3"))' "${screen_protocol}" >/dev/null; then
+      feas_summary=""
+      if [[ -f "${brace_dir}/runs/LATEST_anchor_feasibility" ]]; then
+        feas_run="$(cat "${brace_dir}/runs/LATEST_anchor_feasibility")"
+        if [[ -s "${feas_run}/summary.json" ]]; then
+          feas_summary="${feas_run}/summary.json"
+        fi
+      fi
+      if [[ -z "${feas_summary}" ]]; then
+        echo "Anchor feasibility diagnostic has not been run (expected LATEST_anchor_feasibility)." >&2
+        exit 2
+      fi
+      require_gate "${feas_summary}" "Anchor feasibility diagnostic has not passed"
+      if [[ "$(jq -r '.stage // ""' "${feas_summary}")" != "anchor_feasibility" ]]; then
+        echo "Expected anchor_feasibility stage summary: ${feas_summary}" >&2
+        exit 2
+      fi
+      if [[ "$(jq -r '.protocol_revision // ""' "${feas_summary}")" != "$(jq -r '.protocol_revision' "${screen_protocol}")" ]]; then
+        echo "Anchor feasibility protocol does not match screen protocol: ${feas_summary}" >&2
+        exit 2
+      fi
+      if [[ "$(jq -r '.teacher_hash_stable // false' "${feas_summary}")" != "true" ]]; then
+        echo "Anchor feasibility teacher hash was not stable: ${feas_summary}" >&2
+        exit 2
+      fi
+    fi
     if [[ ! -f experiments/brace/orchestrate.py ]]; then
       echo "BRACE orchestrate.py is not implemented yet; screen cannot start." >&2
       exit 2
@@ -815,6 +888,7 @@ PY
 
   full)
     freeze_guard
+    require_v12_developmental_pass
     require_gate "${brace_dir}/promotions/screen.json" \
       "No preregistered BRACE screen promotion"
     if [[ ! -f experiments/brace/orchestrate.py ]]; then

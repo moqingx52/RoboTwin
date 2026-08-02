@@ -65,14 +65,22 @@ def _index_obs(obs, indices):
     return {key: value.index_select(0, indices) for key, value in obs.items()}
 
 
-def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state):
+def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state, *, reference_student=None):
     """Functional denoiser constraint with shared teacher action, noise and t."""
-    source = batch.get("sample_source")
-    if source is None:
-        raise ValueError("BRACE anchor requires batch['sample_source'] group labels")
-    group_sources = {"base_solved": 0, "boundary": 1}
+    preservation = batch.get("sample_preservation_group")
+    if preservation is None:
+        raise ValueError("BRACE anchor requires batch['sample_preservation_group'] preservation labels")
+    group_sources = {"base_solved": 1, "boundary": 2}
     configured = OmegaConf.select(cfg, "training.brace_anchor.groups", default=group_sources)
     group_sources = {str(key): int(value) for key, value in dict(configured).items()}
+    monitor_only = {
+        int(value)
+        for value in OmegaConf.select(
+            cfg,
+            "training.brace_anchor.monitor_only_groups",
+            default={"hard_monitor": 3},
+        ).values()
+    }
     max_per_group = int(OmegaConf.select(cfg, "training.brace_anchor.samples_per_group", default=8))
     epsilon_cfg = OmegaConf.select(cfg, "training.brace_anchor.epsilon", default=1e-4)
     if isinstance(epsilon_cfg, (float, int)):
@@ -81,13 +89,16 @@ def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state):
         epsilons = {group: float(epsilon_cfg[group]) for group in group_sources}
 
     constraints = {}
+    monitor_constraints = {}
     weighted = student.model.weight.new_zeros(()) if hasattr(student.model, "weight") else next(student.parameters()).new_zeros(())
     student_was_training = student.training
     student.eval()  # fixes crop selection; gradients remain enabled
     teacher.eval()
+    if reference_student is not None:
+        reference_student.eval()
     try:
-        for dual_idx, (group, source_id) in enumerate(group_sources.items()):
-            indices = torch.nonzero(source == source_id, as_tuple=False).flatten()[:max_per_group]
+        for dual_idx, (group, group_id) in enumerate(group_sources.items()):
+            indices = torch.nonzero(preservation == group_id, as_tuple=False).flatten()[:max_per_group]
             if indices.numel() == 0:
                 continue
             obs = _index_obs(batch["obs"], indices)
@@ -105,10 +116,51 @@ def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state):
             student_pred = student.denoise_action(obs, noisy_action, timesteps)
             constraint = torch.mean((student_pred - teacher_pred.detach()) ** 2)
             constraints[group] = constraint
+            if group_id in monitor_only:
+                monitor_constraints[group] = constraint
+                continue
             weighted = weighted + dual_state.values[dual_idx] * (constraint - epsilons[group])
+            if reference_student is not None and group_id not in monitor_only:
+                with torch.no_grad():
+                    ref_pred = reference_student.denoise_action(obs, noisy_action, timesteps)
+                    monitor_constraints[f"{group}_ema_drift"] = torch.mean((ref_pred - teacher_pred.detach()) ** 2)
+
+        monitor_group_names = OmegaConf.select(
+            cfg,
+            "training.brace_anchor.monitor_only_groups",
+            default={"hard_monitor": 3},
+        )
+        anchor_group_ids = {int(value) for value in group_sources.values()}
+        for monitor_name, monitor_id in dict(monitor_group_names).items():
+            monitor_id = int(monitor_id)
+            if monitor_id in anchor_group_ids:
+                continue
+            indices = torch.nonzero(preservation == monitor_id, as_tuple=False).flatten()[:max_per_group]
+            if indices.numel() == 0:
+                continue
+            obs = _index_obs(batch["obs"], indices)
+            with torch.no_grad():
+                clean_action = teacher.predict_action(obs)["action_pred"]
+                noise = torch.randn_like(clean_action)
+                timesteps = torch.randint(
+                    0,
+                    teacher.noise_scheduler.config.num_train_timesteps,
+                    (clean_action.shape[0],),
+                    device=clean_action.device,
+                ).long()
+                noisy_action = teacher.make_noisy_action(clean_action, noise, timesteps)
+                teacher_pred = teacher.denoise_action(obs, noisy_action, timesteps)
+            with torch.no_grad():
+                student_pred = student.denoise_action(obs, noisy_action, timesteps)
+                monitor_constraints[f"{monitor_name}_drift"] = torch.mean((student_pred - teacher_pred.detach()) ** 2)
+                if reference_student is not None:
+                    ref_pred = reference_student.denoise_action(obs, noisy_action, timesteps)
+                    monitor_constraints[f"{monitor_name}_ema_drift"] = torch.mean(
+                        (ref_pred - teacher_pred.detach()) ** 2
+                    )
     finally:
         student.train(student_was_training)
-    return weighted, constraints, epsilons
+    return weighted, constraints, epsilons, monitor_constraints
 
 
 def _masked_mean(values, mask, weights=None):
@@ -211,6 +263,8 @@ class RobotWorkspace(BaseWorkspace):
         "brace_teacher_sha256",
         "teacher_checkpoint_path",
         "teacher_reference",
+        "anchor_manifest_sha256",
+        "brace_anchor_config",
     ]
     exclude_keys = ("brace_teacher",)
 
@@ -238,11 +292,13 @@ class RobotWorkspace(BaseWorkspace):
         self.brace_teacher_sha256 = None
         self.teacher_checkpoint_path = None
         self.teacher_reference = "raw"
+        self.anchor_manifest_sha256 = None
+        self.brace_anchor_config = None
         if bool(OmegaConf.select(cfg, "training.brace_anchor.enabled", default=False)):
             groups = OmegaConf.select(
                 cfg,
                 "training.brace_anchor.groups",
-                default={"base_solved": 0, "boundary": 1},
+                default={"base_solved": 1, "boundary": 2},
             )
             self.brace_teacher = copy.deepcopy(self.model)
             self.brace_teacher.requires_grad_(False)
@@ -341,6 +397,39 @@ class RobotWorkspace(BaseWorkspace):
         dataset = hydra.utils.instantiate(cfg.task.dataset)
         assert isinstance(dataset, BaseImageDataset)
         train_dataloader = create_dataloader(dataset, **cfg.dataloader)
+        anchor_dataloader = None
+        anchor_dataset = None
+        anchor_zarr = OmegaConf.select(cfg, "training.brace_anchor.dataset.zarr_path", default=None)
+        if anchor_enabled:
+            if anchor_zarr is None:
+                raise ValueError(
+                    "training.brace_anchor.enabled requires training.brace_anchor.dataset.zarr_path "
+                    "with episode_preservation_group metadata"
+                )
+            anchor_cfg = OmegaConf.create(OmegaConf.to_container(cfg.task.dataset, resolve=True))
+            anchor_cfg.zarr_path = anchor_zarr
+            anchor_dataset = hydra.utils.instantiate(anchor_cfg)
+            anchor_loader_cfg = OmegaConf.select(cfg, "training.brace_anchor.dataloader", default=cfg.dataloader)
+            anchor_dataloader = create_dataloader(
+                anchor_dataset,
+                preservation_stratified=True,
+                preservation_group_ids={
+                    str(key): int(value) for key, value in dict(
+                        OmegaConf.select(cfg, "training.brace_anchor.groups", default={"base_solved": 1, "boundary": 2})
+                    ).items()
+                },
+                **anchor_loader_cfg,
+            )
+            manifest_path = pathlib.Path(anchor_zarr) / "brace_anchor_manifest.json"
+            if manifest_path.is_file():
+                import json
+
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.anchor_manifest_sha256 = manifest.get("manifest_sha256")
+            self.brace_anchor_config = OmegaConf.to_container(
+                OmegaConf.select(cfg, "training.brace_anchor", default={}),
+                resolve=True,
+            )
         normalizer_source = apply_normalizer_from_config(
             self.model,
             self.ema_model if cfg.training.use_ema else None,
@@ -429,6 +518,19 @@ class RobotWorkspace(BaseWorkspace):
         log_source_grad_norm_every = int(
             OmegaConf.select(cfg, "training.log_source_grad_norm_every", default=0) or 0
         )
+        constraint_stats: dict[str, list[float]] = {}
+        anchor_iter = iter(anchor_dataloader) if anchor_dataloader is not None else None
+
+        def next_anchor_batch():
+            nonlocal anchor_iter
+            if anchor_dataloader is None:
+                return None
+            try:
+                batch = next(anchor_iter)
+            except StopIteration:
+                anchor_iter = iter(anchor_dataloader)
+                batch = next(anchor_iter)
+            return anchor_dataset.postprocess(batch, device)
 
         with JsonLogger(log_path) as json_logger:
             stop_after_epoch = OmegaConf.select(
@@ -466,14 +568,18 @@ class RobotWorkspace(BaseWorkspace):
                         raw_loss, loss_aux = aggregate_training_loss(self.model, batch, cfg)
                         anchor_constraints = {}
                         anchor_epsilons = {}
+                        anchor_monitor = {}
                         anchor_term = raw_loss.new_zeros(())
                         if anchor_enabled:
-                            anchor_term, anchor_constraints, anchor_epsilons = compute_brace_anchor_loss(
+                            anchor_batch = next_anchor_batch()
+                            ref_model = self.ema_model if cfg.training.use_ema and self.ema_model is not None else None
+                            anchor_term, anchor_constraints, anchor_epsilons, anchor_monitor = compute_brace_anchor_loss(
                                 self.model,
                                 self.brace_teacher,
-                                batch,
+                                anchor_batch,
                                 cfg,
                                 self.brace_dual_state,
+                                reference_student=ref_model,
                             )
                         total_loss = raw_loss + anchor_term
                         loss = total_loss / cfg.training.gradient_accumulate_every
@@ -516,8 +622,16 @@ class RobotWorkspace(BaseWorkspace):
                         }
                         if anchor_enabled:
                             step_log["brace_teacher_sha256"] = self.brace_teacher_sha256
+                            if self.anchor_manifest_sha256:
+                                step_log["brace_anchor_manifest_sha256"] = self.anchor_manifest_sha256
                             for group, value in anchor_constraints.items():
-                                step_log[f"brace_constraint/{group}"] = float(value.detach().item())
+                                constraint_value = float(value.detach().item())
+                                step_log[f"brace_constraint/{group}"] = constraint_value
+                                constraint_stats.setdefault(group, []).append(constraint_value)
+                                epsilon = float(anchor_epsilons.get(group, 0.0))
+                                step_log[f"brace_violation/{group}"] = max(0.0, constraint_value - epsilon)
+                            for group, value in anchor_monitor.items():
+                                step_log[f"brace_monitor/{group}"] = float(value.detach().item())
                             for group, value in self.brace_dual_state.as_dict().items():
                                 step_log[f"brace_dual/{group}"] = value
                         if loss_aux and (
@@ -539,6 +653,17 @@ class RobotWorkspace(BaseWorkspace):
                 # replace train_loss with epoch average
                 train_loss = np.mean(train_losses)
                 step_log["train_loss"] = train_loss
+                if anchor_enabled and constraint_stats:
+                    for group, values in constraint_stats.items():
+                        arr = np.asarray(values, dtype=np.float64)
+                        epsilon = float(anchor_epsilons.get(group, 0.0)) if anchor_epsilons else 0.0
+                        step_log[f"brace_constraint_epoch_mean/{group}"] = float(arr.mean())
+                        step_log[f"brace_constraint_epoch_median/{group}"] = float(np.median(arr))
+                        step_log[f"brace_constraint_epoch_p90/{group}"] = float(np.percentile(arr, 90))
+                        step_log[f"brace_constraint_epoch_violation_fraction/{group}"] = float(
+                            np.mean(arr > epsilon)
+                        )
+                    constraint_stats = {}
 
                 # ========= eval for this epoch ==========
                 policy = self.model
@@ -612,6 +737,9 @@ class RobotWorkspace(BaseWorkspace):
                 json_logger.log(step_log)
                 self.global_step += 1
                 self.epoch += 1
+
+
+from experiments.brace.preservation_sampler import PreservationGroupBatchSampler
 
 
 class BatchSampler:
@@ -792,21 +920,41 @@ def create_dataloader(
     rollout_per_batch: int = None,
     prefix_per_batch: int = None,
     group_stratified_rollout: bool = False,
+    preservation_stratified: bool = False,
+    preservation_group_ids: dict[str, int] | None = None,
 ):
-    batch_sampler = BatchSampler(
-        len(dataset),
-        batch_size,
-        shuffle=shuffle,
-        seed=seed,
-        drop_last=True,
-        num_batches=num_batches,
-        sample_sources=getattr(dataset, "sample_sources", None),
-        expert_ratio=expert_ratio,
-        rollout_per_batch=rollout_per_batch,
-        prefix_per_batch=prefix_per_batch,
-        sample_groups=getattr(dataset, "sample_groups", None),
-        group_stratified_rollout=group_stratified_rollout,
-    )
+    if preservation_stratified:
+        if not hasattr(dataset, "sample_preservation_groups") or dataset.sample_preservation_groups is None:
+            raise ValueError("preservation_stratified requires dataset.sample_preservation_groups")
+        group_map = preservation_group_ids or {"base_solved": 1, "boundary": 2}
+        if batch_size % len(group_map) != 0:
+            raise ValueError(
+                f"anchor batch_size={batch_size} must be divisible by number of preservation groups={len(group_map)}"
+            )
+        samples_per_group = batch_size // len(group_map)
+        batch_sampler = PreservationGroupBatchSampler(
+            dataset.sample_preservation_groups,
+            batch_size,
+            group_map,
+            samples_per_group,
+            seed=seed,
+            num_batches=num_batches,
+        )
+    else:
+        batch_sampler = BatchSampler(
+            len(dataset),
+            batch_size,
+            shuffle=shuffle,
+            seed=seed,
+            drop_last=True,
+            num_batches=num_batches,
+            sample_sources=getattr(dataset, "sample_sources", None),
+            expert_ratio=expert_ratio,
+            rollout_per_batch=rollout_per_batch,
+            prefix_per_batch=prefix_per_batch,
+            sample_groups=getattr(dataset, "sample_groups", None),
+            group_stratified_rollout=group_stratified_rollout,
+        )
 
     def collate(x):
         assert len(x) == 1

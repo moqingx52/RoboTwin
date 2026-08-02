@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+import numpy as np
 
 from experiments.brace.anchor_smoke import anchor_gate_passed
 from experiments.brace.anchor_unit_smoke import run_unit_anchor_smoke
@@ -20,11 +23,132 @@ from experiments.brace.run_eval_group import seed_shards_from_partial
 from experiments.brace.promote_run import copy_file
 from experiments.brace.replay_audit import write_json_atomic
 from experiments.brace.resolve_artifact import resolve_audit_summary, resolve_branch_dir
+from experiments.brace.screen_gates import compute_forgetting_gate, evaluate_constraint_feasibility
 from experiments.brace.stage_records import emit_stage_record, list_records, resolve_latest_record
 from experiments.brace.validate_artifacts import run_validation
 
 
 class TrackCScaffoldTest(unittest.TestCase):
+    def test_run_all_shell_syntax(self) -> None:
+        result = subprocess.run(
+            ["bash", "-n", "experiments/brace/run_all.sh"],
+            cwd=Path(__file__).resolve().parents[2],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_constraint_feasibility_fails_on_missing_groups(self) -> None:
+        protocol = {
+            "anchor_smoke": {"identity_epsilon": 1e-4},
+            "constraint_feasibility": {
+                "mean_tolerance_factor": 2.0,
+                "p90_max_factor": 5.0,
+                "violation_fraction_max": {"base_solved": 0.5, "boundary": 0.5},
+            },
+        }
+        summary = evaluate_constraint_feasibility([], protocol)
+        self.assertFalse(summary["passed"])
+        self.assertEqual(summary["missing_groups"], ["base_solved", "boundary"])
+
+    def test_preservation_group_batch_sampler_small_dataset(self) -> None:
+        from experiments.brace.preservation_sampler import PreservationGroupBatchSampler
+
+        groups = np.asarray([1, 1, 1, 2, 2, 2], dtype=np.int64)
+        sampler = PreservationGroupBatchSampler(
+            groups,
+            batch_size=4,
+            preservation_group_ids={"base_solved": 1, "boundary": 2},
+            samples_per_group=2,
+            seed=0,
+            num_batches=3,
+        )
+        batches = list(sampler)
+        self.assertEqual(len(batches), 3)
+        for batch in batches:
+            self.assertEqual(len(batch), 4)
+            labels = groups[batch]
+            self.assertEqual(int(np.sum(labels == 1)), 2)
+            self.assertEqual(int(np.sum(labels == 2)), 2)
+
+    def test_forgetting_gate_rejects_joint_catastrophic_forgetting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base_solved_seeds = {100, 101, 102, 104, 105}
+
+            def write_eval(path: Path, outcomes: dict[int, bool]) -> None:
+                payload = {
+                    "rows": [
+                        {"env_seed": seed, "split": "train_seen", "success": outcome}
+                        for seed, outcome in outcomes.items()
+                    ]
+                }
+                path.write_text(json.dumps(payload), encoding="utf-8")
+
+            base_path = root / "base.json"
+            u1_path = root / "u1.json"
+            b2_path = root / "b2.json"
+            outcomes = {seed: True for seed in base_solved_seeds}
+            write_eval(base_path, outcomes)
+            write_eval(u1_path, {seed: False for seed in base_solved_seeds})
+            write_eval(b2_path, {seed: False for seed in base_solved_seeds})
+            protocol = {
+                "preservation_metrics": {
+                    "min_paired_seeds": 5,
+                    "require_b2_forgetting_below_u1": True,
+                }
+            }
+            summary = compute_forgetting_gate(
+                base_eval=base_path,
+                u1_eval=u1_path,
+                b2_eval=b2_path,
+                base_solved_seeds=base_solved_seeds,
+                protocol=protocol,
+            )
+            self.assertFalse(summary["passed"])
+            self.assertAlmostEqual(summary["forgetting_rate_u1"], 1.0)
+            self.assertAlmostEqual(summary["forgetting_rate_b2"], 1.0)
+
+    def test_forgetting_gate_prefers_b2_when_u1_forgets_more(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base_solved_seeds = {100, 101, 102, 103, 104}
+
+            def write_eval(path: Path, outcomes: dict[int, bool]) -> None:
+                payload = {
+                    "rows": [
+                        {"env_seed": seed, "split": "train_seen", "success": outcome}
+                        for seed, outcome in outcomes.items()
+                    ]
+                }
+                path.write_text(json.dumps(payload), encoding="utf-8")
+
+            base_path = root / "base.json"
+            u1_path = root / "u1.json"
+            b2_path = root / "b2.json"
+            write_eval(base_path, {seed: True for seed in base_solved_seeds})
+            write_eval(
+                u1_path,
+                {100: True, 101: True, 102: False, 103: False, 104: False},
+            )
+            write_eval(b2_path, {seed: True for seed in base_solved_seeds})
+            protocol = {
+                "preservation_metrics": {
+                    "min_paired_seeds": 5,
+                    "require_b2_forgetting_below_u1": True,
+                }
+            }
+            summary = compute_forgetting_gate(
+                base_eval=base_path,
+                u1_eval=u1_path,
+                b2_eval=b2_path,
+                base_solved_seeds=base_solved_seeds,
+                protocol=protocol,
+            )
+            self.assertTrue(summary["passed"])
+            self.assertGreater(summary["forgetting_rate_u1"], summary["forgetting_rate_b2"])
+
     def test_anchor_smoke_passes(self) -> None:
         protocol = json.loads(
             Path("experiments/brace/screen_protocol.v1.json").read_text(encoding="utf-8")
@@ -244,12 +368,21 @@ class TrackCScaffoldTest(unittest.TestCase):
         merged = merge_summaries([dump_summary])
         self.assertTrue(merged["tasks"]["dump_bin_bigbin"]["replay_gate_passed"])
 
-    def test_development_screen_summary_uses_all_three_splits(self) -> None:
+    def test_development_screen_summary_applies_v12_gates(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             jobs = {}
+            feasibility = {
+                "passed": True,
+                "missing_groups": [],
+                "groups": {
+                    "base_solved": {"passed": True},
+                    "boundary": {"passed": True},
+                },
+            }
+            base_solved_seeds = [100, 101, 102, 103, 104]
 
-            def write_eval(job_id, method, epoch, values):
+            def write_eval(job_id, method, epoch, values, seed_outcomes=None):
                 path = root / f"{method}_{epoch}.json"
                 payload = {
                     "splits": {
@@ -257,31 +390,74 @@ class TrackCScaffoldTest(unittest.TestCase):
                         for split, value in zip(("id_heldout", "train_seen", "hard_20"), values)
                     }
                 }
+                if seed_outcomes is not None:
+                    payload["rows"] = [
+                        {"env_seed": seed, "split": "train_seen", "success": outcome}
+                        for seed, outcome in seed_outcomes.items()
+                    ]
                 path.write_text(json.dumps(payload), encoding="utf-8")
                 jobs[job_id] = {"artifact": str(path)}
 
-            write_eval("eval:base", "base", 0, (0.5, 0.5, 0.5))
+            def write_train(job_id, method, epoch):
+                ckpt = root / f"{method}_{epoch}.ckpt"
+                ckpt.write_bytes(b"ckpt")
+                feas_path = ckpt.with_suffix(".feasibility.json")
+                feas_path.write_text(json.dumps(feasibility), encoding="utf-8")
+                jobs[job_id] = {"artifact": str(ckpt)}
+
+            base_outcomes = {seed: True for seed in base_solved_seeds}
+            write_eval("eval:base", "base", 0, (0.5, 0.5, 0.5), base_outcomes)
+            u1_outcomes = {seed: True for seed in base_solved_seeds}
+            u1_outcomes[104] = False
             scores = {
                 "N1": (0.45, 0.40, 0.20),
-                "B1": (0.45, 0.40, 0.30),
-                "B2": (0.46, 0.42, 0.35),
-                "B3": (0.48, 0.45, 0.40),
+                "B1": (0.46, 0.41, 0.30),
+                "B2": (0.47, 0.43, 0.35),
+                "B3": (0.49, 0.46, 0.40),
             }
             for method, values in scores.items():
-                write_eval(f"eval:{method}:epoch1", method, 1, values)
+                outcomes = u1_outcomes if method == "N1" else base_outcomes
+                write_eval(f"eval:{method}:epoch1", method, 1, values, outcomes)
+                if method in {"B2", "B3"}:
+                    write_train(f"train:{method}:epoch1", method, 1)
+            anchor_manifest_dir = root / "datasets" / "place_container_plate_anchor_replay.zarr"
+            anchor_manifest_dir.mkdir(parents=True)
+            anchor_manifest = {
+                "episodes": [
+                    {"env_seed": seed, "preservation_group": "base_solved"} for seed in base_solved_seeds
+                ]
+            }
+            (anchor_manifest_dir / "brace_anchor_manifest.json").write_text(
+                json.dumps(anchor_manifest), encoding="utf-8"
+            )
             state = {
                 "task": "place_container_plate",
                 "run_label": "test",
+                "run_dir": str(root),
+                "screen_epochs": [1],
+                "active_methods": ["N1", "B1", "B2", "B3"],
                 "jobs": jobs,
             }
             protocol = {
+                "screen_mode": "full",
                 "screen_epochs": [1],
                 "promotion": {"id_fraction_of_base": 0.8, "train_fraction_of_base": 0.75},
+                "eval": {"hard_for_checkpoint_selection": False},
+                "screens": {"credit": {"min_score_margin": 0.01}},
+                "preservation_metrics": {
+                    "base_solved_forgetting_max_delta": 0.05,
+                    "min_paired_seeds": 5,
+                    "require_b2_forgetting_below_u1": True,
+                },
             }
             summary = summarize_screen(state, protocol)
             self.assertTrue(summary["passed"])
+            self.assertTrue(summary["screens"]["preservation_U1_vs_B2"]["passed"])
+            self.assertTrue(summary["screens"]["credit_B1_vs_N1"]["passed"])
             self.assertEqual(summary["screens"]["integration_B1_B2_B3"]["best_method"], "B3")
-            self.assertAlmostEqual(summary["methods"]["B1"]["1"]["selection_score"], 0.6)
+            self.assertTrue(summary["best_eligible"]["B2"]["constraint_feasibility"]["passed"])
+            self.assertTrue(summary["best_eligible"]["B2"]["forgetting_gate"]["passed"])
+            self.assertAlmostEqual(summary["methods"]["B1"]["1"]["selection_score"], 0.82, places=5)
 
     def test_validate_restored_branch_artifacts(self) -> None:
         result = run_validation(

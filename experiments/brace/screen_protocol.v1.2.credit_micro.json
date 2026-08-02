@@ -1,0 +1,49 @@
+{
+  "schema_version": 2,
+  "protocol_revision": "screen.v1.2",
+  "status": "frozen",
+  "frozen_on": "2026-08-03",
+  "description": "Credit micro-screen: strict-matched B1 vs N1 only.",
+  "base_checkpoint_pattern": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
+  "train_seed": 0,
+  "screen_mode": "credit_only",
+  "active_methods": ["N1", "B1"],
+  "screen_epochs": [1, 3, 5, 7],
+  "training": {
+    "learning_rate": 0.00005,
+    "batch_size": 128,
+    "rollout_per_batch": 16,
+    "checkpoint_every": 1,
+    "normalizer_source": "checkpoint",
+    "teacher_reference": "raw",
+    "anchor_samples_per_group": 8
+  },
+  "eval": {
+    "id_seeds": 20,
+    "train_seeds": 20,
+    "hard_seeds": 20,
+    "use_reserve_split": false,
+    "hard_for_checkpoint_selection": false
+  },
+  "promotion": {
+    "id_fraction_of_base": 0.8,
+    "train_fraction_of_base": 0.75
+  },
+  "credit_matching": {
+    "match_env_seed": true,
+    "match_trajectory_outcome": true,
+    "match_chunk_index": true,
+    "match_optimizer_budget": true,
+    "max_chunk_share_per_seed": 0.25,
+    "emit_matching_audit": true
+  },
+  "screens": {
+    "credit": {
+      "methods": ["base", "U1", "N1", "B1"],
+      "requires_b1_beats_n1": true,
+      "min_score_margin": 0.01
+    },
+    "preservation": {"methods": ["U1", "B2"], "requires_b2_beats_u1": false},
+    "integration": {"methods": ["B1", "B2", "B3"], "requires_prior_screens": false}
+  }
+}
