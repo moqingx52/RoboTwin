@@ -38,16 +38,6 @@ def _flatten_grad_norm(parameters) -> float:
     return math.sqrt(total)
 
 
-def _flatten_grad_vector(parameters) -> torch.Tensor | None:
-    chunks = []
-    for param in parameters:
-        if param.grad is not None:
-            chunks.append(param.grad.detach().reshape(-1))
-    if not chunks:
-        return None
-    return torch.cat(chunks)
-
-
 def _cosine_similarity(left: torch.Tensor | None, right: torch.Tensor | None) -> float | None:
     if left is None or right is None or left.numel() == 0 or right.numel() == 0:
         return None
@@ -198,20 +188,36 @@ def run_feasibility_diagnostic(
         )
         total_loss = raw_loss + anchor_term
         params = [param for param in workspace.model.parameters() if param.requires_grad]
+        scaled_raw = raw_loss / grad_accum
+        scaled_anchor = anchor_term / grad_accum
+        scaled_total = total_loss / grad_accum
 
-        workspace.optimizer.zero_grad(set_to_none=True)
-        (raw_loss / grad_accum).backward()
-        sft_grad_vec = _flatten_grad_vector(params)
+        sft_grads = torch.autograd.grad(
+            scaled_raw,
+            params,
+            retain_graph=True,
+            allow_unused=True,
+        )
+        anchor_grads = torch.autograd.grad(
+            scaled_anchor,
+            params,
+            retain_graph=True,
+            allow_unused=True,
+        )
+        sft_grad_vec = torch.cat(
+            [grad.detach().reshape(-1) for grad in sft_grads if grad is not None],
+            dim=0,
+        ) if any(grad is not None for grad in sft_grads) else None
+        anchor_grad_vec = torch.cat(
+            [grad.detach().reshape(-1) for grad in anchor_grads if grad is not None],
+            dim=0,
+        ) if any(grad is not None for grad in anchor_grads) else None
         grad_norm_sft = float(sft_grad_vec.norm()) if sft_grad_vec is not None else 0.0
-
-        workspace.optimizer.zero_grad(set_to_none=True)
-        (anchor_term / grad_accum).backward()
-        anchor_grad_vec = _flatten_grad_vector(params)
         grad_norm_anchor = float(anchor_grad_vec.norm()) if anchor_grad_vec is not None else 0.0
         grad_cosine = _cosine_similarity(sft_grad_vec, anchor_grad_vec)
 
         workspace.optimizer.zero_grad(set_to_none=True)
-        ((raw_loss + anchor_term) / grad_accum).backward()
+        scaled_total.backward()
         grad_norm_total = _flatten_grad_norm(params)
         if (step + 1) % grad_accum == 0:
             workspace.optimizer.step()
