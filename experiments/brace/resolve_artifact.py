@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BRACE_DIR = REPO_ROOT / "experiments" / "brace"
@@ -27,27 +27,53 @@ BRANCH_ARCHIVE_NAMES = {
 }
 
 
-def _exists(path: Path) -> bool:
-    return path.is_file() or path.is_dir()
+def _audit_task_gate_passed(summary_path: Path, task: str) -> bool:
+    payload = json.loads(summary_path.read_text(encoding="utf-8"))
+    return bool(payload.get("tasks", {}).get(task, {}).get("replay_gate_passed", False))
+
+
+def _audit_archive_summary(task: str, *, brace_dir: Path) -> Path | None:
+    archive_name = AUDIT_ARCHIVE_NAMES.get(task)
+    if archive_name is None:
+        return None
+    summary = brace_dir / "archive" / archive_name / "summary.json"
+    if summary.is_file() and _audit_task_gate_passed(summary, task):
+        return summary
+    return None
 
 
 def resolve_audit_summary(task: str, *, brace_dir: Path = BRACE_DIR) -> Path | None:
+    explicit = os.environ.get("BRACE_AUDIT_RUN_DIR")
+    if explicit:
+        summary = Path(explicit) / "summary.json"
+        if not summary.is_file():
+            raise ValueError(f"BRACE_AUDIT_RUN_DIR has no summary.json: {explicit}")
+        if not _audit_task_gate_passed(summary, task):
+            raise ValueError(f"BRACE_AUDIT_RUN_DIR replay gate not passed for {task}: {summary}")
+        return summary
+
     runs = brace_dir / "runs"
     pointer = runs / f"LATEST_AUDIT_{task}"
     if pointer.is_file():
         audit_dir = Path(pointer.read_text(encoding="utf-8").strip())
         summary = audit_dir / "summary.json"
         if summary.is_file():
-            return summary
-    archive_name = AUDIT_ARCHIVE_NAMES.get(task)
-    archive = brace_dir / "archive" / archive_name / "summary.json" if archive_name else None
-    if archive is not None and archive.is_file():
+            if _audit_task_gate_passed(summary, task):
+                return summary
+            warnings.warn(
+                f"Latest audit failed replay gate, skipping immutable run: {audit_dir}",
+                stacklevel=2,
+            )
+
+    archive = _audit_archive_summary(task, brace_dir=brace_dir)
+    if archive is not None:
         return archive
+
     for legacy in (
         brace_dir / "replay_audit_v2" / task / "summary.json",
         brace_dir / "replay_audit_v2" / "summary.json",
     ):
-        if legacy.is_file():
+        if legacy.is_file() and _audit_task_gate_passed(legacy, task):
             warnings.warn(f"Using legacy audit summary (deprecated): {legacy}", stacklevel=2)
             return legacy
     return None

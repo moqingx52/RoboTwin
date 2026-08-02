@@ -12,6 +12,7 @@ import hashlib
 import hydra
 import torch
 import torch.nn as nn
+import dill
 from omegaconf import OmegaConf
 import pathlib
 from torch.utils.data import DataLoader
@@ -204,7 +205,14 @@ def apply_normalizer_from_config(model, ema_model, dataset, cfg):
 
 
 class RobotWorkspace(BaseWorkspace):
-    include_keys = ["global_step", "epoch", "brace_teacher_sha256"]
+    include_keys = [
+        "global_step",
+        "epoch",
+        "brace_teacher_sha256",
+        "teacher_checkpoint_path",
+        "teacher_reference",
+    ]
+    exclude_keys = ("brace_teacher",)
 
     def __init__(self, cfg: OmegaConf, output_dir=None):
         super().__init__(cfg, output_dir=output_dir)
@@ -228,6 +236,8 @@ class RobotWorkspace(BaseWorkspace):
         self.brace_teacher = None
         self.brace_dual_state = None
         self.brace_teacher_sha256 = None
+        self.teacher_checkpoint_path = None
+        self.teacher_reference = "raw"
         if bool(OmegaConf.select(cfg, "training.brace_anchor.enabled", default=False)):
             groups = OmegaConf.select(
                 cfg,
@@ -241,6 +251,45 @@ class RobotWorkspace(BaseWorkspace):
         # configure training state
         self.global_step = 0
         self.epoch = 0
+
+    def _rebuild_brace_teacher_from_checkpoint(self) -> None:
+        if self.brace_teacher is None:
+            return
+        if not self.teacher_checkpoint_path:
+            raise RuntimeError("BRACE resume missing teacher_checkpoint_path")
+        teacher_path = pathlib.Path(self.teacher_checkpoint_path)
+        if not teacher_path.is_file():
+            raise RuntimeError(f"BRACE teacher checkpoint missing: {teacher_path}")
+        payload = torch.load(teacher_path.open("rb"), pickle_module=dill, map_location="cpu")
+        state_dicts = payload.get("state_dicts", {})
+        if "brace_teacher" in state_dicts:
+            self.brace_teacher.load_state_dict(state_dicts["brace_teacher"])
+        elif "model" in state_dicts:
+            self.brace_teacher.load_state_dict(state_dicts["model"])
+        else:
+            raise RuntimeError(f"BRACE teacher checkpoint has no model weights: {teacher_path}")
+        actual_teacher_hash = module_sha256(self.brace_teacher)
+        if self.brace_teacher_sha256 and self.brace_teacher_sha256 != actual_teacher_hash:
+            raise RuntimeError(
+                "Frozen BRACE teacher hash changed across resume: "
+                f"stored={self.brace_teacher_sha256}, actual={actual_teacher_hash}"
+            )
+
+    def load_checkpoint(self, path=None, tag="latest", exclude_keys=None, include_keys=None, **kwargs):
+        if path is None:
+            path = self.get_checkpoint_path(tag=tag)
+        else:
+            path = pathlib.Path(path)
+        if exclude_keys is None:
+            exclude_keys = tuple(self.exclude_keys)
+        if include_keys is None:
+            include_keys = tuple(self.include_keys) + ("_output_dir",)
+        payload = torch.load(path.open("rb"), pickle_module=dill, **kwargs)
+        self.load_payload(payload, exclude_keys=exclude_keys, include_keys=include_keys, **kwargs)
+        if self.brace_teacher is not None and "brace_teacher" not in payload.get("state_dicts", {}):
+            if self.teacher_checkpoint_path:
+                self._rebuild_brace_teacher_from_checkpoint()
+        return payload
 
     def run(self):
         cfg = copy.deepcopy(self.cfg)
@@ -279,18 +328,13 @@ class RobotWorkspace(BaseWorkspace):
         anchor_enabled = bool(OmegaConf.select(cfg, "training.brace_anchor.enabled", default=False))
         if anchor_enabled:
             if not resume_training_ckpt:
-                # The base checkpoint predates BRACE. Freeze the just-loaded raw
-                # model as pi0; EMA/reference choice is therefore explicit.
+                self.teacher_checkpoint_path = str(pathlib.Path(resume_from_ckpt).resolve())
+                self.teacher_reference = "raw"
                 self.brace_teacher.load_state_dict(self.model.state_dict())
                 self.brace_teacher_sha256 = module_sha256(self.brace_teacher)
                 self.brace_dual_state.values.zero_()
             else:
-                actual_teacher_hash = module_sha256(self.brace_teacher)
-                if self.brace_teacher_sha256 != actual_teacher_hash:
-                    raise RuntimeError(
-                        "Frozen BRACE teacher hash changed across resume: "
-                        f"stored={self.brace_teacher_sha256}, actual={actual_teacher_hash}"
-                    )
+                self._rebuild_brace_teacher_from_checkpoint()
 
         # configure dataset
         dataset: BaseImageDataset

@@ -1,7 +1,52 @@
 {
+  "artifacts": [
+    {
+      "dest": "/home/gsy/work/RoboTwin/experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
+      "sha256": "4a72dcfb16de58eb466b57fc2a464595ddf11772f4abbbd0f49294f89ec6496b",
+      "size_bytes": 3121,
+      "source": "/home/gsy/work/RoboTwin/experiments/brace/runs/20260801T203102Z_audit_v2_dump_bin_bigbin/replay_audit_v2/dump_bin_bigbin/summary.json"
+    },
+    {
+      "dest": "/home/gsy/work/RoboTwin/experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/checks.jsonl",
+      "sha256": "458ac51395886cddc5683bab110fd5204deea97968a21f915c93c6dd17a67567",
+      "size_bytes": 124081,
+      "source": "/home/gsy/work/RoboTwin/experiments/brace/runs/20260801T203102Z_audit_v2_dump_bin_bigbin/replay_audit_v2/dump_bin_bigbin/checks.jsonl"
+    },
+    {
+      "dest": "/home/gsy/work/RoboTwin/experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/failures.jsonl",
+      "sha256": "364b62c2c52f9705cd4f28f80e8bba671789d65e1c8c1eb49f558462e77d4ba5",
+      "size_bytes": 5081,
+      "source": "/home/gsy/work/RoboTwin/experiments/brace/runs/20260801T203102Z_audit_v2_dump_bin_bigbin/replay_audit_v2/dump_bin_bigbin/failures.jsonl"
+    },
+    {
+      "dest": "/home/gsy/work/RoboTwin/experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/diagnostics.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source": "/home/gsy/work/RoboTwin/experiments/brace/runs/20260801T203102Z_audit_v2_dump_bin_bigbin/replay_audit_v2/dump_bin_bigbin/diagnostics.jsonl"
+    },
+    {
+      "dest": "/home/gsy/work/RoboTwin/experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/protocol.v2.3.json",
+      "sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+      "size_bytes": 2247,
+      "source": "/home/gsy/work/RoboTwin/experiments/brace/protocol.v2.3.json"
+    }
+  ],
+  "git_commit": "66de5e31d88b674093ec77ad3586dd62d9994c05",
+  "promoted_at": "2026-08-02T01:57:52Z",
   "schema_version": 1,
-  "source": "records/recovery_inbox/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
-  "summary_sha256": "0ae69b8a221bf8793cee8ad2234c4b9b0956d273af5a5714a4d26c5193eda0f3",
-  "recovery_method": "summary-only recovery",
-  "note": "Gate summary is valid, but checks.jsonl, failures.jsonl, and diagnostics.jsonl were not present in the recovered bundle."
+  "source_meta": {
+    "created_at": "2026-08-01T20:31:02Z",
+    "git_commit": "564022e9df99f1fe741da2a12a1cefc7642f3673",
+    "hostname": "bc1504c598b7",
+    "pid": 3044845,
+    "run_id": "20260801T203102Z",
+    "schema_version": 1,
+    "stage": "audit_v2",
+    "subpath": "replay_audit_v2",
+    "tasks": [
+      "dump_bin_bigbin"
+    ]
+  },
+  "source_run_dir": "/home/gsy/work/RoboTwin/experiments/brace/runs/20260801T203102Z_audit_v2_dump_bin_bigbin",
+  "target": "archive/replay_audit_v2_dump_v2.3_gate"
 }

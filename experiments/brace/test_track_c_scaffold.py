@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from experiments.brace.anchor_smoke import run_anchor_smoke
+from experiments.brace.anchor_smoke import anchor_gate_passed
+from experiments.brace.anchor_unit_smoke import run_unit_anchor_smoke
 from experiments.brace.evaluate_confirmatory_gate import merge_task_points
 from experiments.brace.inventory_artifacts import build_inventory, inspect_artifact, ArtifactSpec
 from experiments.brace.inventory_traced_rollouts import inventory_task
@@ -26,8 +28,9 @@ class TrackCScaffoldTest(unittest.TestCase):
         protocol = json.loads(
             Path("experiments/brace/screen_protocol.v1.json").read_text(encoding="utf-8")
         )
-        summary = run_anchor_smoke(protocol)
+        summary = run_unit_anchor_smoke(protocol)
         self.assertTrue(summary["passed"])
+        self.assertFalse(summary["eligible_for_screen_gate"])
         self.assertTrue(summary["checks"]["dual_nonnegativity"])
 
     def test_inventory_mixed_outcome(self) -> None:
@@ -90,7 +93,94 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertIsNotNone(path)
         self.assertTrue(path.is_file())
 
-    def test_resolve_branch_dir_archive_fallback(self) -> None:
+    def test_resolve_audit_summary_skips_failed_latest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brace_dir = Path(tmp)
+            runs = brace_dir / "runs"
+            archive = brace_dir / "archive" / "replay_audit_v2_place_v2.3_gate"
+            failed_run = brace_dir / "failed_run"
+            runs.mkdir(parents=True)
+            failed_run.mkdir(parents=True)
+            archive.mkdir(parents=True)
+            failed_summary = {
+                "passed": False,
+                "tasks": {"place_container_plate": {"replay_gate_passed": False}},
+            }
+            passed_summary = {
+                "passed": True,
+                "tasks": {"place_container_plate": {"replay_gate_passed": True}},
+            }
+            write_json_atomic(failed_run / "summary.json", failed_summary)
+            write_json_atomic(archive / "summary.json", passed_summary)
+            (runs / "LATEST_AUDIT_place_container_plate").write_text(
+                str(failed_run), encoding="utf-8"
+            )
+            path = resolve_audit_summary("place_container_plate", brace_dir=brace_dir)
+            self.assertIsNotNone(path)
+            self.assertEqual(path, archive / "summary.json")
+
+    def test_resolve_audit_summary_explicit_override_must_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brace_dir = Path(tmp)
+            failed_dir = brace_dir / "explicit_failed"
+            failed_dir.mkdir(parents=True)
+            write_json_atomic(
+                failed_dir / "summary.json",
+                {
+                    "passed": False,
+                    "tasks": {"place_container_plate": {"replay_gate_passed": False}},
+                },
+            )
+            os.environ["BRACE_AUDIT_RUN_DIR"] = str(failed_dir)
+            try:
+                with self.assertRaises(ValueError):
+                    resolve_audit_summary("place_container_plate", brace_dir=brace_dir)
+            finally:
+                os.environ.pop("BRACE_AUDIT_RUN_DIR", None)
+
+    def test_resolve_audit_summary_passed_latest_preferred(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brace_dir = Path(tmp)
+            runs = brace_dir / "runs"
+            archive = brace_dir / "archive" / "replay_audit_v2_place_v2.3_gate"
+            passed_run = brace_dir / "passed_run"
+            runs.mkdir(parents=True)
+            passed_run.mkdir(parents=True)
+            archive.mkdir(parents=True)
+            passed_summary = {
+                "passed": True,
+                "tasks": {"place_container_plate": {"replay_gate_passed": True}},
+            }
+            write_json_atomic(passed_run / "summary.json", passed_summary)
+            write_json_atomic(archive / "summary.json", passed_summary)
+            (runs / "LATEST_AUDIT_place_container_plate").write_text(
+                str(passed_run), encoding="utf-8"
+            )
+            path = resolve_audit_summary("place_container_plate", brace_dir=brace_dir)
+            self.assertEqual(path, passed_run / "summary.json")
+
+    def test_anchor_gate_requires_training_path(self) -> None:
+        protocol_revision = "screen.v1.1"
+        self.assertFalse(
+            anchor_gate_passed(
+                {"passed": True, "gate_level": "unit", "protocol_revision": protocol_revision},
+                protocol_revision,
+            )
+        )
+        self.assertTrue(
+            anchor_gate_passed(
+                {
+                    "passed": True,
+                    "gate_level": "training_path",
+                    "protocol_revision": protocol_revision,
+                    "checks": {
+                        "unit_smoke_passed": True,
+                        "training_path_smoke_passed": True,
+                    },
+                },
+                protocol_revision,
+            )
+        )
         path = resolve_branch_dir("branches")
         self.assertIsNotNone(path)
         self.assertTrue((path / "summary.json").is_file())

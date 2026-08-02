@@ -95,27 +95,59 @@ brace_branch_output_dir() {
   printf '%s\n' "${out}"
 }
 
-brace_latest_audit_summary() {
+brace_audit_task_gate_passed() {
+  local summary=$1
+  local task=$2
+  [[ "$(jq -r --arg t "${task}" '.tasks[$t].replay_gate_passed // false' "${summary}")" == "true" ]]
+}
+
+brace_audit_archive_summary() {
   local task=$1
-  local pointer dir candidate
-  if [[ -n "${BRACE_AUDIT_RUN_DIR:-}" && -s "${BRACE_AUDIT_RUN_DIR}/summary.json" ]]; then
-    printf '%s\n' "${BRACE_AUDIT_RUN_DIR}/summary.json"
-    return 0
-  fi
-  pointer="$(cat "${brace_dir}/runs/LATEST_AUDIT_${task}" 2>/dev/null || true)"
-  if [[ -n "${pointer}" && -s "${pointer}/summary.json" ]]; then
-    printf '%s\n' "${pointer}/summary.json"
-    return 0
-  fi
   local archive_name="replay_audit_v2_place_v2.3_gate"
   if [[ "${task}" == "dump_bin_bigbin" ]]; then
     archive_name="replay_audit_v2_dump_v2.3_gate"
   fi
+  local candidate="${brace_dir}/archive/${archive_name}/summary.json"
+  if [[ -s "${candidate}" ]] && brace_audit_task_gate_passed "${candidate}" "${task}"; then
+    printf '%s\n' "${candidate}"
+    return 0
+  fi
+  return 1
+}
+
+brace_latest_audit_summary() {
+  local task=$1
+  local pointer candidate summary
+  if [[ -n "${BRACE_AUDIT_RUN_DIR:-}" ]]; then
+    summary="${BRACE_AUDIT_RUN_DIR}/summary.json"
+    if [[ ! -s "${summary}" ]]; then
+      echo "BRACE_AUDIT_RUN_DIR has no summary.json: ${BRACE_AUDIT_RUN_DIR}" >&2
+      return 1
+    fi
+    if ! brace_audit_task_gate_passed "${summary}" "${task}"; then
+      echo "BRACE_AUDIT_RUN_DIR replay gate not passed for ${task}: ${summary}" >&2
+      return 1
+    fi
+    printf '%s\n' "${summary}"
+    return 0
+  fi
+  pointer="$(cat "${brace_dir}/runs/LATEST_AUDIT_${task}" 2>/dev/null || true)"
+  if [[ -n "${pointer}" && -s "${pointer}/summary.json" ]]; then
+    summary="${pointer}/summary.json"
+    if brace_audit_task_gate_passed "${summary}" "${task}"; then
+      printf '%s\n' "${summary}"
+      return 0
+    fi
+    echo "WARNING: latest audit failed replay gate, skipping immutable run: ${pointer}" >&2
+  fi
+  if summary="$(brace_audit_archive_summary "${task}")"; then
+    printf '%s\n' "${summary}"
+    return 0
+  fi
   for candidate in \
-    "${brace_dir}/archive/${archive_name}/summary.json" \
     "${brace_dir}/replay_audit_v2/${task}/summary.json" \
     "${brace_dir}/replay_audit_v2/summary.json"; do
-    if [[ -s "${candidate}" ]]; then
+    if [[ -s "${candidate}" ]] && brace_audit_task_gate_passed "${candidate}" "${task}"; then
       echo "WARNING: using legacy audit summary (deprecated): ${candidate}" >&2
       printf '%s\n' "${candidate}"
       return 0

@@ -17,7 +17,34 @@
   "expected_replay_checks": 60,
   "expected_restore_checks": 60,
   "failed_checks": 3,
-  "git_commit": "4753527e5b99709e2002f789b4b510f03030d342",
+  "git_commit": "564022e9df99f1fe741da2a12a1cefc7642f3673",
+  "metric_errors": {
+    "end_effector_rotation_error": {
+      "maximum": 0.00013311559845752838,
+      "median": 3.769939006541688e-06,
+      "p95": 6.82707903245217e-05
+    },
+    "end_effector_translation_error": {
+      "maximum": 1.7919885474560407e-05,
+      "median": 4.685414086062272e-07,
+      "p95": 7.074678325987551e-06
+    },
+    "joint_max_error": {
+      "maximum": 0.001290738582611084,
+      "median": 0.000466763973236084,
+      "p95": 0.0010805517435073851
+    },
+    "object_rotation_error": {
+      "maximum": 0.04698136520026543,
+      "median": 0.00013437097309415124,
+      "p95": 0.03330204290695956
+    },
+    "object_translation_error": {
+      "maximum": 0.006910427034839874,
+      "median": 4.6583109624661214e-05,
+      "p95": 0.00499264898339425
+    }
+  },
   "minimum_pass_rate": 0.95,
   "pass_rate": 0.975,
   "passed": true,
@@ -32,7 +59,7 @@
   },
   "per_task_control_trace_replay_minimum_pass_rate": 0.95,
   "preflight_errors": [],
-  "protocol_path": "experiments/brace/protocol.v2.3.json",
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/protocol.v2.3.json",
   "protocol_revision": "2.3",
   "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
   "restore_determinism": {
@@ -46,6 +73,8 @@
   "schema_version": 2,
   "tasks": {
     "dump_bin_bigbin": {
+      "available_failures": 263,
+      "available_successes": 537,
       "available_trajectories": 800,
       "control_trace_replay": {
         "failed_checks": 3,
@@ -66,10 +95,19 @@
         "passed_checks": 60,
         "total_checks": 60
       },
+      "selected_failures": 10,
+      "selected_successes": 10,
       "selected_trajectories": 20,
       "snapshots_per_trajectory": 3,
       "total_checks": 120
     }
+  },
+  "thresholds": {
+    "end_effector_rotation_error": 0.05,
+    "end_effector_translation_error": 0.005,
+    "joint_max_error": 0.01,
+    "object_rotation_error": 0.05,
+    "object_translation_error": 0.005
   },
   "total_checks": 120
 }

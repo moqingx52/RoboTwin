@@ -90,7 +90,8 @@ Stages:
   list-runs            List recent timestamped BRACE run directories.
   list-records         List recent stage metadata records (experiments/brace/records/).
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
-  anchor-smoke         Frozen-denoiser anchor structural smoke (screen_protocol.v1).
+  prepare-hard-seeds   Base ID probe + select held-out hard eval seeds for screen.
+  anchor-smoke         Frozen-denoiser anchor smoke (unit + training-path gate).
   branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
@@ -104,8 +105,12 @@ Environment (v2 audit / branch):
                            experiments/brace/protocol.v2.3.json). Set explicitly when
                            reproducing archived v2.3 runs.
   BRACE_TRACED_ROLLOUT_DIR Traced HDF5 root (e.g. rollouts_traced_pilot for Stage 2).
+  BRACE_AUDIT_RUN_DIR      Explicit replay-audit run dir; must have replay_gate_passed=true.
   BRACE_BRANCH_OUTPUT_DIR  Branch summary/checks output dir (default: experiments/brace/branches).
   BRACE_PILOT_SEEDS_FILE   Override pilot/confirm seeds JSON for collect/verify/branch.
+  BRACE_HARD_EVAL_DIR      Output root for base probe + hard seeds (default: eval_results_200).
+  BRACE_HARD_PROBE_SHARDS  Shard count for base ID probe (default: 8).
+  BRACE_FORCE_HARD_SEEDS   Set to 1 to regenerate existing hard_eval_seeds files.
   BRACE_TASKS              Space-separated task subset (default: both protocol tasks).
 
 Immutable outputs (default since v2.3+):
@@ -191,6 +196,63 @@ require_task_replay_gates() {
       exit 2
     fi
   done
+}
+
+run_hard_probe_sharded() {
+  local task=$1
+  local ckpt_path=$2
+  local probe_dir=$3
+  local hard_shards=${BRACE_HARD_PROBE_SHARDS:-8}
+  local failed=0
+  local next_shard=0
+  local running=0
+  local worker_count=${#gpu_ids[@]}
+  local -a worker_pids=()
+  local slot shard gpu
+
+  for ((slot=0; slot<worker_count; slot++)); do
+    worker_pids[slot]=0
+  done
+
+  while (( next_shard < hard_shards || running > 0 )); do
+    for ((slot=0; slot<worker_count; slot++)); do
+      if (( worker_pids[slot] != 0 )) && ! kill -0 "${worker_pids[slot]}" 2>/dev/null; then
+        wait "${worker_pids[slot]}" || failed=1
+        worker_pids[slot]=0
+        running=$((running - 1))
+      fi
+    done
+
+    for ((slot=0; slot<worker_count; slot++)); do
+      if (( next_shard < hard_shards && worker_pids[slot] == 0 )); then
+        shard=${next_shard}
+        gpu=${gpu_ids[slot]}
+        (
+          export CUDA_VISIBLE_DEVICES="${gpu}"
+          python experiments/brace/prepare_hard_seeds.py \
+            --task "${task}" \
+            --ckpt-path "${ckpt_path}" \
+            --probe-dir "${probe_dir}" \
+            --hard-output "${probe_dir}/.unused_hard.json" \
+            --num-shards "${hard_shards}" \
+            --shard-id "${shard}" \
+            --resume
+        ) >"${brace_dir}/logs/prepare_hard_probe_${task}_shard${shard}.log" 2>&1 &
+        worker_pids[slot]=$!
+        next_shard=$((next_shard + 1))
+        running=$((running + 1))
+      fi
+    done
+
+    if (( running > 0 )); then
+      sleep 1
+    fi
+  done
+
+  if (( failed != 0 )); then
+    echo "One or more hard-probe shards failed for ${task}. Inspect ${brace_dir}/logs/." >&2
+    return 1
+  fi
 }
 
 case "${stage}" in
@@ -538,16 +600,86 @@ PY
     fi
     ;;
 
+  prepare-hard-seeds)
+    eval_dir="${BRACE_HARD_EVAL_DIR:-experiments/phase1/eval_results_200}"
+    probe_dir="${eval_dir}/base_probe"
+    hard_dir="${eval_dir}/hard_eval_seeds"
+    hard_shards=${BRACE_HARD_PROBE_SHARDS:-8}
+    mkdir -p "${probe_dir}" "${hard_dir}" "${brace_dir}/logs"
+    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
+      stage_run_dir="${brace_dir}/prepare_hard_seeds"
+    else
+      stage_run_dir="$(brace_stage_output_dir prepare_hard_seeds prepare_hard_seeds)"
+    fi
+    mkdir -p "${stage_run_dir}"
+    stage_failed=0
+    for task in "${tasks[@]}"; do
+      ckpt_path="policy/DP/checkpoints/${task}-demo_clean-200-0/600.ckpt"
+      hard_output="${hard_dir}/${task}.json"
+      task_summary="${stage_run_dir}/${task}_summary.json"
+      if [[ -s "${hard_output}" && "${BRACE_FORCE_HARD_SEEDS:-0}" != "1" ]]; then
+        echo "Reusing existing hard seeds: ${hard_output}" >&2
+        continue
+      fi
+      if ! run_hard_probe_sharded "${task}" "${ckpt_path}" "${probe_dir}"; then
+        stage_failed=1
+        continue
+      fi
+      if ! python experiments/brace/prepare_hard_seeds.py \
+        --task "${task}" \
+        --ckpt-path "${ckpt_path}" \
+        --probe-dir "${probe_dir}" \
+        --hard-output "${hard_output}" \
+        --summary-output "${task_summary}" \
+        --num-shards "${hard_shards}" \
+        --merge-only; then
+        stage_failed=1
+      fi
+    done
+    if (( stage_failed != 0 )); then
+      exit 1
+    fi
+    python - <<'PY' "${stage_run_dir}" "${tasks[@]}"
+import json
+import sys
+from pathlib import Path
+
+from experiments.brace.replay_audit import write_json_atomic
+from experiments.brace.stage_records import emit_stage_record
+
+stage_run_dir = Path(sys.argv[1])
+tasks = sys.argv[2:]
+summaries = []
+for task in tasks:
+    path = stage_run_dir / f"{task}_summary.json"
+    if path.is_file():
+        summaries.append(json.loads(path.read_text(encoding="utf-8")))
+aggregate = {
+    "schema_version": 1,
+    "stage": "prepare_hard_seeds",
+    "passed": bool(summaries) and all(item.get("passed") for item in summaries),
+    "tasks": {item["task"]: item for item in summaries},
+}
+write_json_atomic(stage_run_dir / "summary.json", aggregate)
+emit_stage_record("prepare_hard_seeds", summary=aggregate, summary_path=stage_run_dir / "summary.json", tasks=tasks)
+PY
+    ;;
+
   anchor-smoke)
     if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
       anchor_output="${brace_dir}/anchor_smoke/summary.json"
+      anchor_run_dir="${brace_dir}/anchor_smoke"
     else
       anchor_run_dir="$(brace_stage_output_dir anchor_smoke anchor_smoke)"
       anchor_output="${anchor_run_dir}/summary.json"
     fi
     python experiments/brace/anchor_smoke.py \
       --protocol "${screen_protocol}" \
-      --output "${anchor_output}"
+      --output "${anchor_output}" \
+      --task "${tasks[0]}" \
+      --run-label "${dataset_run_label}" \
+      --checkpoint "policy/DP/checkpoints/${tasks[0]}-demo_clean-200-0/600.ckpt" \
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}"
     ;;
 
   select-pilot-seeds)
@@ -644,14 +776,7 @@ PY
 
   screen)
     freeze_guard
-    audit_summary=""
-    for task in "${tasks[@]}"; do
-      if ! audit_summary="$(brace_latest_audit_summary "${task}")"; then
-        echo "Replay audit v2 gate has not passed: no summary for ${task}" >&2
-        exit 2
-      fi
-      require_gate "${audit_summary}" "Replay audit v2 gate has not passed"
-    done
+    require_task_replay_gates
     if ! branch_summary="$(brace_latest_branch_summary branches)"; then
       echo "Branch-quality gate has not passed: no branch summary found" >&2
       exit 2
@@ -665,6 +790,14 @@ PY
       fi
     fi
     require_gate "${anchor_summary}" "Frozen-denoiser anchor smoke gate has not passed"
+    if [[ "$(jq -r '.gate_level // ""' "${anchor_summary}")" != "training_path" ]]; then
+      echo "Anchor smoke gate_level must be training_path: ${anchor_summary}" >&2
+      exit 2
+    fi
+    if [[ "$(jq -r '.checks.training_path_smoke_passed // false' "${anchor_summary}")" != "true" ]]; then
+      echo "Training-path anchor smoke has not passed: ${anchor_summary}" >&2
+      exit 2
+    fi
     if [[ "$(jq -r '.protocol_revision // ""' "${anchor_summary}")" != "$(jq -r '.protocol_revision' "${screen_protocol}")" ]]; then
       echo "Anchor smoke protocol does not match screen protocol: ${anchor_summary}" >&2
       exit 2
@@ -675,6 +808,7 @@ PY
     fi
     exec python experiments/brace/orchestrate.py screen \
       --protocol "${screen_protocol}" \
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${pilot_rollout_dir}}" \
       --gpus "${gpu_ids[@]}" \
       "$@"
     ;;

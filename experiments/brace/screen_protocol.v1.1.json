@@ -27,6 +27,7 @@
     "train_fraction_of_base": 0.75
   },
   "anchor_smoke": {
+    "gate_level": "training_path",
     "identity_epsilon": 0.0001,
     "violation_steps": 50,
     "dual_lr": 0.01,
@@ -34,7 +35,13 @@
     "teacher_no_grad": true,
     "shared_noise_timestep": true,
     "raw_ema_reference_fixed": true,
-    "teacher_hash_stable_on_resume": true
+    "teacher_hash_stable_on_resume": true,
+    "training_path": {
+      "run_label": "place_pilot_v2.3",
+      "dataset": "N1",
+      "optimizer_steps": 1,
+      "violation_steps": 10
+    }
   },
   "screens": {
     "credit": {

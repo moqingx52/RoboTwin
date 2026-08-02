@@ -21,6 +21,7 @@ DP_DIR = REPO_ROOT / "policy" / "DP"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from experiments.brace.anchor_smoke import anchor_gate_passed
 from experiments.brace.replay_audit import git_commit, read_json, write_json_atomic
 
 TRAIN_METHODS = ("N1", "B1", "B2", "B3")
@@ -205,9 +206,9 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
         missing_inputs.append(str(anchor_summary))
     else:
         anchor_payload = read_json(anchor_summary)
-        if not anchor_payload.get("passed") or anchor_payload.get("protocol_revision") != protocol["protocol_revision"]:
+        if not anchor_gate_passed(anchor_payload, protocol["protocol_revision"]):
             missing_inputs.append(
-                f"passing {protocol['protocol_revision']} anchor smoke:{anchor_summary}"
+                f"passing {protocol['protocol_revision']} training-path anchor smoke:{anchor_summary}"
             )
 
     for method in TRAIN_METHODS:
