@@ -277,8 +277,134 @@ class TrackCScaffoldTest(unittest.TestCase):
         from experiments.brace.anchor_behavior_eval import select_checkpoint_candidates
 
         with tempfile.TemporaryDirectory() as tmp:
-            rows = select_checkpoint_candidates(Path(tmp))
+            rows = select_checkpoint_candidates(Path(tmp), task="place_container_plate")
             self.assertEqual(rows, [])
+
+    def test_eval_output_path_uses_task_subdir(self) -> None:
+        from experiments.brace.anchor_behavior_eval import eval_output_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = eval_output_path(Path(tmp), "place_container_plate", "calib_dual_low_drift")
+            self.assertEqual(out, Path(tmp) / "place_container_plate" / "calib_dual_low_drift.json")
+
+    def test_audit_base_solved_coverage_detects_missing_train_seen(self) -> None:
+        from experiments.brace.anchor_behavior_eval import audit_base_solved_coverage
+
+        with tempfile.TemporaryDirectory() as tmp:
+            seeds_file = Path(tmp) / "seeds.json"
+            seeds_file.write_text(
+                json.dumps({"train_rollout": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}),
+                encoding="utf-8",
+            )
+            audit = audit_base_solved_coverage(base_solved_seeds=[5, 99], seeds_file=seeds_file)
+            self.assertTrue(audit["requires_base_solved_anchor_split"])
+            self.assertEqual(audit["train_seen_missing"], [99])
+
+    def test_pick_best_formulation_job_prefers_lower_probe_sum(self) -> None:
+        from experiments.brace.anchor_behavior_eval import pick_best_formulation_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for job_id, score in (("A5", 0.9), ("A6", 0.4), ("A7", 0.6)):
+                (root / job_id).mkdir()
+                write_json_atomic(
+                    root / job_id / "summary.json",
+                    {
+                        "complete": True,
+                        "probe_summary": {
+                            "base_solved": {"probe_tail_mean": score / 2},
+                            "boundary": {"probe_tail_mean": score / 2},
+                        }
+                    },
+                )
+            self.assertEqual(pick_best_formulation_job(root), "A6")
+
+    def test_finalize_behavior_eval_summary_merges_partials(self) -> None:
+        from experiments.brace.anchor_behavior_eval import finalize_behavior_eval_summary
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            partials = output_dir / "partials"
+            partials.mkdir()
+            base_eval = output_dir / "place_container_plate" / "calib_base_original.json"
+            sft_eval = output_dir / "place_container_plate" / "calib_sft_only.json"
+            for path in (base_eval, sft_eval):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                write_json_atomic(
+                    path,
+                    {
+                        "rows": [
+                            {"env_seed": 1, "split": "train_seen", "success": True},
+                        ]
+                    },
+                )
+            write_json_atomic(
+                partials / "base_original.json",
+                {"label": "base_original", "eval_output": str(base_eval)},
+            )
+            write_json_atomic(
+                partials / "sft_only.json",
+                {"label": "sft_only", "eval_output": str(sft_eval)},
+            )
+            summary = finalize_behavior_eval_summary(
+                task="place_container_plate",
+                calibration_run_dir=output_dir,
+                output_dir=output_dir,
+                protocol={},
+                seeds_file=output_dir / "seeds.json",
+                base_solved_seeds=[1],
+                coverage_audit={"requires_base_solved_anchor_split": False},
+                extra_splits_file=None,
+            )
+            self.assertEqual(summary["stage"], "anchor_behavior_eval")
+            self.assertEqual(len(summary["candidates"]), 2)
+            self.assertTrue((output_dir / "summary.json").is_file())
+
+    def test_validate_recommended_behavior_candidates_fails_closed(self) -> None:
+        from experiments.brace.anchor_behavior_eval import validate_recommended_candidates
+
+        incomplete = [
+            {
+                "label": "base_original",
+                "checkpoint_audit": {"deploys_ema": True},
+            }
+        ]
+        with self.assertRaises(RuntimeError):
+            validate_recommended_candidates(incomplete)
+
+    def test_preservation_rate_uses_base_success_denominator(self) -> None:
+        from experiments.brace.anchor_behavior_eval import aggregate_preservation_metrics
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = root / "base.json"
+            candidate = root / "candidate.json"
+            write_json_atomic(
+                base,
+                {
+                    "rows": [
+                        {"env_seed": 1, "split": "train_seen", "success": True},
+                        {"env_seed": 2, "split": "train_seen", "success": False},
+                    ]
+                },
+            )
+            write_json_atomic(
+                candidate,
+                {
+                    "rows": [
+                        {"env_seed": 1, "split": "train_seen", "success": False},
+                        {"env_seed": 2, "split": "train_seen", "success": False},
+                    ]
+                },
+            )
+            result = aggregate_preservation_metrics(
+                base_eval_path=base,
+                candidate_eval_path=candidate,
+                base_solved_seeds={1, 2},
+                protocol={},
+            )
+            self.assertEqual(result["base_success_count"], 1)
+            self.assertEqual(result["forgetting_rate"], 1.0)
 
     def test_anchor_smoke_passes(self) -> None:
         protocol = json.loads(

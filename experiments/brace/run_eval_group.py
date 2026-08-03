@@ -42,6 +42,24 @@ def shard_path(command: list[str], shard: int, workers: int) -> Path:
     return final.with_name(f"{final.stem}_shard_{shard:02d}_of_{workers:02d}.json")
 
 
+def load_extra_splits(command: list[str]) -> dict[str, list[int]] | None:
+    path = option(command, "--extra-splits-file")
+    if not path:
+        return None
+    payload = read_json(Path(path))
+    return {str(key): [int(seed) for seed in value] for key, value in payload.items()}
+
+
+def expected_episode_count(command: list[str]) -> int:
+    seed_payload, hard = load_seed_payload(command)
+    extra_splits = load_extra_splits(command)
+    id_repeats = int(option(command, "--id-repeats", 1))
+    train_repeats = int(option(command, "--train-repeats", 1))
+    hard_repeats = int(option(command, "--hard-repeats", 1))
+    items = build_work_items(seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits)
+    return len(items)
+
+
 def load_seed_payload(command: list[str]) -> tuple[dict, list[int]]:
     task = option(command, "--task")
     seeds_file = option(command, "--seeds-file")
@@ -84,10 +102,11 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
         return 0
 
     seed_payload, hard = load_seed_payload(command)
+    extra_splits = load_extra_splits(command)
     id_repeats = int(option(command, "--id-repeats", 3))
     train_repeats = int(option(command, "--train-repeats", 3))
     hard_repeats = int(option(command, "--hard-repeats", 8))
-    items = build_work_items(seed_payload, hard, id_repeats, train_repeats, hard_repeats)
+    items = build_work_items(seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits)
     item_shard = {work_item_key(*item): index % workers for index, item in enumerate(items)}
     distributed = [[] for _ in range(workers)]
     for row in rows:
@@ -105,7 +124,7 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
         payload["rows"] = shard_rows
         payload["splits"] = {
             split: summarize(shard_rows, split)
-            for split in ("id_heldout", "train_seen", "hard_20")
+            for split in sorted({row["split"] for row in shard_rows} or {"id_heldout", "train_seen", "hard_20"})
         }
         payload["progress"] = {
             "complete": len(shard_rows) == expected,
@@ -150,6 +169,16 @@ def merge_command(command: list[str], workers: int) -> list[str]:
     ]
 
 
+def check_complete_command(command: list[str]) -> list[str]:
+    result = list(command)
+    for name in ("--shard-id", "--num-shards", "--check-complete-result"):
+        while name in result:
+            index = result.index(name)
+            del result[index : index + (1 if name == "--check-complete-result" else 2)]
+    result.append("--check-complete-result")
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workers", type=int, default=3)
@@ -164,9 +193,10 @@ def main() -> int:
         raise SystemExit("missing eval_per_seed command after --")
 
     final = output_path(command)
+    expected = expected_episode_count(command)
     if final.is_file():
         payload = read_json(final)
-        if payload.get("progress", {}).get("complete") and len(payload.get("rows", [])) == 60:
+        if payload.get("progress", {}).get("complete") and len(payload.get("rows", [])) == expected:
             print(f"Reusing completed logical evaluation: {final}")
             return 0
     migrated = seed_shards_from_partial(command, args.workers)
@@ -190,7 +220,10 @@ def main() -> int:
             failed = True
     if failed:
         return 1
-    return subprocess.run(merge_command(command, args.workers), cwd=REPO_ROOT, check=False).returncode
+    merged = subprocess.run(merge_command(command, args.workers), cwd=REPO_ROOT, check=False)
+    if merged.returncode != 0:
+        return merged.returncode
+    return subprocess.run(check_complete_command(command), cwd=REPO_ROOT, check=False).returncode
 
 
 if __name__ == "__main__":

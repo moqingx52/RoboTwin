@@ -91,7 +91,7 @@ def hard_seeds_from_stats(seed_stats, count=20):
     return [int(seed) for seed, _ in items[:count]]
 
 
-def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_repeats):
+def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_repeats, extra_splits=None):
     items = []
     for split, seeds, repeats in (
         ("id_heldout", seed_payload["eval_id"], id_repeats),
@@ -101,6 +101,9 @@ def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_r
         for env_seed in seeds:
             for repeat in range(repeats):
                 items.append((split, int(env_seed), repeat))
+    for split_name, seeds in (extra_splits or {}).items():
+        for env_seed in seeds:
+            items.append((str(split_name), int(env_seed), 0))
     return items
 
 
@@ -114,17 +117,17 @@ def output_path(output_dir, task_name, variant, shard_id, num_shards):
     return output_dir / task_name / f"{variant}.json"
 
 
-def build_summary(args, hard_seeds, hard_seed_source, rows, complete):
+def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_splits=None):
+    split_names = ["id_heldout", "train_seen", "hard_20"]
+    if extra_splits:
+        split_names.extend(str(name) for name in extra_splits)
+    split_names = list(dict.fromkeys(split_names))
     return {
         "task_name": args.task_name,
         "task_config": args.task_config,
         "variant": args.variant,
         "ckpt_path": str(args.ckpt_path),
-        "splits": {
-            "id_heldout": summarize(rows, "id_heldout"),
-            "train_seen": summarize(rows, "train_seen"),
-            "hard_20": summarize(rows, "hard_20"),
-        },
+        "splits": {split: summarize(rows, split) for split in split_names},
         "hard_seeds": hard_seeds,
         "hard_seed_source": hard_seed_source,
         "rows": rows,
@@ -241,8 +244,18 @@ def main():
         action="store_true",
         help="Exit successfully only when the merged result is compatible and contains every episode.",
     )
+    parser.add_argument(
+        "--extra-splits-file",
+        type=Path,
+        help="Optional JSON object mapping split name to env_seed list, e.g. base_solved_anchor.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+
+    extra_splits = None
+    if args.extra_splits_file:
+        extra_payload = read_json(args.extra_splits_file)
+        extra_splits = {str(key): [int(seed) for seed in value] for key, value in extra_payload.items()}
 
     seeds_file = args.seeds_file or repo_path("experiments", "phase1", "seeds", f"{args.task_name}_seeds.json")
     seed_payload = read_json(seeds_file)
@@ -269,7 +282,7 @@ def main():
         args.hard_repeats = 0
 
     work_items = build_work_items(
-        seed_payload, hard_seeds, args.id_repeats, args.train_repeats, args.hard_repeats
+        seed_payload, hard_seeds, args.id_repeats, args.train_repeats, args.hard_repeats, extra_splits
     )
     if args.check_complete_result:
         merged_path = args.output_dir / args.task_name / f"{args.variant}.json"
@@ -309,7 +322,7 @@ def main():
         print(f"Resuming {out_path}: {len(rows)}/{len(work_items)} episodes already complete")
 
     if completed_keys == expected_keys:
-        write_json_atomic(out_path, build_summary(args, hard_seeds, hard_seed_source, rows, complete=True))
+        write_json_atomic(out_path, build_summary(args, hard_seeds, hard_seed_source, rows, complete=True, extra_splits=extra_splits))
         print(f"Shard already complete: {out_path}")
         return
 
@@ -331,7 +344,7 @@ def main():
             completed_keys.add(key)
             write_json_atomic(
                 out_path,
-                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False),
+                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits),
             )
     else:
         os.chdir(repo_path())
@@ -357,12 +370,12 @@ def main():
             completed_keys.add(key)
             write_json_atomic(
                 out_path,
-                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False),
+                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits),
             )
             print(f"[{args.task_name}/{args.variant}] {split} seed={env_seed} repeat={repeat} success={row['success']}")
 
     complete = completed_keys == expected_keys
-    summary = build_summary(args, hard_seeds, hard_seed_source, rows, complete=complete)
+    summary = build_summary(args, hard_seeds, hard_seed_source, rows, complete=complete, extra_splits=extra_splits)
     write_json_atomic(out_path, summary)
     print(f"Wrote {out_path}")
 

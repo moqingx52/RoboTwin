@@ -757,12 +757,15 @@ PY
       fi
     fi
     behavior_run_dir="$(brace_stage_output_dir anchor_behavior_eval anchor_behavior_eval)"
-    python experiments/brace/anchor_behavior_eval.py \
+    behavior_protocol=${BRACE_BEHAVIOR_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.3.exploratory_calibration.json}
+    python experiments/brace/orchestrate_behavior_eval.py \
       --task "${tasks[0]}" \
       --calibration-run-dir "${BRACE_CALIBRATION_RUN_DIR}" \
       --output "${behavior_run_dir}" \
-      --gpu "${CUDA_VISIBLE_DEVICES%% *}" \
-      --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}"
+      --protocol "${behavior_protocol}" \
+      --seeds-file "${BRACE_BEHAVIOR_SEEDS_FILE:-experiments/phase1/seeds/${tasks[0]}_seeds.json}" \
+      --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}" \
+      --gpus ${BRACE_BEHAVIOR_GPU_IDS:-0 1 2 3 4 5}
     echo "${behavior_run_dir}" > "${brace_dir}/runs/LATEST_anchor_behavior_eval"
     ;;
 

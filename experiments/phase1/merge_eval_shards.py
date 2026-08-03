@@ -2,7 +2,7 @@
 import argparse
 from pathlib import Path
 
-from common import add_common_args, read_json, repo_path, write_json
+from common import add_common_args, read_json, repo_path, write_json_atomic
 
 
 def summarize(rows, split_name):
@@ -44,10 +44,24 @@ def main():
         payload = read_json(path)
         if meta is None:
             meta = payload
+        else:
+            for key in ("task_name", "task_config", "variant", "ckpt_path", "hard_seeds"):
+                if payload.get(key) != meta.get(key):
+                    raise RuntimeError(
+                        f"Incompatible shard metadata for {path}: {key}={payload.get(key)!r}, "
+                        f"expected {meta.get(key)!r}"
+                    )
+        progress = payload.get("progress", {})
+        if not progress.get("complete"):
+            raise RuntimeError(f"Refusing to merge incomplete shard: {path}")
+        if int(progress.get("num_shards", -1)) != args.num_shards:
+            raise RuntimeError(
+                f"Shard {path} records num_shards={progress.get('num_shards')}, expected {args.num_shards}"
+            )
         for row in payload["rows"]:
             key = (row["split"], int(row["env_seed"]), int(row["repeat"]))
             if key in seen:
-                continue
+                raise RuntimeError(f"Duplicate work item across shards: {key}")
             seen.add(key)
             rows.append(row)
     rows.sort(key=lambda row: (row["split"], int(row["env_seed"]), int(row["repeat"])))
@@ -58,9 +72,8 @@ def main():
         "variant": meta["variant"],
         "ckpt_path": meta["ckpt_path"],
         "splits": {
-            "id_heldout": summarize(rows, "id_heldout"),
-            "train_seen": summarize(rows, "train_seen"),
-            "hard_20": summarize(rows, "hard_20"),
+            split: summarize(rows, split)
+            for split in sorted({row["split"] for row in rows})
         },
         "hard_seeds": meta["hard_seeds"],
         "hard_seed_source": meta["hard_seed_source"],
@@ -78,7 +91,7 @@ def main():
         },
     }
     out_path = task_dir / f"{args.variant}.json"
-    write_json(out_path, summary)
+    write_json_atomic(out_path, summary)
     print(f"Merged {len(shard_paths)} shards into {out_path}")
 
 
