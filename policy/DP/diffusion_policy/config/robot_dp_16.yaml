@@ -129,6 +129,13 @@ training:
     epsilon:
       base_solved: 0.0001
       boundary: 0.0001
+    formulation: dual_only
+    fixed_beta: 0.0
+    rho: 0.0
+    lambda_max: null
+    group_weights:
+      base_solved: 1.0
+      boundary: 1.0
     dual_lr: 0.01
     samples_per_group: 8
     dataset:

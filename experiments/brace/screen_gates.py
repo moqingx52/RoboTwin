@@ -52,20 +52,30 @@ def summarize_feasibility_trajectory(
     *,
     epsilon: float,
     tail_fraction: float = 0.2,
+    tail_steps: int | None = None,
     prefix: str = "",
 ) -> dict[str, Any]:
     """Forensic window stats; not used for frozen screen.v1.2 pass/fail."""
     if not rows:
         return {"rows": 0}
 
-    tail_count = max(1, int(math.ceil(len(rows) * tail_fraction)))
+    if tail_steps is not None:
+        tail_count = max(1, min(int(tail_steps), len(rows)))
+        tail_mode = "steps"
+    else:
+        tail_count = max(1, int(math.ceil(len(rows) * tail_fraction)))
+        tail_mode = "fraction"
     warmup_rows = rows[:-tail_count] if len(rows) > tail_count else []
     tail_rows = rows[-tail_count:]
     summary: dict[str, Any] = {
         "rows": len(rows),
-        "tail_fraction": tail_fraction,
+        "tail_mode": tail_mode,
         "tail_rows": len(tail_rows),
     }
+    if tail_mode == "steps":
+        summary["tail_steps"] = tail_count
+    else:
+        summary["tail_fraction"] = tail_fraction
 
     for group in REQUIRED_ANCHOR_GROUPS:
         train_key = f"brace_constraint/{group}"

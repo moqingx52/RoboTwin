@@ -148,16 +148,18 @@ def bootstrap_workspace(workspace, base_checkpoint: Path) -> None:
     workspace.epoch = 0
     workspace.teacher_checkpoint_path = str(base_checkpoint.resolve())
     workspace.teacher_reference = "raw"
-    workspace.brace_teacher.load_state_dict(workspace.model.state_dict())
-    from diffusion_policy.workspace.robotworkspace import module_sha256
-
-    workspace.brace_teacher_sha256 = module_sha256(workspace.brace_teacher)
-    workspace.brace_dual_state.values.zero_()
     device = torch.device(workspace.cfg.training.device)
     workspace.model.to(device)
-    workspace.brace_teacher.to(device)
-    workspace.brace_teacher.eval()
-    workspace.brace_teacher.requires_grad_(False)
+    if workspace.brace_teacher is not None:
+        workspace.brace_teacher.load_state_dict(workspace.model.state_dict())
+        from diffusion_policy.workspace.robotworkspace import module_sha256
+
+        workspace.brace_teacher_sha256 = module_sha256(workspace.brace_teacher)
+        if workspace.brace_dual_state is not None:
+            workspace.brace_dual_state.values.zero_()
+        workspace.brace_teacher.to(device)
+        workspace.brace_teacher.eval()
+        workspace.brace_teacher.requires_grad_(False)
     if workspace.brace_dual_state is not None:
         workspace.brace_dual_state.to(device)
     if workspace.ema_model is not None:

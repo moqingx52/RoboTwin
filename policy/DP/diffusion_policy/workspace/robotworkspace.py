@@ -40,11 +40,19 @@ class BraceDualState(nn.Module):
         self.groups = tuple(groups)
         self.register_buffer("values", torch.zeros(len(self.groups), dtype=torch.float32))
 
-    def update(self, constraints, epsilons, lr):
+    def update(self, constraints, epsilons, lr, lambda_max=None):
         with torch.no_grad():
             for idx, group in enumerate(self.groups):
                 if group in constraints:
                     self.values[idx].add_(lr * (constraints[group].detach() - epsilons[group])).clamp_(min=0.0)
+                    if lambda_max is not None:
+                        self.values[idx].clamp_(max=float(lambda_max))
+
+    def set_values(self, values: dict[str, float]) -> None:
+        with torch.no_grad():
+            for idx, group in enumerate(self.groups):
+                if group in values:
+                    self.values[idx] = float(values[group])
 
     def as_dict(self):
         return {group: float(self.values[idx].detach().cpu()) for idx, group in enumerate(self.groups)}
@@ -63,6 +71,15 @@ def module_sha256(module):
 
 def _index_obs(obs, indices):
     return {key: value.index_select(0, indices) for key, value in obs.items()}
+
+
+def _resolve_group_scalar(cfg_value, group: str, default: float = 0.0) -> float:
+    if cfg_value is None:
+        return default
+    if isinstance(cfg_value, (float, int)):
+        return float(cfg_value)
+    mapping = dict(cfg_value)
+    return float(mapping.get(group, default))
 
 
 def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state, *, reference_student=None):
@@ -89,6 +106,11 @@ def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state, *, refer
         epsilons = {group: float(epsilon_cfg) for group in group_sources}
     else:
         epsilons = {group: float(epsilon_cfg[group]) for group in group_sources}
+
+    formulation = str(OmegaConf.select(cfg, "training.brace_anchor.formulation", default="dual_only"))
+    fixed_beta_cfg = OmegaConf.select(cfg, "training.brace_anchor.fixed_beta", default=0.0)
+    rho_cfg = OmegaConf.select(cfg, "training.brace_anchor.rho", default=0.0)
+    group_weights_cfg = OmegaConf.select(cfg, "training.brace_anchor.group_weights", default={})
 
     constraints = {}
     monitor_constraints = {}
@@ -121,7 +143,21 @@ def compute_brace_anchor_loss(student, teacher, batch, cfg, dual_state, *, refer
             if group_id in monitor_only:
                 monitor_constraints[group] = constraint
                 continue
-            weighted = weighted + dual_state.values[dual_idx] * (constraint - epsilons[group])
+            group_weight = _resolve_group_scalar(group_weights_cfg, group, 1.0)
+            weighted_constraint = constraint * group_weight
+            beta = _resolve_group_scalar(fixed_beta_cfg, group, 0.0)
+            rho = _resolve_group_scalar(rho_cfg, group, 0.0)
+            if formulation in ("fixed_beta_dual", "augmented_lagrangian") and beta > 0:
+                weighted = weighted + beta * weighted_constraint
+            if dual_state is not None:
+                violation = weighted_constraint - epsilons[group]
+                if formulation == "augmented_lagrangian":
+                    v = torch.relu(violation)
+                    weighted = weighted + dual_state.values[dual_idx] * v
+                    if rho > 0:
+                        weighted = weighted + (rho / 2.0) * v * v
+                else:
+                    weighted = weighted + dual_state.values[dual_idx] * violation
             if reference_student is not None and group_id not in monitor_only:
                 with torch.no_grad():
                     ref_pred = reference_student.denoise_action(obs, noisy_action, timesteps)

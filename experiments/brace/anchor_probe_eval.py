@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import torch
 
 
@@ -19,7 +20,7 @@ def _index_obs(obs, indices):
     return {key: value.index_select(0, indices) for key, value in obs.items()}
 
 
-def materialize_probe_draws(
+def _materialize_single_draw(
     teacher,
     batch: dict[str, Any],
     cfg,
@@ -27,7 +28,6 @@ def materialize_probe_draws(
     seed: int,
     device: torch.device,
 ) -> dict[str, dict[str, torch.Tensor]]:
-    """Precompute teacher action, noise and timesteps once for a fixed probe batch."""
     preservation = batch["sample_preservation_group"]
     group_sources = {
         str(key): int(value)
@@ -47,7 +47,12 @@ def materialize_probe_draws(
                 continue
             obs = _index_obs(batch["obs"], indices)
             clean_action = teacher.predict_action(obs)["action_pred"]
-            noise = torch.randn(clean_action.shape, device=clean_action.device, dtype=clean_action.dtype, generator=generator)
+            noise = torch.randn(
+                clean_action.shape,
+                device=clean_action.device,
+                dtype=clean_action.dtype,
+                generator=generator,
+            )
             timesteps = torch.randint(
                 0,
                 teacher.noise_scheduler.config.num_train_timesteps,
@@ -68,11 +73,31 @@ def materialize_probe_draws(
     return draws
 
 
-def evaluate_probe_draws(
+def materialize_probe_draws(
+    teacher,
+    batch: dict[str, Any],
+    cfg,
+    *,
+    seed: int,
+    device: torch.device,
+    num_draws: int = 1,
+) -> list[dict[str, dict[str, torch.Tensor]]]:
+    """Precompute fixed probe draws; fork_rng isolates teacher RNG side effects."""
+    draws_list: list[dict[str, dict[str, torch.Tensor]]] = []
+    fork_devices = [device] if device.type == "cuda" else []
+    with torch.random.fork_rng(devices=fork_devices):
+        for draw_idx in range(max(1, int(num_draws))):
+            draw_seed = int(seed) + draw_idx * 10007
+            draws_list.append(
+                _materialize_single_draw(teacher, batch, cfg, seed=draw_seed, device=device)
+            )
+    return draws_list
+
+
+def _evaluate_single_draw(
     student,
     teacher,
     draws: dict[str, dict[str, torch.Tensor]],
-    cfg,
     *,
     reference_student=None,
 ) -> tuple[dict[str, float], dict[str, float]]:
@@ -100,3 +125,47 @@ def evaluate_probe_draws(
     finally:
         student.train(student_was_training)
     return constraints, monitor
+
+
+def evaluate_probe_draws(
+    student,
+    teacher,
+    draws_list: list[dict[str, dict[str, torch.Tensor]]],
+    cfg,
+    *,
+    reference_student=None,
+) -> tuple[dict[str, float], dict[str, float], dict[str, Any]]:
+    """Evaluate one or more fixed draws; aggregate mean/p90/max across draws."""
+    per_draw_raw: list[dict[str, float]] = []
+    per_draw_monitor: list[dict[str, float]] = []
+    for draws in draws_list:
+        raw, monitor = _evaluate_single_draw(
+            student,
+            teacher,
+            draws,
+            reference_student=reference_student,
+        )
+        per_draw_raw.append(raw)
+        per_draw_monitor.append(monitor)
+
+    groups = sorted({group for draw in per_draw_raw for group in draw})
+    aggregated_raw: dict[str, float] = {}
+    aggregated_monitor: dict[str, float] = {}
+    stats: dict[str, Any] = {"probe_draw_count": len(draws_list), "per_draw": per_draw_raw}
+
+    for group in groups:
+        values = [draw[group] for draw in per_draw_raw if group in draw]
+        if values:
+            arr = np.asarray(values, dtype=np.float64)
+            aggregated_raw[group] = float(arr.mean())
+            stats[f"probe_constraint_p90/{group}"] = float(np.percentile(arr, 90))
+            stats[f"probe_constraint_max/{group}"] = float(arr.max())
+
+    for key in sorted({k for draw in per_draw_monitor for k in draw}):
+        values = [draw[key] for draw in per_draw_monitor if key in draw]
+        if values:
+            arr = np.asarray(values, dtype=np.float64)
+            aggregated_monitor[key] = float(arr.mean())
+            stats[f"probe_monitor_p90/{key}"] = float(np.percentile(arr, 90))
+
+    return aggregated_raw, aggregated_monitor, stats

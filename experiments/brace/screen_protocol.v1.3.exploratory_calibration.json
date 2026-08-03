@@ -7,9 +7,9 @@
   "frozen_on": null,
   "description": "Exploratory anchor constraint calibration (Phase 3A). Does not replace frozen screen.v1.2 gate or SHA.",
   "changelog": [
-    "Diagnostic schema v3: held-out probe split by env_seed, fixed probe draws without global RNG reset.",
-    "Record anchor_to_sft_grad_ratio and per-group constraint gradient norms/cosines.",
-    "Align scheduler horizon to 247 steps/epoch x 10 epochs = 2470; checkpoint at 247/741/1235.",
+    "Diagnostic schema v3.1: OOM-safe grad stats, tail_steps=50, real checkpoints, multi-draw probe.",
+    "Record anchor_to_sft_grad_ratio and per-group constraint gradient norms/cosines at checkpoints.",
+    "Align scheduler horizon to 247 steps/epoch x 10 epochs = 2470; checkpoint at 247/741/1235/2470.",
     "Probe tail summaries are forensic; v1.2 identity_epsilon gate remains unchanged until behavior calibration."
   ],
   "tasks": ["place_container_plate"],
@@ -50,9 +50,18 @@
     "diagnostic_steps": 1235,
     "scheduler_total_steps": 2470,
     "checkpoint_steps": [247, 741, 1235],
+    "checkpoint_epochs": {
+      "247": 1,
+      "741": 3,
+      "1235": 5,
+      "2470": 10
+    },
     "probe_seed": 42,
     "probe_holdout_fraction": 0.5,
+    "probe_num_draws": 6,
     "tail_steps": 50,
+    "grad_diag_at_checkpoints_only": true,
+    "record_peak_memory": true,
     "gate_on": "ema",
     "ineligible_if_infeasible": false
   },

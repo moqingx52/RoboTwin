@@ -132,6 +132,14 @@ def artifact_complete(job: dict[str, Any]) -> bool:
             return bool(progress["complete"]) and int(progress["completed_episodes"]) == 60
         except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
             return False
+    if job["kind"] == "calibration":
+        if not artifact.is_file():
+            return False
+        try:
+            payload = read_json(artifact)
+            return bool(payload.get("complete"))
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return False
     return False
 
 

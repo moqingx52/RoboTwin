@@ -173,6 +173,86 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertGreater(summary["base_solved"]["tail_mean"], 0.0)
         self.assertLess(summary["base_solved"]["tail_mean"], summary["base_solved"]["full_mean"])
 
+    def test_summarize_feasibility_trajectory_honors_tail_steps(self) -> None:
+        rows = [
+            {
+                "step": step,
+                "brace_constraint/base_solved": 0.01 if step < 95 else 0.001,
+                "brace_constraint/boundary": 0.01 if step < 95 else 0.001,
+            }
+            for step in range(100)
+        ]
+        summary = summarize_feasibility_trajectory(rows, epsilon=1e-4, tail_steps=50)
+        self.assertEqual(summary["tail_mode"], "steps")
+        self.assertEqual(summary["tail_rows"], 50)
+        self.assertLess(summary["base_solved"]["tail_mean"], summary["base_solved"]["full_mean"])
+
+    def test_multi_draw_probe_aggregation(self) -> None:
+        import torch
+        from experiments.brace.anchor_probe_eval import evaluate_probe_draws
+
+        class _Student:
+            def __init__(self, scale):
+                self.scale = scale
+                self._train = True
+
+            def training(self):
+                return self._train
+
+            def train(self, mode=True):
+                self._train = mode
+
+            def eval(self):
+                return self
+
+            def denoise_action(self, obs, noisy_action, timesteps):
+                return noisy_action * self.scale
+
+        class _Teacher:
+            def eval(self):
+                return self
+
+            def denoise_action(self, obs, noisy_action, timesteps):
+                return noisy_action
+
+        draws = [
+            {
+                "base_solved": {
+                    "obs": {"x": torch.zeros(1, 1)},
+                    "noisy_action": torch.tensor([[1.0]]),
+                    "timesteps": torch.tensor([0]),
+                    "teacher_pred": torch.tensor([[1.0]]),
+                }
+            },
+            {
+                "base_solved": {
+                    "obs": {"x": torch.zeros(1, 1)},
+                    "noisy_action": torch.tensor([[2.0]]),
+                    "timesteps": torch.tensor([0]),
+                    "teacher_pred": torch.tensor([[2.0]]),
+                }
+            },
+        ]
+        raw, monitor, stats = evaluate_probe_draws(_Student(1.1), _Teacher(), draws, cfg={})
+        self.assertEqual(stats["probe_draw_count"], 2)
+        self.assertIn("base_solved", raw)
+        self.assertIn("probe_constraint_p90/base_solved", stats)
+
+    def test_calibration_jobs_manifest_has_eight_jobs(self) -> None:
+        manifest = json.loads(
+            Path("experiments/brace/calibration_jobs.place_container_plate.v1.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(len(manifest["jobs"]), 8)
+        job_ids = {job["job_id"] for job in manifest["jobs"]}
+        self.assertEqual(job_ids, {f"A{i}" for i in range(8)})
+
+    def test_select_checkpoint_candidates_empty_when_missing(self) -> None:
+        from experiments.brace.anchor_behavior_eval import select_checkpoint_candidates
+
+        with tempfile.TemporaryDirectory() as tmp:
+            rows = select_checkpoint_candidates(Path(tmp))
+            self.assertEqual(rows, [])
+
     def test_anchor_smoke_passes(self) -> None:
         protocol = json.loads(
             Path("experiments/brace/screen_protocol.v1.json").read_text(encoding="utf-8")

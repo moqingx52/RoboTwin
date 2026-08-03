@@ -121,6 +121,8 @@ Stages:
   anchor-feasibility   GPU diagnostic with pre-registered optimizer steps (not smoke).
                        Writes feasibility_trajectory.jsonl + probe trajectory for forensics.
                        screen.v1.2 gate remains fail-closed until calibrated protocol.
+  anchor-calibration   Phase 3A: 8-job optimizer calibration grid (1 DP job per GPU).
+  anchor-behavior-eval Phase 3C: behavior eval on selected calibration checkpoints.
   branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
@@ -729,6 +731,39 @@ PY
     if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
       echo "${feas_run_dir}" > "${brace_dir}/runs/LATEST_anchor_feasibility"
     fi
+    ;;
+
+  anchor-calibration)
+    calib_run_dir="$(brace_stage_output_dir anchor_calibration anchor_calibration)"
+    python experiments/brace/orchestrate_calibration.py \
+      --protocol "${screen_protocol}" \
+      --jobs "${BRACE_CALIBRATION_JOBS:-${brace_dir}/calibration_jobs.place_container_plate.v1.json}" \
+      --task "${tasks[0]}" \
+      --run-label "${dataset_run_label}" \
+      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}" \
+      --run-dir "${calib_run_dir}" \
+      --gpus ${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7} \
+      --max-retries "${BRACE_CALIBRATION_MAX_RETRIES:-1}"
+    echo "${calib_run_dir}" > "${brace_dir}/runs/LATEST_anchor_calibration"
+    ;;
+
+  anchor-behavior-eval)
+    if [[ -z "${BRACE_CALIBRATION_RUN_DIR:-}" ]]; then
+      if [[ -f "${brace_dir}/runs/LATEST_anchor_calibration" ]]; then
+        BRACE_CALIBRATION_RUN_DIR="$(cat "${brace_dir}/runs/LATEST_anchor_calibration")"
+      else
+        echo "Set BRACE_CALIBRATION_RUN_DIR or run anchor-calibration first." >&2
+        exit 2
+      fi
+    fi
+    behavior_run_dir="$(brace_stage_output_dir anchor_behavior_eval anchor_behavior_eval)"
+    python experiments/brace/anchor_behavior_eval.py \
+      --task "${tasks[0]}" \
+      --calibration-run-dir "${BRACE_CALIBRATION_RUN_DIR}" \
+      --output "${behavior_run_dir}" \
+      --gpu "${CUDA_VISIBLE_DEVICES%% *}" \
+      --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}"
+    echo "${behavior_run_dir}" > "${brace_dir}/runs/LATEST_anchor_behavior_eval"
     ;;
 
   select-pilot-seeds)
