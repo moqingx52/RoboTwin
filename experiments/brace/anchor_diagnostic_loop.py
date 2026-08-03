@@ -11,7 +11,7 @@ from typing import Any
 import hydra
 import numpy as np
 import torch
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, open_dict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -72,13 +72,16 @@ def _anchor_env_seeds(batch: dict[str, Any]) -> list[int]:
 def apply_brace_anchor_overrides(cfg, job: DiagnosticJobConfig, brace_overrides: dict[str, Any] | None) -> None:
     brace = cfg.training.brace_anchor
     brace.enabled = bool(job.anchor_enabled)
-    for key, value in (brace_overrides or {}).items():
-        if "." in key:
-            OmegaConf.update(cfg, f"training.brace_anchor.{key}", value, merge=False)
-        else:
-            brace[key] = value
-    if job.lambda_max is not None:
-        brace.lambda_max = float(job.lambda_max)
+    with open_dict(brace):
+        for key, value in (brace_overrides or {}).items():
+            if key == "lambda_init":
+                continue
+            if "." in key:
+                OmegaConf.update(cfg, f"training.brace_anchor.{key}", value, merge=False)
+            else:
+                brace[key] = value
+        if job.lambda_max is not None:
+            brace.lambda_max = float(job.lambda_max)
 
 
 def _epoch_for_step(step: int, checkpoint_epochs: dict[str, int], steps_per_epoch: int) -> int:
@@ -317,6 +320,7 @@ def run_anchor_diagnostic(
         raw_loss, _ = aggregate_training_loss(workspace.model, batch, workspace.cfg)
         reference_student = workspace.ema_model if workspace.cfg.training.use_ema else None
 
+        step0_grad_probe = False
         if job.anchor_enabled and anchor_batch is not None and workspace.brace_dual_state is not None:
             anchor_term, anchor_constraints, anchor_epsilons, anchor_monitor = compute_brace_anchor_loss(
                 workspace.model,
@@ -342,6 +346,7 @@ def run_anchor_diagnostic(
                 )
                 workspace.brace_dual_state.set_values(lambdas)
                 warmstart_applied = True
+                step0_grad_probe = True
             if (
                 job.auto_fixed_beta_ratio is not None
                 and step == 0
@@ -357,6 +362,13 @@ def run_anchor_diagnostic(
                     target_ratio=job.auto_fixed_beta_ratio,
                 )
                 workspace.cfg.training.brace_anchor.fixed_beta = betas
+                step0_grad_probe = True
+
+            if step0_grad_probe:
+                workspace.optimizer.zero_grad(set_to_none=True)
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
+                continue
 
         total_loss = raw_loss + anchor_term
         params = [param for param in workspace.model.parameters() if param.requires_grad]

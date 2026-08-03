@@ -238,6 +238,33 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertIn("base_solved", raw)
         self.assertIn("probe_constraint_p90/base_solved", stats)
 
+    def test_apply_brace_anchor_overrides_skips_lambda_init(self) -> None:
+        try:
+            from omegaconf import OmegaConf
+        except ImportError:
+            self.skipTest("omegaconf not installed")
+        from experiments.brace.anchor_diagnostic_loop import DiagnosticJobConfig, apply_brace_anchor_overrides
+
+        cfg = OmegaConf.create(
+            {
+                "training": {
+                    "brace_anchor": {
+                        "enabled": True,
+                        "dual_lr": 0.01,
+                        "formulation": "dual_only",
+                    }
+                }
+            }
+        )
+        job = DiagnosticJobConfig(anchor_enabled=True)
+        apply_brace_anchor_overrides(
+            cfg,
+            job,
+            {"lambda_init": 0.0, "dual_lr": 0.03, "formulation": "dual_only"},
+        )
+        self.assertEqual(float(cfg.training.brace_anchor.dual_lr), 0.03)
+        self.assertNotIn("lambda_init", cfg.training.brace_anchor)
+
     def test_calibration_jobs_manifest_has_eight_jobs(self) -> None:
         manifest = json.loads(
             Path("experiments/brace/calibration_jobs.place_container_plate.v1.json").read_text(encoding="utf-8")

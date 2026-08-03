@@ -142,6 +142,7 @@ def summarize_calibration(state: dict[str, Any]) -> dict[str, Any]:
             )
         rows.append(row)
     completed = sum(1 for job in state["jobs"].values() if job["status"] == "completed")
+    failed = sum(1 for job in state["jobs"].values() if job["status"] == "failed")
     return {
         "schema_version": 3,
         "stage": "anchor_calibration",
@@ -149,6 +150,7 @@ def summarize_calibration(state: dict[str, Any]) -> dict[str, Any]:
         "run_label": state["run_label"],
         "jobs_total": len(state["jobs"]),
         "jobs_completed": completed,
+        "jobs_failed": failed,
         "jobs": rows,
     }
 
@@ -214,19 +216,18 @@ def main() -> int:
             self.save()
             while not self.stopping:
                 self.poll()
-                failed = [job for job in self.state["jobs"].values() if job["status"] == "failed"]
-                if failed:
-                    self.state["status"] = "failed"
-                    self.save()
-                    return 1
-                if all(job["status"] == "completed" for job in self.state["jobs"].values()):
+                terminal = all(
+                    job["status"] in ("completed", "failed") for job in self.state["jobs"].values()
+                )
+                if terminal:
+                    failed = [job for job in self.state["jobs"].values() if job["status"] == "failed"]
                     summary = summarize_calibration(self.state)
                     summary_path = Path(self.state["run_dir"]) / "summary.json"
                     write_json_atomic(summary_path, summary)
-                    self.state["status"] = "completed"
+                    self.state["status"] = "failed" if failed else "completed"
                     self.state["summary"] = str(summary_path)
                     self.save()
-                    return 0
+                    return 1 if failed else 0
                 free_gpus = [gpu for gpu in self.args.gpus if gpu not in self.running]
                 ready = [job for job in self.state["jobs"].values() if self.ready(job)]
                 for gpu, job in zip(free_gpus, ready):
