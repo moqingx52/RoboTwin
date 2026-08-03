@@ -91,7 +91,15 @@ def hard_seeds_from_stats(seed_stats, count=20):
     return [int(seed) for seed, _ in items[:count]]
 
 
-def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_repeats, extra_splits=None):
+def build_work_items(
+    seed_payload,
+    hard_seeds,
+    id_repeats,
+    train_repeats,
+    hard_repeats,
+    extra_splits=None,
+    extra_split_repeats=1,
+):
     items = []
     for split, seeds, repeats in (
         ("id_heldout", seed_payload["eval_id"], id_repeats),
@@ -103,7 +111,8 @@ def build_work_items(seed_payload, hard_seeds, id_repeats, train_repeats, hard_r
                 items.append((split, int(env_seed), repeat))
     for split_name, seeds in (extra_splits or {}).items():
         for env_seed in seeds:
-            items.append((str(split_name), int(env_seed), 0))
+            for repeat in range(extra_split_repeats):
+                items.append((str(split_name), int(env_seed), repeat))
     return items
 
 
@@ -137,6 +146,7 @@ def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_spli
             "id_repeats": args.id_repeats,
             "train_repeats": args.train_repeats,
             "hard_repeats": args.hard_repeats,
+            "extra_split_repeats": args.extra_split_repeats,
             "policy_seed_offset": args.policy_seed_offset,
             "shard_id": args.shard_id,
             "num_shards": args.num_shards,
@@ -165,6 +175,7 @@ def validate_result_rows(path, args, hard_seeds, expected_keys):
             "id_repeats": args.id_repeats,
             "train_repeats": args.train_repeats,
             "hard_repeats": args.hard_repeats,
+            "extra_split_repeats": args.extra_split_repeats,
             "policy_seed_offset": args.policy_seed_offset,
             "shard_id": args.shard_id,
             "num_shards": args.num_shards,
@@ -226,6 +237,7 @@ def main():
     parser.add_argument("--id-repeats", type=int, default=3)
     parser.add_argument("--train-repeats", type=int, default=3)
     parser.add_argument("--hard-repeats", type=int, default=8)
+    parser.add_argument("--extra-split-repeats", type=int, default=1)
     parser.add_argument(
         "--policy-seed-offset",
         type=int,
@@ -282,7 +294,13 @@ def main():
         args.hard_repeats = 0
 
     work_items = build_work_items(
-        seed_payload, hard_seeds, args.id_repeats, args.train_repeats, args.hard_repeats, extra_splits
+        seed_payload,
+        hard_seeds,
+        args.id_repeats,
+        args.train_repeats,
+        args.hard_repeats,
+        extra_splits,
+        args.extra_split_repeats,
     )
     if args.check_complete_result:
         merged_path = args.output_dir / args.task_name / f"{args.variant}.json"

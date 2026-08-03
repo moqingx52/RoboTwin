@@ -56,7 +56,10 @@ def expected_episode_count(command: list[str]) -> int:
     id_repeats = int(option(command, "--id-repeats", 1))
     train_repeats = int(option(command, "--train-repeats", 1))
     hard_repeats = int(option(command, "--hard-repeats", 1))
-    items = build_work_items(seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits)
+    extra_split_repeats = int(option(command, "--extra-split-repeats", 1))
+    items = build_work_items(
+        seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits, extra_split_repeats
+    )
     return len(items)
 
 
@@ -96,7 +99,7 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
     parent = read_json(final)
     progress = parent.get("progress", {})
     if progress.get("complete"):
-        return len(parent.get("rows", []))
+        return 0
     rows = parent.get("rows", [])
     if not rows:
         return 0
@@ -106,13 +109,47 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
     id_repeats = int(option(command, "--id-repeats", 3))
     train_repeats = int(option(command, "--train-repeats", 3))
     hard_repeats = int(option(command, "--hard-repeats", 8))
-    items = build_work_items(seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits)
+    extra_split_repeats = int(option(command, "--extra-split-repeats", 1))
+    items = build_work_items(
+        seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits, extra_split_repeats
+    )
+    expected_meta = {
+        "task_name": option(command, "--task"),
+        "task_config": option(command, "--task-config", "demo_clean"),
+        "variant": option(command, "--variant"),
+        "ckpt_path": option(command, "--ckpt-path"),
+    }
+    mismatches = [
+        f"{key}={parent.get(key)!r}, expected {value!r}"
+        for key, value in expected_meta.items()
+        if parent.get(key) != value
+    ]
+    expected_progress = {
+        "id_repeats": id_repeats,
+        "train_repeats": train_repeats,
+        "hard_repeats": hard_repeats,
+        "extra_split_repeats": extra_split_repeats,
+        "policy_seed_offset": int(option(command, "--policy-seed-offset", 0)),
+    }
+    mismatches.extend(
+        f"progress.{key}={progress.get(key)!r}, expected {value!r}"
+        for key, value in expected_progress.items()
+        if key in progress and progress.get(key) != value
+    )
+    if mismatches:
+        raise RuntimeError(f"Refusing to migrate incompatible partial result {final}: " + "; ".join(mismatches))
     item_shard = {work_item_key(*item): index % workers for index, item in enumerate(items)}
     distributed = [[] for _ in range(workers)]
     for row in rows:
         key = work_item_key(row["split"], row["env_seed"], row["repeat"])
         if key not in item_shard:
             raise RuntimeError(f"Partial result {final} has unexpected work item {key}")
+        expected_policy_seed = expected_progress["policy_seed_offset"] + int(row["repeat"])
+        if int(row.get("policy_seed", -1)) != expected_policy_seed:
+            raise RuntimeError(
+                f"Partial result {final} has policy_seed={row.get('policy_seed')!r} for {key}, "
+                f"expected {expected_policy_seed}"
+            )
         distributed[item_shard[key]].append(row)
 
     for shard, shard_rows in enumerate(distributed):
@@ -132,6 +169,7 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
             "id_repeats": id_repeats,
             "train_repeats": train_repeats,
             "hard_repeats": hard_repeats,
+            "extra_split_repeats": extra_split_repeats,
             "policy_seed_offset": int(option(command, "--policy-seed-offset", 0)),
             "shard_id": shard,
             "num_shards": workers,
@@ -193,10 +231,9 @@ def main() -> int:
         raise SystemExit("missing eval_per_seed command after --")
 
     final = output_path(command)
-    expected = expected_episode_count(command)
     if final.is_file():
-        payload = read_json(final)
-        if payload.get("progress", {}).get("complete") and len(payload.get("rows", [])) == expected:
+        complete_check = subprocess.run(check_complete_command(command), cwd=REPO_ROOT, check=False)
+        if complete_check.returncode == 0:
             print(f"Reusing completed logical evaluation: {final}")
             return 0
     migrated = seed_shards_from_partial(command, args.workers)

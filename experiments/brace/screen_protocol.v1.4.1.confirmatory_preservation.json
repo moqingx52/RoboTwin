@@ -1,0 +1,207 @@
+{
+  "schema_version": 3,
+  "protocol_revision": "screen.v1.4.1.confirmatory_preservation",
+  "amends": "screen.v1.4.confirmatory_preservation",
+  "status": "frozen",
+  "frozen_on": "2026-08-03",
+  "exploratory": false,
+  "promotion_eligible": true,
+  "description": "Executable confirmatory amendment: offset isolation, integer enrollment, full H1 Pareto gates, 5 training seeds.",
+  "changelog": [
+    "Amend v1.4: separate census_eval offset 3000 from confirmatory eval offset 4000.",
+    "Integer base_solved enrollment: min_successes=2 of repeats_required=3 (no fraction gate).",
+    "Expand training_seeds to [1,2,3,4,5] with exact sign test and hierarchical bootstrap.",
+    "Freeze constraint_feasibility probe_num_draws=6, tail_steps=50, probe_seed=42.",
+    "Define co-primary preservation + adaptation gates; Hard secondary only.",
+    "checkpoint_primary_step=2470 only for gate analysis."
+  ],
+  "tasks": ["place_container_plate"],
+  "base_checkpoint_pattern": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
+  "training_seeds": [1, 2, 3, 4, 5],
+  "training_seed_0_reserved": "exploratory_evidence_only",
+  "checkpoint_primary_step": 2470,
+  "screen_mode": "confirmatory_preservation",
+  "training": {
+    "learning_rate": 0.00005,
+    "batch_size": 128,
+    "rollout_per_batch": 16,
+    "steps_per_epoch": 247,
+    "screen_epochs": 10,
+    "checkpoint_every": 1,
+    "normalizer_source": "checkpoint",
+    "teacher_reference": "raw",
+    "anchor_samples_per_group": 8
+  },
+  "frozen_anchor_config": {
+    "formulation": "dual_only",
+    "dual_lr": 0.01,
+    "lambda_init": 0.0,
+    "checkpoint_steps": [247, 741, 1235, 2470],
+    "checkpoint_epochs": {
+      "247": 1,
+      "741": 3,
+      "1235": 5,
+      "2470": 10
+    },
+    "source_calibration_job": "A1",
+    "source_calibration_run": "experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate"
+  },
+  "base_solved_enrollment": {
+    "rule": "min_success_count",
+    "min_successes": 2,
+    "repeats_required": 3,
+    "display_fraction": 0.6666666666666666,
+    "note": "Gate uses integer success_count >= min_successes only."
+  },
+  "preservation_eval": {
+    "rule": "all_repeats_success",
+    "repeats_required": 3
+  },
+  "census_eval": {
+    "id_seed_count": 100,
+    "train_seed_count": 100,
+    "hard_seed_count": 0,
+    "id_repeats": 3,
+    "train_repeats": 3,
+    "hard_repeats": 0,
+    "policy_seed_offset": 3000,
+    "use_ema_deploy": true
+  },
+  "eval": {
+    "id_seed_count": 100,
+    "train_seed_count": 100,
+    "hard_seed_count": 20,
+    "id_repeats": 3,
+    "train_repeats": 3,
+    "hard_repeats": 8,
+    "extra_split_repeats": 3,
+    "policy_seed_offset": 4000,
+    "use_ema_deploy": true
+  },
+  "preservation_cohorts": {
+    "min_untouched_base_solved": 60,
+    "exclude_sources": [
+      "anchor_train",
+      "anchor_probe",
+      "sft_chunk",
+      "branch_pilot",
+      "branch_confirm",
+      "phase3c_behavior"
+    ],
+    "report_splits": [
+      "anchor_train",
+      "anchor_probe",
+      "untouched_preservation",
+      "boundary",
+      "id_heldout",
+      "train_seen",
+      "hard_20"
+    ],
+    "primary_endpoint": "untouched_preservation_forgetting"
+  },
+  "constraint_feasibility": {
+    "enabled": true,
+    "mean_tolerance_factor": 2.0,
+    "p90_max_factor": 5.0,
+    "violation_fraction_max": {
+      "base_solved": 0.5,
+      "boundary": 0.5
+    },
+    "require_raw_and_ema": true,
+    "diagnostic_steps": 2470,
+    "scheduler_total_steps": 2470,
+    "checkpoint_steps": [247, 741, 1235, 2470],
+    "probe_seed": 42,
+    "probe_holdout_fraction": 0.5,
+    "probe_num_draws": 6,
+    "tail_steps": 50,
+    "grad_diag_at_checkpoints_only": true,
+    "record_peak_memory": true,
+    "gate_on": "ema",
+    "ineligible_if_infeasible": false
+  },
+  "constraint_budget": {
+    "identity_atol": 0.0001,
+    "training_target_epsilon": 0.0001,
+    "operational_probe_budget": {
+      "base_solved_tail_p90_max": 0.001,
+      "boundary_tail_p90_max": 0.001
+    },
+    "behavior_preservation_gate": true
+  },
+  "training_seed_inference": {
+    "training_seeds": [1, 2, 3, 4, 5],
+    "pairing": {
+      "methods": ["sft_only", "a1_dual"],
+      "pair_on_training_seed": true,
+      "pair_on_env_seed": true,
+      "pair_on_policy_seed": true
+    },
+    "primary_unit": "training_seed",
+    "primary_test": "exact_one_sided_sign_test",
+    "alternative": "a1_dual_better_than_sft_only",
+    "ties": "non_win",
+    "alpha_one_sided": 0.05,
+    "minimum_directional_wins": 5,
+    "required_training_seeds": 5,
+    "effect_ci": {
+      "method": "hierarchical_paired_percentile_bootstrap",
+      "resample_order": ["training_seed", "env_seed_within_training_seed"],
+      "keep_policy_repeats_with_env_seed": true,
+      "replicates": 10000,
+      "bootstrap_seed": 20260803,
+      "confidence_level": 0.95
+    }
+  },
+  "preservation_gate": {
+    "split": "untouched_preservation",
+    "absolute_forgetting_events_max": 0,
+    "zero_event_upper_bound_target": 0.05,
+    "relative_contrast": "a1_dual_minus_sft_only",
+    "relative_require_strict_improvement": true,
+    "require_exact_sign_test": true,
+    "require_hierarchical_ci": true
+  },
+  "adaptation_gate": {
+    "role": "co_primary_pareto_axis",
+    "split": "id_heldout",
+    "metric": "mean_success_rate_over_policy_repeats_then_env_seeds",
+    "contrast": "a1_dual_minus_sft_only",
+    "noninferiority_margin_absolute": -0.05,
+    "required_training_seed_wins": 5,
+    "ties_at_margin": "fail",
+    "exact_one_sided_alpha": 0.05,
+    "require_hierarchical_ci_lower_bound_above_margin": true
+  },
+  "adaptation_secondary": {
+    "train_seen": {
+      "role": "supporting_noninferiority",
+      "margin_absolute": -0.05
+    },
+    "hard_20": {
+      "role": "frozen_tail_efficacy",
+      "comparison": ["a1_dual_vs_sft_only", "a1_dual_vs_base"],
+      "must_not_affect_checkpoint_or_hyperparameter_selection": true
+    }
+  },
+  "h1_conjunction": [
+    "preservation_absolute_gate",
+    "preservation_relative_gate",
+    "preservation_sign_test",
+    "preservation_bootstrap_ci",
+    "adaptation_noninferiority_gate",
+    "adaptation_sign_test",
+    "adaptation_bootstrap_ci",
+    "artifact_provenance_complete"
+  ],
+  "gates": {
+    "block_factorial_until_confirmatory_pass": true,
+    "block_dump_transfer_until_place_confirmatory_pass": true,
+    "do_not_tune_anchor_on_hard": true
+  },
+  "hypotheses": {
+    "H1": "functional_anchor_improves_preservation_adaptation_pareto",
+    "H2": "branch_verification_improves_credit_quality",
+    "H3": "brace_combination_beats_components"
+  }
+}

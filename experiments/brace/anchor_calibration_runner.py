@@ -53,6 +53,7 @@ def run_calibration_job(
     traced_root: Path,
     base_checkpoint: Path,
     work_dir: Path,
+    training_seed: int | None = None,
 ) -> dict[str, Any]:
     if not torch.cuda.is_available():
         return {
@@ -86,8 +87,10 @@ def run_calibration_job(
         work_dir=work_dir,
         job=job_cfg,
         brace_overrides=brace_overrides,
+        train_seed=training_seed,
         stage="anchor_calibration",
     )
+    summary["training_seed"] = training_seed if training_seed is not None else int(protocol.get("train_seed", 0))
     summary["resolved_config_path"] = str(resolved_path)
     summary["config_sha256"] = file_sha256(resolved_path)
     return summary
@@ -109,6 +112,16 @@ def main() -> int:
 
     protocol = read_json(repo_path(args.protocol))
     manifest = read_json(repo_path(args.jobs))
+    manifest_protocol = manifest.get("protocol_path")
+    if manifest_protocol:
+        manifest_protocol_path = repo_path(Path(str(manifest_protocol)))
+        if not manifest_protocol_path.is_file() or file_sha256(manifest_protocol_path) != file_sha256(repo_path(args.protocol)):
+            raise SystemExit("jobs manifest protocol_path does not match --protocol")
+    if manifest.get("training_seeds") is not None:
+        manifest_seeds = [int(seed) for seed in manifest["training_seeds"]]
+        protocol_seeds = [int(seed) for seed in protocol.get("training_seeds", [])]
+        if manifest_seeds != protocol_seeds:
+            raise SystemExit("jobs manifest training_seeds do not match protocol")
     job = next((row for row in manifest["jobs"] if row["job_id"] == args.job_id), None)
     if job is None:
         raise SystemExit(f"unknown calibration job_id: {args.job_id}")
@@ -126,10 +139,12 @@ def main() -> int:
         traced_root=repo_path(args.traced_rollout_dir),
         base_checkpoint=repo_path(args.checkpoint),
         work_dir=work_dir,
+        training_seed=int(job["training_seed"]) if "training_seed" in job else None,
     )
     summary["protocol_path"] = str(repo_path(args.protocol))
     summary["protocol_sha256"] = file_sha256(repo_path(args.protocol))
     summary["jobs_manifest_path"] = str(repo_path(args.jobs))
+    summary["jobs_manifest_sha256"] = file_sha256(repo_path(args.jobs))
     write_json_atomic(output, summary)
     print(json.dumps(summary, indent=2))
     return 0 if summary.get("complete", False) else 1

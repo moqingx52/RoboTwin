@@ -117,6 +117,7 @@ def create_calibration_state(
         "protocol_path": str(protocol_path),
         "protocol_sha256": file_sha256(protocol_path),
         "jobs_manifest_path": str(jobs_manifest_path),
+        "jobs_manifest_sha256": file_sha256(jobs_manifest_path),
         "gpus": gpus,
         "jobs": jobs,
         "events": [],

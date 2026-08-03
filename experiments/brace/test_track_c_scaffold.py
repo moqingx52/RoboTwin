@@ -406,6 +406,360 @@ class TrackCScaffoldTest(unittest.TestCase):
             self.assertEqual(result["base_success_count"], 1)
             self.assertEqual(result["forgetting_rate"], 1.0)
 
+    def test_episode_outcomes_requires_all_repeats(self) -> None:
+        from experiments.brace.screen_gates import episode_outcomes
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "eval.json"
+            write_json_atomic(
+                path,
+                {
+                    "rows": [
+                        {"env_seed": 1, "split": "untouched_preservation", "repeat": 0, "success": True},
+                        {"env_seed": 1, "split": "untouched_preservation", "repeat": 1, "success": False},
+                        {"env_seed": 2, "split": "untouched_preservation", "repeat": 0, "success": True},
+                        {"env_seed": 2, "split": "untouched_preservation", "repeat": 1, "success": True},
+                    ]
+                },
+            )
+            self.assertEqual(episode_outcomes(path, "untouched_preservation"), {1: False, 2: True})
+
+    def test_checkpoint_probe_fields_uses_step_artifact(self) -> None:
+        from experiments.brace.anchor_behavior_eval import checkpoint_probe_fields
+
+        job_summary = {
+            "checkpoint_artifacts": {
+                "1235": {
+                    "probe_constraints": {"base_solved": 0.0016, "boundary": 0.000646},
+                    "probe_monitor": {"base_solved_ema_drift": 0.0012, "boundary_ema_drift": 0.00045},
+                },
+                "2470": {
+                    "probe_constraints": {"base_solved": 0.00051, "boundary": 0.000386},
+                    "probe_monitor": {"base_solved_ema_drift": 0.00055, "boundary_ema_drift": 0.00039},
+                },
+            },
+            "probe_summary": {
+                "boundary": {"probe_tail_mean": 0.999},
+            },
+        }
+        mid = checkpoint_probe_fields(job_summary, 1235)
+        low = checkpoint_probe_fields(job_summary, 2470)
+        self.assertAlmostEqual(mid["probe_summary"]["boundary"]["probe_tail_mean"], 0.000646)
+        self.assertAlmostEqual(low["probe_summary"]["boundary"]["probe_tail_mean"], 0.000386)
+        self.assertEqual(mid["probe_summary"]["source"], "checkpoint_artifacts")
+        with self.assertRaises(KeyError):
+            checkpoint_probe_fields(job_summary, 999)
+
+    def test_confirmatory_manifest_expands_all_training_seeds(self) -> None:
+        manifest = json.loads(
+            Path("experiments/brace/confirmatory_preservation_jobs.place_container_plate.v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        jobs = manifest["jobs"]
+        self.assertEqual(len(jobs), 10)
+        self.assertEqual(
+            {(row["method"], row["training_seed"]) for row in jobs},
+            {(method, seed) for method in ("sft_only", "a1_dual") for seed in (1, 2, 3, 4, 5)},
+        )
+
+    def test_confirmatory_eval_matrix_has_base_plus_ten_candidates(self) -> None:
+        from experiments.brace.confirmatory_preservation_eval import build_candidate_labels
+
+        protocol = json.loads(
+            Path("experiments/brace/screen_protocol.v1.4.1.confirmatory_preservation.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        labels = build_candidate_labels(protocol)
+        self.assertEqual(len(labels), 11)
+        self.assertEqual(labels[0], "base_original")
+        self.assertEqual(
+            set(labels[1:]),
+            {f"{method}_s{seed}" for method in ("c0", "c1") for seed in range(1, 6)},
+        )
+
+    def test_confirmatory_eval_gpu_is_mapped_exactly_once(self) -> None:
+        from experiments.brace.orchestrate_confirmatory_eval import isolated_eval_launch
+
+        command, env = isolated_eval_launch({"command": ["python", "eval.py"]}, 5)
+        self.assertEqual(env["CUDA_VISIBLE_DEVICES"], "5")
+        self.assertEqual(command, ["python", "eval.py"])
+        self.assertNotIn("--gpu", command)
+
+    def test_enrollment_integer_two_of_three(self) -> None:
+        from experiments.brace.confirmatory_common import enrollment_eligible, eligible_seeds_from_eval
+
+        self.assertTrue(enrollment_eligible(2, min_successes=2))
+        self.assertFalse(enrollment_eligible(2, min_successes=3))
+        self.assertFalse(0.6666666666666666 >= 0.6667)
+        with tempfile.TemporaryDirectory() as tmp:
+            eval_path = Path(tmp) / "eval.json"
+            write_json_atomic(
+                eval_path,
+                {
+                    "rows": [
+                        {"env_seed": 1, "split": "id_heldout", "repeat": 0, "success": True},
+                        {"env_seed": 1, "split": "id_heldout", "repeat": 1, "success": False},
+                        {"env_seed": 1, "split": "id_heldout", "repeat": 2, "success": True},
+                    ]
+                },
+            )
+            self.assertEqual(eligible_seeds_from_eval(eval_path, split="id_heldout", min_successes=2, repeats_required=3), [1])
+
+    def test_exact_sign_test_five_seeds(self) -> None:
+        from experiments.brace.aggregate_confirmatory_preservation import exact_one_sided_sign_test
+
+        passed = exact_one_sided_sign_test(5, 5)
+        failed = exact_one_sided_sign_test(4, 5)
+        self.assertTrue(passed["passed"])
+        self.assertAlmostEqual(passed["p_value"], 1 / 32)
+        self.assertFalse(failed["passed"])
+
+    def test_forgetting_denominator_is_frozen_cohort(self) -> None:
+        from experiments.brace.aggregate_confirmatory_preservation import forgetting_rate
+
+        rows = [
+            {"env_seed": seed, "split": "untouched_preservation", "repeat": repeat, "success": seed == 10}
+            for seed in (10, 11)
+            for repeat in range(3)
+        ]
+        result = forgetting_rate(
+            candidate_rows=rows,
+            cohort_seeds=[10, 11],
+            split="untouched_preservation",
+        )
+        self.assertEqual(result["paired_seeds"], 2)
+        self.assertEqual(result["forgetting_seeds"], [11])
+        self.assertEqual(result["forgetting_rate"], 0.5)
+        self.assertEqual(result["denominator_source"], "frozen_census_cohort")
+
+    def test_repeat_completeness_rejects_wrong_policy_seed(self) -> None:
+        from experiments.brace.confirmatory_common import repeat_completeness
+
+        rows = [
+            {
+                "env_seed": 10,
+                "split": "id_heldout",
+                "repeat": repeat,
+                "policy_seed": 3000 + repeat,
+                "success": True,
+            }
+            for repeat in range(3)
+        ]
+        self.assertTrue(
+            repeat_completeness(rows, "id_heldout", [10], 3, policy_seed_offset=3000)
+        )
+        rows[-1]["policy_seed"] = 4002
+        self.assertFalse(
+            repeat_completeness(rows, "id_heldout", [10], 3, policy_seed_offset=3000)
+        )
+
+    def test_census_eval_command_has_no_hard_and_offset_3000(self) -> None:
+        from experiments.brace.anchor_behavior_eval import build_eval_command
+
+        command = build_eval_command(
+            task="place_container_plate",
+            variant="census_base",
+            checkpoint_path="base.ckpt",
+            output_dir=Path("out"),
+            seeds_file=Path("seeds.json"),
+            hard_seeds_file=Path("hard.json"),
+            extra_splits_file=None,
+            workers_per_gpu=3,
+            protocol={
+                "census_eval": {
+                    "id_seed_count": 100,
+                    "train_seed_count": 100,
+                    "hard_seed_count": 0,
+                    "id_repeats": 3,
+                    "train_repeats": 3,
+                    "hard_repeats": 0,
+                    "policy_seed_offset": 3000,
+                }
+            },
+            eval_profile="census",
+        )
+        self.assertIn("--no-include-hard", command)
+        self.assertEqual(command[command.index("--policy-seed-offset") + 1], "3000")
+
+    def test_h1_conjunction_synthetic(self) -> None:
+        from experiments.brace.aggregate_confirmatory_preservation import aggregate_confirmatory_preservation
+
+        protocol = json.loads(
+            Path("experiments/brace/screen_protocol.v1.4.1.confirmatory_preservation.json").read_text(encoding="utf-8")
+        )
+        protocol["training_seeds"] = [1, 2]
+        protocol["preservation_cohorts"]["min_untouched_base_solved"] = 2
+        protocol["training_seed_inference"]["effect_ci"]["replicates"] = 200
+        cohort = {
+            "cohorts": {
+                "untouched_preservation": [10, 11],
+                "id_heldout": [10, 11, 12],
+            }
+        }
+
+        def write_eval(path: Path, untouched_success: dict[int, bool], id_rates: dict[int, float]) -> None:
+            rows = []
+            for seed in (10, 11):
+                for repeat in range(3):
+                    rows.append(
+                        {
+                            "env_seed": seed,
+                            "split": "untouched_preservation",
+                            "repeat": repeat,
+                            "success": untouched_success.get(seed, True),
+                        }
+                    )
+            for seed, rate in id_rates.items():
+                for repeat in range(3):
+                    rows.append(
+                        {
+                            "env_seed": seed,
+                            "split": "id_heldout",
+                            "repeat": repeat,
+                            "success": repeat < round(rate * 3),
+                        }
+                    )
+            write_json_atomic(path, {"rows": rows})
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = {"base_original": root / "base.json"}
+            write_eval(artifacts["base_original"], {10: True, 11: True}, {10: 0.8, 11: 0.8, 12: 0.8})
+            for label, untouched, id_rate in (
+                ("c0_s1", {10: True, 11: False}, 0.5),
+                ("c1_s1", {10: True, 11: True}, 0.6),
+                ("c0_s2", {10: True, 11: True}, 0.5),
+                ("c1_s2", {10: True, 11: True}, 0.6),
+            ):
+                path = root / f"{label}.json"
+                artifacts[label] = path
+                write_eval(path, untouched, {10: id_rate, 11: id_rate, 12: id_rate})
+            summary = aggregate_confirmatory_preservation(
+                protocol=protocol,
+                cohort=cohort,
+                eval_artifacts=artifacts,
+                provenance={"complete": True},
+            )
+            self.assertIn(summary["h1_status"], {"passed", "failed", "inconclusive"})
+            self.assertIn("preservation_absolute_gate", summary["gates"])
+
+    def test_preservation_cohort_uses_eval_id_and_caps_primary_n(self) -> None:
+        from experiments.brace.select_preservation_cohort import select_preservation_cohort
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seeds_file = root / "seeds.json"
+            base_eval = root / "base.json"
+            write_json_atomic(
+                seeds_file,
+                {"train_rollout": list(range(200, 240)), "eval_id": list(range(100, 180))},
+            )
+            write_json_atomic(
+                base_eval,
+                {
+                    "rows": [
+                        {"env_seed": seed, "split": "id_heldout", "repeat": repeat, "success": True}
+                        for seed in range(100, 180)
+                        for repeat in range(3)
+                    ]
+                },
+            )
+            payload = select_preservation_cohort(
+                task="place_container_plate",
+                base_eval=base_eval,
+                census_summary={"eval_path": str(base_eval), "policy_seed_offset": 3000},
+                seeds_file=seeds_file,
+                exclusions={"sft_chunk": [100]},
+                enrollment_rule={"min_successes": 2, "repeats_required": 3},
+                min_untouched=60,
+                boundary_count=20,
+            )
+            self.assertTrue(payload["meets_min_untouched"])
+            self.assertEqual(len(payload["cohorts"]["untouched_preservation"]), 60)
+            self.assertEqual(payload["cohorts"]["id_heldout"], list(range(100, 180)))
+            self.assertNotIn(100, payload["cohorts"]["untouched_preservation"])
+
+    def test_behavior_eval_command_uses_frozen_eval_budget(self) -> None:
+        from experiments.brace.anchor_behavior_eval import build_eval_command
+
+        command = build_eval_command(
+            task="place_container_plate",
+            variant="candidate",
+            checkpoint_path="candidate.ckpt",
+            output_dir=Path("out"),
+            seeds_file=Path("seeds.json"),
+            hard_seeds_file=Path("hard.json"),
+            extra_splits_file=None,
+            workers_per_gpu=3,
+            protocol={
+                "eval": {
+                    "id_seed_count": 100,
+                    "train_seed_count": 100,
+                    "hard_seed_count": 20,
+                    "id_repeats": 3,
+                    "train_repeats": 3,
+                    "hard_repeats": 8,
+                    "policy_seed_offset": 4000,
+                }
+            },
+        )
+        for flag, expected in (
+            ("--id-seed-count", "100"),
+            ("--train-seed-count", "100"),
+            ("--id-repeats", "3"),
+            ("--hard-repeats", "8"),
+            ("--extra-split-repeats", "3"),
+            ("--policy-seed-offset", "4000"),
+        ):
+            self.assertEqual(command[command.index(flag) + 1], expected)
+
+    def test_repair_behavior_eval_probe_links_updates_a1_steps(self) -> None:
+        from experiments.brace.anchor_behavior_eval import repair_behavior_eval_probe_links
+
+        calib = Path("experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate")
+        summary_path = Path(
+            "experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/summary.json"
+        )
+        if not (calib / "A1/summary.json").is_file() or not summary_path.is_file():
+            self.skipTest("restored forensic artifacts missing")
+        with tempfile.TemporaryDirectory() as tmp:
+            copied_summary = Path(tmp) / "summary.json"
+            copied_summary.write_bytes(summary_path.read_bytes())
+            summary = repair_behavior_eval_probe_links(
+                summary_path=copied_summary, calibration_run_dir=calib, seal=False
+            )
+            dual_mid = next(row for row in summary["candidates"] if row["label"] == "dual_mid")
+            dual_low = next(row for row in summary["candidates"] if row["label"] == "dual_low_drift")
+            self.assertAlmostEqual(
+                dual_mid["probe_summary"]["boundary"]["probe_tail_mean"], 0.0006463114768848754
+            )
+            self.assertAlmostEqual(
+                dual_low["probe_summary"]["boundary"]["probe_tail_mean"], 0.0003861767187724278
+            )
+
+    def test_select_preservation_cohort_excludes_anchor_splits(self) -> None:
+        from experiments.brace.select_preservation_cohort import collect_exclusions
+
+        calib = Path("experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate")
+        behavior = Path(
+            "experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin"
+        )
+        if not (calib / "A1/anchor_probe_split.json").is_file():
+            self.skipTest("restored calibration artifacts missing")
+        exclusions = collect_exclusions(
+            task="place_container_plate",
+            calibration_run_dir=calib,
+            behavior_eval_dir=behavior,
+            pilot_seeds_file=Path("experiments/brace/seeds/place_container_plate_pilot_seeds.json"),
+            confirm_seeds_file=Path("experiments/brace/seeds/place_container_plate_confirm_seeds.json"),
+            dataset_manifest=None,
+        )
+        self.assertIn(100005, exclusions["anchor_train"])
+        self.assertIn(100024, exclusions["phase3c_behavior"])
+        self.assertIn(100014, exclusions["anchor_probe"])
+
     def test_anchor_smoke_passes(self) -> None:
         protocol = json.loads(
             Path("experiments/brace/screen_protocol.v1.json").read_text(encoding="utf-8")

@@ -214,12 +214,16 @@ def load_or_evaluate_feasibility(
 
 def episode_outcomes(eval_path: Path, split: str) -> dict[int, bool]:
     payload = json.loads(eval_path.read_text(encoding="utf-8"))
-    rows = payload.get("rows", [])
-    return {
-        int(row["env_seed"]): bool(row.get("success", row.get("task_success", False)))
-        for row in rows
-        if row.get("split") == split
-    }
+    by_seed: dict[int, list[bool]] = {}
+    for row in payload.get("rows", []):
+        if row.get("split") != split:
+            continue
+        by_seed.setdefault(int(row["env_seed"]), []).append(
+            bool(row.get("success", row.get("task_success", False)))
+        )
+    # Preservation is seed-level and conservative: a seed remains solved only
+    # when every preregistered stochastic repeat succeeds.
+    return {seed: all(outcomes) for seed, outcomes in by_seed.items()}
 
 
 def resolve_eval_split(protocol: dict[str, Any], *eval_paths: Path) -> str:

@@ -105,6 +105,37 @@ def inspect_diagnostic_checkpoint(checkpoint_path: Path) -> dict[str, Any]:
     }
 
 
+def checkpoint_probe_fields(job_summary: dict[str, Any], step: int | str) -> dict[str, Any]:
+    """Return checkpoint-specific probe fields; never fall back to run-final probe_summary."""
+    step_key = str(step)
+    artifacts = job_summary.get("checkpoint_artifacts")
+    if not isinstance(artifacts, dict) or step_key not in artifacts:
+        raise KeyError(f"missing checkpoint_artifacts[{step_key!r}]")
+    artifact = artifacts[step_key]
+    if not isinstance(artifact, dict) or not isinstance(artifact.get("probe_constraints"), dict):
+        raise ValueError(f"checkpoint_artifacts[{step_key!r}] has no probe_constraints")
+    probe_constraints = artifact.get("probe_constraints", {})
+    probe_monitor = artifact.get("probe_monitor", {})
+    return {
+        "probe_constraints": probe_constraints,
+        "probe_summary": {
+            "base_solved": {
+                "probe_tail_mean": probe_constraints.get("base_solved"),
+                "probe_tail_ema_mean": probe_monitor.get("base_solved_ema_drift"),
+            },
+            "boundary": {
+                "probe_tail_mean": probe_constraints.get("boundary"),
+                "probe_tail_ema_mean": probe_monitor.get("boundary_ema_drift"),
+            },
+            "rows": int(step_key) if step_key.isdigit() else None,
+            "tail_mode": "checkpoint_artifact",
+            "tail_steps": 50,
+            "source": "checkpoint_artifacts",
+        },
+        "checkpoint_artifact": artifact,
+    }
+
+
 def pick_best_formulation_job(calibration_run_dir: Path, job_ids: tuple[str, ...] = ("A5", "A6", "A7")) -> str | None:
     best_job = None
     best_score = float("inf")
@@ -189,11 +220,11 @@ def select_checkpoint_candidates(
             summary_path = job_dir / "summary.json"
             if summary_path.is_file():
                 summary = read_json(summary_path)
-                step_key = str(spec.get("step"))
-                row["probe_constraints"] = summary.get("checkpoint_artifacts", {}).get(step_key, {}).get(
-                    "probe_constraints", {}
-                )
-                row["probe_summary"] = summary.get("probe_summary")
+                step = spec.get("step")
+                if step is not None:
+                    row.update(checkpoint_probe_fields(summary, step))
+                else:
+                    row["probe_summary"] = summary.get("probe_summary")
         row["checkpoint_audit"] = inspect_diagnostic_checkpoint(Path(ckpt))
         rows.append(row)
     return rows
@@ -236,7 +267,16 @@ def build_eval_command(
     hard_seeds_file: Path,
     extra_splits_file: Path | None,
     workers_per_gpu: int,
+    protocol: dict[str, Any] | None = None,
+    eval_profile: str = "confirmatory",
 ) -> list[str]:
+    if protocol is None:
+        eval_cfg: dict[str, Any] = {}
+    elif eval_profile == "census":
+        eval_cfg = protocol.get("census_eval", {})
+    else:
+        eval_cfg = protocol.get("eval", {})
+    include_hard = int(eval_cfg.get("hard_seed_count", 20)) > 0 and int(eval_cfg.get("hard_repeats", 0)) > 0
     command = [
         "python",
         str(BRACE_DIR / "run_eval_group.py"),
@@ -260,21 +300,25 @@ def build_eval_command(
         "--hard-seeds-file",
         str(hard_seeds_file),
         "--id-seed-count",
-        "20",
+        str(eval_cfg.get("id_seed_count", 20)),
         "--train-seed-count",
-        "20",
+        str(eval_cfg.get("train_seed_count", 20)),
         "--hard-seed-count",
-        "20",
+        str(eval_cfg.get("hard_seed_count", 20)),
         "--id-repeats",
-        "1",
+        str(eval_cfg.get("id_repeats", 1)),
         "--train-repeats",
-        "1",
+        str(eval_cfg.get("train_repeats", 1)),
         "--hard-repeats",
-        "1",
+        str(eval_cfg.get("hard_repeats", 1)),
+        "--extra-split-repeats",
+        str(eval_cfg.get("extra_split_repeats", eval_cfg.get("preservation_repeats", eval_cfg.get("id_repeats", 1)))),
         "--policy-seed-offset",
-        "2000",
+        str(eval_cfg.get("policy_seed_offset", 2000)),
         "--resume",
     ]
+    if not include_hard:
+        command.append("--no-include-hard")
     if extra_splits_file is not None:
         command.extend(["--extra-splits-file", str(extra_splits_file)])
     return command
@@ -325,6 +369,7 @@ def run_single_candidate_eval(
     extra_splits_file: Path | None,
     workers_per_gpu: int,
     gpu: int,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     label = candidate["label"]
     variant = f"calib_{label}"
@@ -337,6 +382,7 @@ def run_single_candidate_eval(
         hard_seeds_file=hard_seeds_file,
         extra_splits_file=extra_splits_file,
         workers_per_gpu=workers_per_gpu,
+        protocol=protocol,
     )
     env = dict(**__import__("os").environ)
     env["CUDA_VISIBLE_DEVICES"] = str(gpu)
@@ -403,6 +449,7 @@ def run_behavior_eval(
             extra_splits_file=extra_splits_file,
             workers_per_gpu=workers_per_gpu,
             gpu=gpu,
+            protocol=protocol,
         )
         for row in selected
     ]
@@ -488,6 +535,41 @@ def finalize_behavior_eval_summary(
     return summary
 
 
+def repair_behavior_eval_probe_links(
+    *,
+    summary_path: Path,
+    calibration_run_dir: Path,
+    seal: bool = True,
+) -> dict[str, Any]:
+    summary = read_json(summary_path)
+    repaired: list[str] = []
+    expected: list[str] = []
+    for row in summary.get("candidates", []):
+        job_id = row.get("job_id")
+        step = row.get("step")
+        if not job_id or step is None:
+            continue
+        label = str(row.get("label", f"{job_id}@{step}"))
+        expected.append(label)
+        job_summary_path = calibration_run_dir / str(job_id) / "summary.json"
+        if not job_summary_path.is_file():
+            raise FileNotFoundError(f"missing calibration summary for {label}: {job_summary_path}")
+        row.update(checkpoint_probe_fields(read_json(job_summary_path), step))
+        repaired.append(label)
+    if repaired != expected:
+        raise RuntimeError(f"incomplete probe repair: expected={expected}, repaired={repaired}")
+    summary["probe_linkage_version"] = "checkpoint_artifacts_v1"
+    summary["probe_linkage_candidates"] = repaired
+    if seal:
+        summary["sealed"] = True
+        summary["seal_note"] = (
+            "Probe metrics joined from per-checkpoint checkpoint_artifacts; "
+            "do not use run-final probe_summary for drift-behavior plots."
+        )
+    write_json_atomic(summary_path, summary)
+    return summary
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", default="place_container_plate")
@@ -500,7 +582,18 @@ def main() -> int:
     parser.add_argument("--workers-per-gpu", type=int, default=3)
     parser.add_argument("--label", help="Run a single candidate label from the recommended set")
     parser.add_argument("--aggregate-only", action="store_true", help="Merge partial candidate results into summary.json")
+    parser.add_argument("--repair-probe-links", action="store_true", help="Rewrite summary probe fields from checkpoint_artifacts")
+    parser.add_argument("--summary-path", type=Path, help="Existing behavior-eval summary to repair (with --repair-probe-links)")
     args = parser.parse_args()
+
+    if args.repair_probe_links:
+        summary_path = (args.summary_path or args.output.resolve() / "summary.json").resolve()
+        summary = repair_behavior_eval_probe_links(
+            summary_path=summary_path,
+            calibration_run_dir=args.calibration_run_dir.resolve(),
+        )
+        print(json.dumps(summary, indent=2))
+        return 0
 
     protocol = read_json(args.protocol.resolve()) if args.protocol.is_file() else {}
     candidates = None

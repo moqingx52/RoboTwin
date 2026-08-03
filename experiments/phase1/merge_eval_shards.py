@@ -51,6 +51,19 @@ def main():
                         f"Incompatible shard metadata for {path}: {key}={payload.get(key)!r}, "
                         f"expected {meta.get(key)!r}"
                     )
+            for key in (
+                "id_repeats",
+                "train_repeats",
+                "hard_repeats",
+                "extra_split_repeats",
+                "policy_seed_offset",
+            ):
+                if payload.get("progress", {}).get(key) != meta.get("progress", {}).get(key):
+                    raise RuntimeError(
+                        f"Incompatible shard metadata for {path}: progress.{key}="
+                        f"{payload.get('progress', {}).get(key)!r}, expected "
+                        f"{meta.get('progress', {}).get(key)!r}"
+                    )
         progress = payload.get("progress", {})
         if not progress.get("complete"):
             raise RuntimeError(f"Refusing to merge incomplete shard: {path}")
@@ -84,6 +97,7 @@ def main():
             "id_repeats": meta.get("progress", {}).get("id_repeats"),
             "train_repeats": meta.get("progress", {}).get("train_repeats"),
             "hard_repeats": meta.get("progress", {}).get("hard_repeats"),
+            "extra_split_repeats": meta.get("progress", {}).get("extra_split_repeats"),
             "policy_seed_offset": meta.get("progress", {}).get("policy_seed_offset"),
             "shard_id": 0,
             "num_shards": 1,

@@ -142,6 +142,7 @@ def run_anchor_diagnostic(
     work_dir: Path,
     job: DiagnosticJobConfig | None = None,
     brace_overrides: dict[str, Any] | None = None,
+    train_seed: int | None = None,
     stage: str = "anchor_feasibility",
 ) -> dict[str, Any]:
     from diffusion_policy.model.common.lr_scheduler import get_scheduler
@@ -149,6 +150,7 @@ def run_anchor_diagnostic(
 
     gate = protocol.get("constraint_feasibility", {})
     train_protocol = protocol.get("training", {})
+    effective_train_seed = int(protocol.get("train_seed", 0) if train_seed is None else train_seed)
     steps_per_epoch = int(train_protocol.get("steps_per_epoch", 247))
     probe_seed = int(gate.get("probe_seed", 42))
     holdout_fraction = float(gate.get("probe_holdout_fraction", 0.5))
@@ -199,7 +201,7 @@ def run_anchor_diagnostic(
         zarr_path=zarr_path,
         anchor_zarr_path=anchor_zarr_path,
         base_checkpoint=base_checkpoint,
-        train_seed=int(protocol.get("train_seed", 0)),
+        train_seed=effective_train_seed,
         learning_rate=float(train_protocol.get("learning_rate", 5e-5)),
         batch_size=int(train_protocol.get("batch_size", 128)),
         rollout_per_batch=int(train_protocol.get("rollout_per_batch", 16)),
@@ -256,7 +258,7 @@ def run_anchor_diagnostic(
             workspace,
             anchor_zarr_path,
             allowed_indices=train_indices,
-            seed=int(protocol.get("train_seed", 0)),
+            seed=effective_train_seed,
         )
         if job.anchor_enabled
         else (None, None)
@@ -542,6 +544,7 @@ def run_anchor_diagnostic(
         "exploratory": bool(protocol.get("exploratory", False)),
         "promotion_eligible": bool(protocol.get("promotion_eligible", False)),
         "protocol_revision": protocol.get("protocol_revision"),
+        "training_seed": effective_train_seed,
         "passed": passed,
         "complete": early_stop_reason is None,
         "early_stop_reason": early_stop_reason,
