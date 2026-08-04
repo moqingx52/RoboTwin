@@ -583,6 +583,151 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertIn("--no-include-hard", command)
         self.assertEqual(command[command.index("--policy-seed-offset") + 1], "3000")
 
+    def test_census_eval_command_v142_uses_census_candidate_split(self) -> None:
+        from experiments.brace.anchor_behavior_eval import build_eval_command
+
+        command = build_eval_command(
+            task="place_container_plate",
+            variant="census_base",
+            checkpoint_path="base.ckpt",
+            output_dir=Path("out"),
+            seeds_file=Path("seeds.json"),
+            hard_seeds_file=Path("hard.json"),
+            extra_splits_file=None,
+            workers_per_gpu=3,
+            protocol={
+                "census_eval": {
+                    "census_candidate_id_count": 200,
+                    "train_seed_count": 100,
+                    "hard_seed_count": 0,
+                    "id_repeats": 3,
+                    "train_repeats": 3,
+                    "hard_repeats": 0,
+                    "policy_seed_offset": 3000,
+                }
+            },
+            eval_profile="census",
+        )
+        self.assertIn("--census-candidate-split", command)
+        self.assertIn("--census-candidate-id-count", command)
+        self.assertEqual(command[command.index("--census-candidate-id-count") + 1], "200")
+        self.assertNotIn("--id-seed-count", command)
+
+    def test_eval_per_seed_census_work_items_use_census_candidate_id_split(self) -> None:
+        from experiments.phase1.eval_per_seed import build_work_items
+
+        seed_payload = {
+            "eval_id": [1, 2],
+            "census_candidate_id": [1, 2, 3, 4],
+            "train_rollout": [10, 11],
+        }
+        items = build_work_items(
+            seed_payload,
+            hard_seeds=[99],
+            id_repeats=2,
+            train_repeats=2,
+            hard_repeats=1,
+            census_candidate_split=True,
+            census_candidate_id_count=4,
+        )
+        splits = {split for split, _, _ in items}
+        self.assertEqual(splits, {"census_candidate_id", "train_seen"})
+        self.assertEqual(
+            sum(1 for split, _, _ in items if split == "census_candidate_id"),
+            8,
+        )
+
+    def test_preservation_cohort_v142_splits_census_and_id_heldout(self) -> None:
+        from experiments.brace.select_preservation_cohort import select_preservation_cohort
+
+        eval_id = list(range(100, 110))
+        reserve = list(range(200, 210))
+        census_ids = eval_id + reserve
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seeds_file = root / "seeds.json"
+            base_eval = root / "base.json"
+            write_json_atomic(
+                seeds_file,
+                {
+                    "train_rollout": list(range(300, 310)),
+                    "eval_id": eval_id,
+                    "census_candidate_id": census_ids,
+                },
+            )
+            write_json_atomic(
+                base_eval,
+                {
+                    "rows": [
+                        {"env_seed": seed, "split": "census_candidate_id", "repeat": repeat, "success": True}
+                        for seed in census_ids
+                        for repeat in range(3)
+                    ]
+                },
+            )
+            payload = select_preservation_cohort(
+                task="place_container_plate",
+                base_eval=base_eval,
+                census_summary={
+                    "schema_version": 2,
+                    "eval_path": str(base_eval),
+                    "policy_seed_offset": 3000,
+                    "census_candidate_ids": census_ids,
+                    "id_heldout": eval_id,
+                    "train_seeds": list(range(300, 310)),
+                },
+                seeds_file=seeds_file,
+                exclusions={},
+                enrollment_rule={"min_successes": 2, "repeats_required": 3},
+                min_untouched=8,
+                boundary_count=3,
+            )
+            self.assertEqual(len(payload["cohorts"]["untouched_preservation"]), 8)
+            self.assertEqual(payload["cohorts"]["id_heldout"], eval_id)
+            self.assertEqual(len(payload["cohorts"]["id_heldout"]), 10)
+
+    def test_validate_census_summary_rejects_v141_schema_on_v142_protocol(self) -> None:
+        from experiments.brace.confirmatory_common import file_sha256, validate_census_summary
+
+        protocol_path = Path("experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json")
+        protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            eval_path = root / "eval.json"
+            ckpt_path = root / "base.ckpt"
+            seeds_path = root / "seeds.json"
+            eval_path.write_text(json.dumps({"progress": {"complete": True, "policy_seed_offset": 3000}, "rows": []}), encoding="utf-8")
+            ckpt_path.write_text("ckpt", encoding="utf-8")
+            seeds_path.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "schema_version < 2"):
+                validate_census_summary(
+                    {
+                        "schema_version": 1,
+                        "stage": "confirmatory_base_census",
+                        "run_type": "confirmatory_base_census",
+                        "task": "place_container_plate",
+                        "policy_seed_offset": 3000,
+                        "protocol_revision": protocol["protocol_revision"],
+                        "protocol_sha256": file_sha256(protocol_path),
+                        "enrollment_rule": {
+                            "min_successes": 2,
+                            "repeats_required": 3,
+                            "display_fraction": protocol["base_solved_enrollment"]["display_fraction"],
+                        },
+                        "eval_path": str(eval_path),
+                        "eval_sha256": file_sha256(eval_path),
+                        "base_checkpoint": str(ckpt_path),
+                        "base_checkpoint_sha256": file_sha256(ckpt_path),
+                        "seeds_file": str(seeds_path),
+                        "seeds_file_sha256": file_sha256(seeds_path),
+                        "id_seeds": [1],
+                        "train_seeds": [2],
+                        "repeat_completeness": {"id_heldout": True, "train_seen": True},
+                    },
+                    protocol_path=protocol_path,
+                    protocol=protocol,
+                )
+
     def test_h1_conjunction_synthetic(self) -> None:
         from experiments.brace.aggregate_confirmatory_preservation import aggregate_confirmatory_preservation
 

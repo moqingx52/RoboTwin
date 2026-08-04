@@ -1,0 +1,48 @@
+{
+  "brace_overrides": {
+    "dual_lr": 0.01,
+    "fixed_beta": 0.0,
+    "formulation": "fixed_beta_dual"
+  },
+  "job": {
+    "anchor_enabled": true,
+    "auto_fixed_beta_ratio": 0.3,
+    "brace_overrides": {
+      "dual_lr": 0.01,
+      "fixed_beta": 0.0,
+      "formulation": "fixed_beta_dual"
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235
+    ],
+    "description": "Fixed beta distillation with grad ratio ~0.3",
+    "diagnostic_steps": 1235,
+    "job_id": "A5"
+  },
+  "job_config": {
+    "anchor_enabled": true,
+    "auto_fixed_beta_ratio": 0.3,
+    "checkpoint_epochs": {
+      "1235": 5,
+      "247": 1,
+      "2470": 10,
+      "741": 3
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235
+    ],
+    "diagnostic_steps": 1235,
+    "dual_lr": 0.01,
+    "early_stop_enabled": true,
+    "grad_diag_at_checkpoints_only": true,
+    "job_id": "A5",
+    "lambda_max": null,
+    "record_peak_memory": true,
+    "scheduler_total_steps": 2470,
+    "warmstart_target_ratio": null
+  }
+}

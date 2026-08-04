@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "source_run": "experiments/brace/runs/20260803T235334Z_select_preservation_cohort_place_container_plate",
+  "archive_target": "archive/confirmatory_preservation_cohort_v141_failure_20260803",
+  "artifact_filter": "json_and_jsonl_excluding_checkpoints_and_zarr",
+  "copied_files": [
+    "meta.json",
+    "place_container_plate_preservation_cohort.json"
+  ]
+}

@@ -1,0 +1,450 @@
+{
+  "calibration_run_dir": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+  "created_at": "2026-08-03T07:30:23.257220+00:00",
+  "events": [],
+  "gpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "jobs": {
+    "base_original": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/partials/base_original.json",
+      "attempts": 1,
+      "candidate": {
+        "checkpoint_audit": {
+          "checkpoint_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+          "deploys_ema": true,
+          "has_ema_model": true,
+          "has_model": true,
+          "state_dict_keys": [
+            "ema_model",
+            "model",
+            "optimizer"
+          ],
+          "use_ema_cfg": true
+        },
+        "checkpoint_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "job_id": null,
+        "label": "base_original",
+        "source": "base",
+        "step": null
+      },
+      "candidate_artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_base_original.json",
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_behavior_eval.py",
+        "--task",
+        "place_container_plate",
+        "--calibration-run-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--seeds-file",
+        "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+        "--label",
+        "base_original",
+        "--workers-per-gpu",
+        "3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": 0,
+      "id": "base_original",
+      "kind": "behavior_eval",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/logs/base_original.log",
+      "status": "completed"
+    },
+    "best_formulation_a6": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/partials/best_formulation_a6.json",
+      "attempts": 1,
+      "candidate": {
+        "checkpoint_audit": {
+          "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_1235.ckpt",
+          "deploys_ema": true,
+          "has_ema_model": true,
+          "has_model": true,
+          "state_dict_keys": [
+            "brace_dual_state",
+            "ema_model",
+            "model",
+            "optimizer"
+          ],
+          "use_ema_cfg": true
+        },
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_1235.ckpt",
+        "job_id": "A6",
+        "label": "best_formulation_a6",
+        "probe_constraints": {
+          "base_solved": 0.0017037155533519883,
+          "boundary": 0.0004579980547229449
+        },
+        "probe_summary": {
+          "base_solved": {
+            "probe_full_mean": 0.00321538532789984,
+            "probe_full_p90": 0.006639633731295665,
+            "probe_tail_ema_mean": 0.0008892115127916137,
+            "probe_tail_mean": 0.0016322505173350993,
+            "probe_tail_p90": 0.002485971788216072,
+            "probe_tail_slope": 6.158776108824701e-06,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.009831627442811927
+          },
+          "boundary": {
+            "probe_full_mean": 0.0020652189531943544,
+            "probe_full_p90": 0.0053493019988915605,
+            "probe_tail_ema_mean": 0.000360639071756547,
+            "probe_tail_mean": 0.000492490437439604,
+            "probe_tail_p90": 0.0005456217474905619,
+            "probe_tail_slope": -2.563410354127386e-06,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.00741173536516726
+          },
+          "rows": 1235,
+          "tail_mode": "steps",
+          "tail_rows": 50,
+          "tail_steps": 50
+        },
+        "source": "calibration",
+        "step": 1235
+      },
+      "candidate_artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_best_formulation_a6.json",
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_behavior_eval.py",
+        "--task",
+        "place_container_plate",
+        "--calibration-run-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--seeds-file",
+        "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+        "--label",
+        "best_formulation_a6",
+        "--workers-per-gpu",
+        "3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": 5,
+      "id": "best_formulation_a6",
+      "kind": "behavior_eval",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/logs/best_formulation_a6.log",
+      "status": "completed"
+    },
+    "dual_low_drift": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/partials/dual_low_drift.json",
+      "attempts": 1,
+      "candidate": {
+        "checkpoint_audit": {
+          "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_2470.ckpt",
+          "deploys_ema": true,
+          "has_ema_model": true,
+          "has_model": true,
+          "state_dict_keys": [
+            "brace_dual_state",
+            "ema_model",
+            "model",
+            "optimizer"
+          ],
+          "use_ema_cfg": true
+        },
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_2470.ckpt",
+        "job_id": "A1",
+        "label": "dual_low_drift",
+        "probe_constraints": {
+          "base_solved": 0.00050987588474527,
+          "boundary": 0.0003861767187724278
+        },
+        "probe_summary": {
+          "base_solved": {
+            "probe_full_mean": 0.002147926874683451,
+            "probe_full_p90": 0.004546385522310931,
+            "probe_tail_ema_mean": 0.000557055434328504,
+            "probe_tail_mean": 0.0005092849485420932,
+            "probe_tail_p90": 0.000509789249432894,
+            "probe_tail_slope": 2.0362283600692114e-08,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.01054264085056881
+          },
+          "boundary": {
+            "probe_full_mean": 0.001233726436477533,
+            "probe_full_p90": 0.0025010946012722943,
+            "probe_tail_ema_mean": 0.00039005742836404055,
+            "probe_tail_mean": 0.00038624343256136247,
+            "probe_tail_p90": 0.00038659059112736334,
+            "probe_tail_slope": 4.364709897080117e-09,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.007799821129689614
+          },
+          "rows": 2470,
+          "tail_mode": "steps",
+          "tail_rows": 50,
+          "tail_steps": 50
+        },
+        "source": "calibration",
+        "step": 2470
+      },
+      "candidate_artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_dual_low_drift.json",
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_behavior_eval.py",
+        "--task",
+        "place_container_plate",
+        "--calibration-run-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--seeds-file",
+        "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+        "--label",
+        "dual_low_drift",
+        "--workers-per-gpu",
+        "3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": 3,
+      "id": "dual_low_drift",
+      "kind": "behavior_eval",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/logs/dual_low_drift.log",
+      "status": "completed"
+    },
+    "dual_mid": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/partials/dual_mid.json",
+      "attempts": 1,
+      "candidate": {
+        "checkpoint_audit": {
+          "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+          "deploys_ema": true,
+          "has_ema_model": true,
+          "has_model": true,
+          "state_dict_keys": [
+            "brace_dual_state",
+            "ema_model",
+            "model",
+            "optimizer"
+          ],
+          "use_ema_cfg": true
+        },
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+        "job_id": "A1",
+        "label": "dual_mid",
+        "probe_constraints": {
+          "base_solved": 0.001600792301663508,
+          "boundary": 0.0006463114768848754
+        },
+        "probe_summary": {
+          "base_solved": {
+            "probe_full_mean": 0.002147926874683451,
+            "probe_full_p90": 0.004546385522310931,
+            "probe_tail_ema_mean": 0.000557055434328504,
+            "probe_tail_mean": 0.0005092849485420932,
+            "probe_tail_p90": 0.000509789249432894,
+            "probe_tail_slope": 2.0362283600692114e-08,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.01054264085056881
+          },
+          "boundary": {
+            "probe_full_mean": 0.001233726436477533,
+            "probe_full_p90": 0.0025010946012722943,
+            "probe_tail_ema_mean": 0.00039005742836404055,
+            "probe_tail_mean": 0.00038624343256136247,
+            "probe_tail_p90": 0.00038659059112736334,
+            "probe_tail_slope": 4.364709897080117e-09,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.007799821129689614
+          },
+          "rows": 2470,
+          "tail_mode": "steps",
+          "tail_rows": 50,
+          "tail_steps": 50
+        },
+        "source": "calibration",
+        "step": 1235
+      },
+      "candidate_artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_dual_mid.json",
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_behavior_eval.py",
+        "--task",
+        "place_container_plate",
+        "--calibration-run-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--seeds-file",
+        "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+        "--label",
+        "dual_mid",
+        "--workers-per-gpu",
+        "3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": 2,
+      "id": "dual_mid",
+      "kind": "behavior_eval",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/logs/dual_mid.log",
+      "status": "completed"
+    },
+    "high_dual_lr": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/partials/high_dual_lr.json",
+      "attempts": 1,
+      "candidate": {
+        "checkpoint_audit": {
+          "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_1235.ckpt",
+          "deploys_ema": true,
+          "has_ema_model": true,
+          "has_model": true,
+          "state_dict_keys": [
+            "brace_dual_state",
+            "ema_model",
+            "model",
+            "optimizer"
+          ],
+          "use_ema_cfg": true
+        },
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_1235.ckpt",
+        "job_id": "A3",
+        "label": "high_dual_lr",
+        "probe_constraints": {
+          "base_solved": 0.0021258020230258503,
+          "boundary": 0.0006066509061687005
+        },
+        "probe_summary": {
+          "base_solved": {
+            "probe_full_mean": 0.0033824448832389534,
+            "probe_full_p90": 0.007101784087717534,
+            "probe_tail_ema_mean": 0.0012977543385932222,
+            "probe_tail_mean": 0.0023839549702825025,
+            "probe_tail_p90": 0.00308919979336982,
+            "probe_tail_slope": -1.781356485779305e-05,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.010121723636984825
+          },
+          "boundary": {
+            "probe_full_mean": 0.0018713546732777922,
+            "probe_full_p90": 0.005072031573702901,
+            "probe_tail_ema_mean": 0.0002919545913027832,
+            "probe_tail_mean": 0.0005382289848057553,
+            "probe_tail_p90": 0.0006445738894399255,
+            "probe_tail_slope": -1.7736211677464633e-06,
+            "probe_tail_violation_fraction": 1.0,
+            "probe_warmup_max": 0.00742127513512969
+          },
+          "rows": 1235,
+          "tail_mode": "steps",
+          "tail_rows": 50,
+          "tail_steps": 50
+        },
+        "source": "calibration",
+        "step": 1235
+      },
+      "candidate_artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_high_dual_lr.json",
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_behavior_eval.py",
+        "--task",
+        "place_container_plate",
+        "--calibration-run-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--seeds-file",
+        "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+        "--label",
+        "high_dual_lr",
+        "--workers-per-gpu",
+        "3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": 4,
+      "id": "high_dual_lr",
+      "kind": "behavior_eval",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/logs/high_dual_lr.log",
+      "status": "completed"
+    },
+    "sft_only": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/partials/sft_only.json",
+      "attempts": 1,
+      "candidate": {
+        "checkpoint_audit": {
+          "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+          "deploys_ema": true,
+          "has_ema_model": true,
+          "has_model": true,
+          "state_dict_keys": [
+            "ema_model",
+            "model",
+            "optimizer"
+          ],
+          "use_ema_cfg": true
+        },
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+        "job_id": "A0",
+        "label": "sft_only",
+        "probe_constraints": {},
+        "probe_summary": {
+          "base_solved": {},
+          "boundary": {},
+          "rows": 1235,
+          "tail_mode": "steps",
+          "tail_rows": 50,
+          "tail_steps": 50
+        },
+        "source": "calibration",
+        "step": 1235
+      },
+      "candidate_artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_sft_only.json",
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_behavior_eval.py",
+        "--task",
+        "place_container_plate",
+        "--calibration-run-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--seeds-file",
+        "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+        "--label",
+        "sft_only",
+        "--workers-per-gpu",
+        "3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": 1,
+      "id": "sft_only",
+      "kind": "behavior_eval",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/logs/sft_only.log",
+      "status": "completed"
+    }
+  },
+  "output_dir": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
+  "schema_version": 2,
+  "stage": "anchor_behavior_eval",
+  "status": "completed",
+  "summary": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/summary.json",
+  "task": "place_container_plate",
+  "updated_at": "2026-08-03T07:30:23.257240+00:00",
+  "workers_per_gpu": 3
+}

@@ -19,8 +19,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from experiments.brace.anchor_behavior_eval import base_checkpoint, build_eval_command
 from experiments.brace.confirmatory_common import (
+    census_enrollment_split,
     feasibility_projection,
     file_sha256,
+    load_census_candidate_ids,
+    load_id_heldout_seeds,
     repeat_completeness,
     seed_set_sha256,
     success_counts_by_seed,
@@ -35,9 +38,13 @@ def main() -> int:
     parser.add_argument(
         "--protocol",
         type=Path,
-        default=BRACE_DIR / "screen_protocol.v1.4.1.confirmatory_preservation.json",
+        default=BRACE_DIR / "screen_protocol.v1.4.2.confirmatory_preservation.json",
     )
-    parser.add_argument("--seeds-file", type=Path, default=PHASE1_DIR / "seeds/place_container_plate_seeds.json")
+    parser.add_argument(
+        "--seeds-file",
+        type=Path,
+        default=BRACE_DIR / "seeds/place_container_plate_confirmatory_v1.4.2_seeds.json",
+    )
     parser.add_argument("--hard-seeds-file", type=Path, default=PHASE1_DIR / "eval_results_200/hard_eval_seeds/place_container_plate.json")
     parser.add_argument("--workers-per-gpu", type=int, default=3)
     parser.add_argument("--gpu", type=int, default=0)
@@ -83,14 +90,16 @@ def main() -> int:
     eval_path = output_dir / args.task / f"{variant}.json"
     rows = read_json(eval_path).get("rows", [])
     seed_payload = read_json(seeds_file)
-    id_seeds = [int(seed) for seed in seed_payload.get("eval_id", seed_payload.get("id_heldout", []))][
-        : int(census_cfg["id_seed_count"])
-    ]
+    census_candidate_ids = load_census_candidate_ids(seed_payload, protocol)
+    id_heldout = load_id_heldout_seeds(seed_payload, protocol)
     train_seeds = [int(seed) for seed in seed_payload["train_rollout"]][: int(census_cfg["train_seed_count"])]
+    enrollment_split = census_enrollment_split(protocol)
     repeats = int(enrollment["repeats_required"])
-    id_counts = success_counts_by_seed(rows, "id_heldout")
+    census_counts = success_counts_by_seed(rows, enrollment_split)
+    uses_split_schema = "census_candidate_id_count" in census_cfg
+    schema_version = 2 if uses_split_schema else 1
     summary: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": schema_version,
         "stage": "confirmatory_base_census",
         "run_type": "confirmatory_base_census",
         "task": args.task,
@@ -102,7 +111,6 @@ def main() -> int:
         "base_checkpoint_sha256": file_sha256(ckpt),
         "seeds_file": str(seeds_file),
         "seeds_file_sha256": file_sha256(seeds_file),
-        "seed_set_sha256": seed_set_sha256(id_seeds + train_seeds),
         "eval_path": str(eval_path),
         "eval_sha256": file_sha256(eval_path),
         "enrollment_rule": {
@@ -111,10 +119,10 @@ def main() -> int:
             "display_fraction": enrollment.get("display_fraction"),
         },
         "repeat_completeness": {
-            "id_heldout": repeat_completeness(
+            enrollment_split: repeat_completeness(
                 rows,
-                "id_heldout",
-                id_seeds,
+                enrollment_split,
+                census_candidate_ids,
                 repeats,
                 policy_seed_offset=int(census_cfg["policy_seed_offset"]),
             ),
@@ -126,16 +134,26 @@ def main() -> int:
                 policy_seed_offset=int(census_cfg["policy_seed_offset"]),
             ),
         },
-        "id_seeds": id_seeds,
         "train_seeds": train_seeds,
-        "id_success_counts": {str(seed): id_counts.get(seed, 0) for seed in id_seeds},
         "feasibility_by_rule": feasibility_projection(
-            id_counts,
+            census_counts,
             excluded=set(),
             min_untouched=int(protocol["preservation_cohorts"]["min_untouched_base_solved"]),
             repeats_required=repeats,
         ),
     }
+    if uses_split_schema:
+        summary["census_candidate_ids"] = census_candidate_ids
+        summary["id_heldout"] = id_heldout
+        summary["census_seed_set_sha256"] = seed_set_sha256(census_candidate_ids + train_seeds)
+        summary["confirmatory_seed_set_sha256"] = seed_set_sha256(id_heldout + train_seeds)
+        summary["census_candidate_success_counts"] = {
+            str(seed): census_counts.get(seed, 0) for seed in census_candidate_ids
+        }
+    else:
+        summary["id_seeds"] = census_candidate_ids
+        summary["seed_set_sha256"] = seed_set_sha256(census_candidate_ids + train_seeds)
+        summary["id_success_counts"] = {str(seed): census_counts.get(seed, 0) for seed in census_candidate_ids}
     write_json_atomic(output_dir / "census_summary.json", summary)
     print(json.dumps(summary, indent=2))
     return 0 if all(summary["repeat_completeness"].values()) else 2

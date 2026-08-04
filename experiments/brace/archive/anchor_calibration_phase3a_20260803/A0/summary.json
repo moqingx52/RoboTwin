@@ -1,0 +1,126 @@
+{
+  "anchor_manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "checkpoint_artifacts": {
+    "1235": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+      "dual": {},
+      "epoch": 5,
+      "lr": 3.470503827099127e-05,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    },
+    "247": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_247.ckpt",
+      "dual": {},
+      "epoch": 1,
+      "lr": 2.47e-05,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    },
+    "741": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_741.ckpt",
+      "dual": {},
+      "epoch": 3,
+      "lr": 4.817627606686408e-05,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    }
+  },
+  "checkpoint_paths": {
+    "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+    "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_247.ckpt",
+    "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_741.ckpt"
+  },
+  "checkpoint_steps": [
+    247,
+    741,
+    1235
+  ],
+  "complete": true,
+  "config_sha256": "b5ae6259703732b30bc2a6f48c6516be54dc04e435ff83f818de8a7c961d736c",
+  "dataset_manifest_sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+  "diagnostic_steps": 1235,
+  "early_stop_reason": null,
+  "exploratory": true,
+  "feasibility": {
+    "groups": {},
+    "missing_groups": [
+      "base_solved",
+      "boundary"
+    ],
+    "passed": false,
+    "require_raw_and_ema": true
+  },
+  "feasibility_on_probe": {
+    "groups": {},
+    "missing_groups": [
+      "base_solved",
+      "boundary"
+    ],
+    "passed": false,
+    "require_raw_and_ema": true
+  },
+  "gate_note": "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; held-out probe tail summaries are forensic-only until a calibrated protocol is frozen.",
+  "git_commit": "f0ac811d92590b9879bf8b4451f7f5bc7edd9c68",
+  "job_id": "A0",
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+  "passed": false,
+  "probe_env_seed_count": 8,
+  "probe_env_seeds": [
+    100000,
+    100011,
+    100014,
+    100016,
+    100017,
+    100021,
+    100041
+  ],
+  "probe_num_draws": 6,
+  "probe_seed": 42,
+  "probe_split_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/anchor_probe_split.json",
+  "probe_split_sha256": "01d509cfd9d4be43b5ee8189ef7a93a3435103093fe2841611afbf65a82bc99d",
+  "probe_summary": {
+    "base_solved": {},
+    "boundary": {},
+    "rows": 1235,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  },
+  "probe_trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/feasibility_probe_trajectory.jsonl",
+  "promotion_eligible": false,
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+  "protocol_revision": "screen.v1.3.exploratory_calibration",
+  "protocol_sha256": "9db305bbaab138ab03d23b89a1064f5b231e61a5ef42cb1410806ef39ebf137d",
+  "resolved_config_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/resolved_config.json",
+  "rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "scheduler_total_steps": 2470,
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "steps_completed": 1235,
+  "teacher_hash_before": null,
+  "teacher_hash_end": null,
+  "teacher_hash_stable": true,
+  "train_env_seed_count": 8,
+  "trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/feasibility_trajectory.jsonl",
+  "trajectory_summary": {
+    "base_solved": {},
+    "boundary": {},
+    "rows": 1235,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  }
+}

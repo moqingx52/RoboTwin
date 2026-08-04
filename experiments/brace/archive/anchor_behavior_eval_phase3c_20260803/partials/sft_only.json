@@ -1,0 +1,31 @@
+{
+  "checkpoint_audit": {
+    "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+    "deploys_ema": true,
+    "has_ema_model": true,
+    "has_model": true,
+    "state_dict_keys": [
+      "ema_model",
+      "model",
+      "optimizer"
+    ],
+    "use_ema_cfg": true
+  },
+  "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+  "eval_deploys_ema": true,
+  "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_sft_only.json",
+  "job_id": "A0",
+  "label": "sft_only",
+  "probe_constraints": {},
+  "probe_summary": {
+    "base_solved": {},
+    "boundary": {},
+    "rows": 1235,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  },
+  "source": "calibration",
+  "step": 1235,
+  "variant": "calib_sft_only"
+}

@@ -1,6 +1,6 @@
 # BRACE 实验日志（滚动）
 
-> 最后更新：**2026-08-03**
+> 最后更新：**2026-08-04**
 > 当前 branch 协议：**v2.3**（`experiments/brace/protocol.v2.3.json`）
 > 设计文档：`docs/brace_cloud_experiment_plan.md`、`docs/brace_audit_v2_design.md`
 > 三轨路线：`docs/brace_track_abc_roadmap.md`
@@ -13,6 +13,9 @@
 
 | 日期 | 阶段 | 任务 | Gate | 文档 / 归档 |
 |------|------|------|------|-------------|
+| 2026-08-04 | Confirmatory v1.4.2 | census feasibility revision | **待跑** P1a→P1b | `screen_protocol.v1.4.2.confirmatory_preservation.json` · `seeds/place_container_plate_confirmatory_v1.4.2_seeds.json` |
+| 2026-08-03 | Confirmatory v1.4.1 | P1b preservation cohort | **protocol-feasibility failure**（untouched=42&lt;60） | `runs/20260803T235334Z_select_preservation_cohort_*` · [`brace_v1.4.1_census_feasibility_failure_20260803.md`](brace_v1.4.1_census_feasibility_failure_20260803.md) |
+| 2026-08-03 | Confirmatory v1.4.1 | P1a base census | complete（600 ep, offset 3000） | `runs/20260803T144820Z_confirmatory_base_census_*` |
 | 2026-08-03 | Phase 3C | anchor behavior eval | **进入确认实验**（非理论完成） | [`brace_phase3c_confirmatory_conclusion_20260803.md`](brace_phase3c_confirmatory_conclusion_20260803.md) · `runs/20260803T073015Z_anchor_behavior_eval_*` |
 | 2026-08-03 | Phase 3A | anchor calibration (A0–A7) | 7/8 complete（A4 OOM） | `runs/20260803T031036Z_anchor_calibration_place_container_plate/` |
 | 2026-07-27 | Stage 1 v1 replay | both | **NO-GO** (80%) | `archive/replay_audit_v1_no_go/` · `docs/brace_replay_audit_log_20260730.md` |

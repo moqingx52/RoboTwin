@@ -1,0 +1,9 @@
+{
+  "base_solved_seed_count": 8,
+  "requires_base_solved_anchor_split": true,
+  "train_seen_count": 20,
+  "train_seen_missing": [
+    100024
+  ],
+  "train_seen_overlap": 7
+}

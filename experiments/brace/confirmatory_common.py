@@ -123,6 +123,31 @@ def feasibility_projection(
     return projections
 
 
+def load_id_heldout_seeds(seed_payload: dict[str, Any], protocol: dict[str, Any]) -> list[int]:
+    eval_cfg = protocol.get("eval", {})
+    count = int(eval_cfg.get("id_seed_count", 100))
+    return [int(seed) for seed in seed_payload.get("eval_id", seed_payload.get("id_heldout", []))][:count]
+
+
+def load_census_candidate_ids(seed_payload: dict[str, Any], protocol: dict[str, Any]) -> list[int]:
+    census_cfg = protocol.get("census_eval", {})
+    if "census_candidate_id_count" in census_cfg:
+        count = int(census_cfg["census_candidate_id_count"])
+        candidates = seed_payload.get("census_candidate_id")
+        if not candidates:
+            raise ValueError("protocol requires census_candidate_id in seeds file")
+        return [int(seed) for seed in candidates][:count]
+    count = int(census_cfg.get("id_seed_count", 100))
+    return [int(seed) for seed in seed_payload.get("eval_id", seed_payload.get("id_heldout", []))][:count]
+
+
+def census_enrollment_split(protocol: dict[str, Any]) -> str:
+    census_cfg = protocol.get("census_eval", {})
+    if "census_candidate_id_count" in census_cfg:
+        return str(census_cfg.get("census_enrollment_split", "census_candidate_id"))
+    return "id_heldout"
+
+
 def validate_census_summary(
     census_summary: dict[str, Any],
     *,
@@ -160,23 +185,57 @@ def validate_census_summary(
         path = Path(str(census_summary.get(path_key, "")))
         if not path.is_file() or census_summary.get(sha_key) != file_sha256(path):
             raise ValueError(f"census summary {path_key}/{sha_key} mismatch")
-    if not census_summary.get("repeat_completeness", {}).get("id_heldout"):
-        raise ValueError("census summary missing complete id_heldout repeats")
     if not census_summary.get("repeat_completeness", {}).get("train_seen"):
         raise ValueError("census summary missing complete train_seen repeats")
     eval_payload = read_json(Path(census_summary["eval_path"]))
     progress = eval_payload.get("progress", {})
     if not progress.get("complete") or int(progress.get("policy_seed_offset", -1)) != expected_offset:
         raise ValueError("census eval progress is incomplete or has wrong policy seed offset")
-    id_seeds = [int(seed) for seed in census_summary.get("id_seeds", [])]
     train_seeds = [int(seed) for seed in census_summary.get("train_seeds", [])]
-    if not id_seeds or not train_seeds:
-        raise ValueError("census summary must freeze exact id_seeds and train_seeds")
+    if not train_seeds:
+        raise ValueError("census summary must freeze exact train_seeds")
     repeats = int(enrollment["repeats_required"])
     rows = eval_payload.get("rows", [])
-    if not repeat_completeness(
-        rows, "id_heldout", id_seeds, repeats, policy_seed_offset=expected_offset
-    ) or not repeat_completeness(
-        rows, "train_seen", train_seeds, repeats, policy_seed_offset=expected_offset
-    ):
-        raise ValueError("census eval rows do not match frozen seeds/repeats/policy seeds")
+    enrollment_split = census_enrollment_split(protocol)
+    uses_split_schema = "census_candidate_id_count" in protocol.get("census_eval", {})
+    if uses_split_schema:
+        if census_summary.get("schema_version", 1) < 2:
+            raise ValueError("census summary schema_version < 2; rerun P1a with v1.4.2 protocol")
+        census_candidate_ids = [int(seed) for seed in census_summary.get("census_candidate_ids", [])]
+        id_heldout = [int(seed) for seed in census_summary.get("id_heldout", [])]
+        if not census_candidate_ids or not id_heldout:
+            raise ValueError("census summary must freeze census_candidate_ids and id_heldout")
+        expected_census_count = int(protocol["census_eval"]["census_candidate_id_count"])
+        expected_id_count = int(protocol["eval"]["id_seed_count"])
+        if len(census_candidate_ids) != expected_census_count:
+            raise ValueError("census_candidate_ids length mismatch with protocol")
+        if len(id_heldout) != expected_id_count:
+            raise ValueError("id_heldout length mismatch with protocol")
+        if not set(id_heldout).issubset(set(census_candidate_ids)):
+            raise ValueError("id_heldout must be a subset of census_candidate_ids")
+        if not census_summary.get("repeat_completeness", {}).get(enrollment_split):
+            raise ValueError(f"census summary missing complete {enrollment_split} repeats")
+        if not repeat_completeness(
+            rows, enrollment_split, census_candidate_ids, repeats, policy_seed_offset=expected_offset
+        ) or not repeat_completeness(
+            rows, "train_seen", train_seeds, repeats, policy_seed_offset=expected_offset
+        ):
+            raise ValueError("census eval rows do not match frozen seeds/repeats/policy seeds")
+        expected_census_sha = seed_set_sha256(census_candidate_ids + train_seeds)
+        expected_confirmatory_sha = seed_set_sha256(id_heldout + train_seeds)
+        if census_summary.get("census_seed_set_sha256") != expected_census_sha:
+            raise ValueError("census_seed_set_sha256 mismatch")
+        if census_summary.get("confirmatory_seed_set_sha256") != expected_confirmatory_sha:
+            raise ValueError("confirmatory_seed_set_sha256 mismatch")
+    else:
+        if not census_summary.get("repeat_completeness", {}).get("id_heldout"):
+            raise ValueError("census summary missing complete id_heldout repeats")
+        id_seeds = [int(seed) for seed in census_summary.get("id_seeds", [])]
+        if not id_seeds:
+            raise ValueError("census summary must freeze exact id_seeds and train_seeds")
+        if not repeat_completeness(
+            rows, "id_heldout", id_seeds, repeats, policy_seed_offset=expected_offset
+        ) or not repeat_completeness(
+            rows, "train_seen", train_seeds, repeats, policy_seed_offset=expected_offset
+        ):
+            raise ValueError("census eval rows do not match frozen seeds/repeats/policy seeds")

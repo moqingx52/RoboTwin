@@ -1,0 +1,46 @@
+{
+  "holdout_fraction": 0.5,
+  "manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "probe_env_seeds": [
+    100000,
+    100011,
+    100014,
+    100016,
+    100017,
+    100021,
+    100024,
+    100041
+  ],
+  "probe_episode_indices": [
+    0,
+    2,
+    3,
+    7,
+    11,
+    12,
+    14,
+    15
+  ],
+  "split_seed": 42,
+  "split_sha256": "01d509cfd9d4be43b5ee8189ef7a93a3435103093fe2841611afbf65a82bc99d",
+  "train_env_seeds": [
+    100004,
+    100005,
+    100008,
+    100010,
+    100019,
+    100020,
+    100023,
+    100032
+  ],
+  "train_episode_indices": [
+    1,
+    4,
+    5,
+    6,
+    8,
+    9,
+    10,
+    13
+  ]
+}

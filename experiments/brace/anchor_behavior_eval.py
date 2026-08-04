@@ -277,6 +277,7 @@ def build_eval_command(
     else:
         eval_cfg = protocol.get("eval", {})
     include_hard = int(eval_cfg.get("hard_seed_count", 20)) > 0 and int(eval_cfg.get("hard_repeats", 0)) > 0
+    census_candidate_split = eval_profile == "census" and "census_candidate_id_count" in eval_cfg
     command = [
         "python",
         str(BRACE_DIR / "run_eval_group.py"),
@@ -299,8 +300,24 @@ def build_eval_command(
         str(seeds_file),
         "--hard-seeds-file",
         str(hard_seeds_file),
-        "--id-seed-count",
-        str(eval_cfg.get("id_seed_count", 20)),
+    ]
+    if census_candidate_split:
+        command.extend(
+            [
+                "--census-candidate-split",
+                "--census-candidate-id-count",
+                str(eval_cfg["census_candidate_id_count"]),
+            ]
+        )
+    else:
+        command.extend(
+            [
+                "--id-seed-count",
+                str(eval_cfg.get("id_seed_count", 20)),
+            ]
+        )
+    command.extend(
+        [
         "--train-seed-count",
         str(eval_cfg.get("train_seed_count", 20)),
         "--hard-seed-count",
@@ -316,7 +333,8 @@ def build_eval_command(
         "--policy-seed-offset",
         str(eval_cfg.get("policy_seed_offset", 2000)),
         "--resume",
-    ]
+        ]
+    )
     if not include_hard:
         command.append("--no-include-hard")
     if extra_splits_file is not None:

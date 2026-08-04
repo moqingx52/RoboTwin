@@ -1,0 +1,47 @@
+{
+  "brace_overrides": {
+    "dual_lr": 0.03,
+    "formulation": "dual_only",
+    "lambda_init": 0.0
+  },
+  "job": {
+    "anchor_enabled": true,
+    "brace_overrides": {
+      "dual_lr": 0.03,
+      "formulation": "dual_only",
+      "lambda_init": 0.0
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235
+    ],
+    "description": "dual_lr=0.03",
+    "diagnostic_steps": 1235,
+    "job_id": "A2"
+  },
+  "job_config": {
+    "anchor_enabled": true,
+    "auto_fixed_beta_ratio": null,
+    "checkpoint_epochs": {
+      "1235": 5,
+      "247": 1,
+      "2470": 10,
+      "741": 3
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235
+    ],
+    "diagnostic_steps": 1235,
+    "dual_lr": 0.03,
+    "early_stop_enabled": true,
+    "grad_diag_at_checkpoints_only": true,
+    "job_id": "A2",
+    "lambda_max": null,
+    "record_peak_memory": true,
+    "scheduler_total_steps": 2470,
+    "warmstart_target_ratio": null
+  }
+}

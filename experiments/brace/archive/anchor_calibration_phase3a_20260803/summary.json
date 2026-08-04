@@ -1,0 +1,264 @@
+{
+  "jobs": [
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_247.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A0",
+      "probe_summary": {
+        "base_solved": {},
+        "boundary": {},
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_247.ckpt",
+        "2470": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_2470.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A1",
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.002147926874683451,
+          "probe_full_p90": 0.004546385522310931,
+          "probe_tail_ema_mean": 0.000557055434328504,
+          "probe_tail_mean": 0.0005092849485420932,
+          "probe_tail_p90": 0.000509789249432894,
+          "probe_tail_slope": 2.0362283600692114e-08,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.01054264085056881
+        },
+        "boundary": {
+          "probe_full_mean": 0.001233726436477533,
+          "probe_full_p90": 0.0025010946012722943,
+          "probe_tail_ema_mean": 0.00039005742836404055,
+          "probe_tail_mean": 0.00038624343256136247,
+          "probe_tail_p90": 0.00038659059112736334,
+          "probe_tail_slope": 4.364709897080117e-09,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.007799821129689614
+        },
+        "rows": 2470,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2/checkpoints/step_247.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A2",
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.0032792828990020626,
+          "probe_full_p90": 0.007846005695561568,
+          "probe_tail_ema_mean": 0.0007045477133942768,
+          "probe_tail_mean": 0.0011660996841965244,
+          "probe_tail_p90": 0.0015963420320379857,
+          "probe_tail_slope": -7.767718291471389e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.017485846299678087
+        },
+        "boundary": {
+          "probe_full_mean": 0.0018982813517338202,
+          "probe_full_p90": 0.005320136000712721,
+          "probe_tail_ema_mean": 0.0003178731889541571,
+          "probe_tail_mean": 0.0004891564638819546,
+          "probe_tail_p90": 0.0005461369684780947,
+          "probe_tail_slope": 6.707117500511468e-07,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.007681095584606131
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_247.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A3",
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.0033824448832389534,
+          "probe_full_p90": 0.007101784087717534,
+          "probe_tail_ema_mean": 0.0012977543385932222,
+          "probe_tail_mean": 0.0023839549702825025,
+          "probe_tail_p90": 0.00308919979336982,
+          "probe_tail_slope": -1.781356485779305e-05,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.010121723636984825
+        },
+        "boundary": {
+          "probe_full_mean": 0.0018713546732777922,
+          "probe_full_p90": 0.005072031573702901,
+          "probe_tail_ema_mean": 0.0002919545913027832,
+          "probe_tail_mean": 0.0005382289848057553,
+          "probe_tail_p90": 0.0006445738894399255,
+          "probe_tail_slope": -1.7736211677464633e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.00742127513512969
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A4/summary.json",
+      "job_id": "A4",
+      "status": "failed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5/checkpoints/step_247.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A5",
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.003151787717943747,
+          "probe_full_p90": 0.0076501463695118855,
+          "probe_tail_ema_mean": 0.0010967638763637903,
+          "probe_tail_mean": 0.001464366221431798,
+          "probe_tail_p90": 0.0019082643964793535,
+          "probe_tail_slope": -1.2099700706903282e-07,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.010533867248644432
+        },
+        "boundary": {
+          "probe_full_mean": 0.0019339342314254491,
+          "probe_full_p90": 0.005382401651392382,
+          "probe_tail_ema_mean": 0.0003596094937044351,
+          "probe_tail_mean": 0.0005305448857446512,
+          "probe_tail_p90": 0.0006401789930047622,
+          "probe_tail_slope": -2.948469238723969e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.007805119501426816
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_247.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A6",
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.00321538532789984,
+          "probe_full_p90": 0.006639633731295665,
+          "probe_tail_ema_mean": 0.0008892115127916137,
+          "probe_tail_mean": 0.0016322505173350993,
+          "probe_tail_p90": 0.002485971788216072,
+          "probe_tail_slope": 6.158776108824701e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.009831627442811927
+        },
+        "boundary": {
+          "probe_full_mean": 0.0020652189531943544,
+          "probe_full_p90": 0.0053493019988915605,
+          "probe_tail_ema_mean": 0.000360639071756547,
+          "probe_tail_mean": 0.000492490437439604,
+          "probe_tail_p90": 0.0005456217474905619,
+          "probe_tail_slope": -2.563410354127386e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.00741173536516726
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    },
+    {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7/summary.json",
+      "checkpoint_paths": {
+        "1235": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7/checkpoints/step_1235.ckpt",
+        "247": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7/checkpoints/step_247.ckpt",
+        "741": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7/checkpoints/step_741.ckpt"
+      },
+      "complete": true,
+      "early_stop_reason": null,
+      "job_id": "A7",
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.003558760808589216,
+          "probe_full_p90": 0.006635890683780115,
+          "probe_tail_ema_mean": 0.0008850313386453006,
+          "probe_tail_mean": 0.0011120199064801758,
+          "probe_tail_p90": 0.0013385417939086133,
+          "probe_tail_slope": -8.431253601189842e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.029476015518109005
+        },
+        "boundary": {
+          "probe_full_mean": 0.001816063137953412,
+          "probe_full_p90": 0.004925095080398024,
+          "probe_tail_ema_mean": 0.0004183967253872349,
+          "probe_tail_mean": 0.00047231920905081395,
+          "probe_tail_p90": 0.0005448468435740021,
+          "probe_tail_slope": -2.9775926221448848e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.006872467774276932
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "status": "completed"
+    }
+  ],
+  "jobs_completed": 7,
+  "jobs_total": 8,
+  "run_label": "place_pilot_v2.3",
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "task": "place_container_plate"
+}

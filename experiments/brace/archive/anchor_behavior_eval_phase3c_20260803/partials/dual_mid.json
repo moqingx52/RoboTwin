@@ -1,0 +1,53 @@
+{
+  "checkpoint_audit": {
+    "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+    "deploys_ema": true,
+    "has_ema_model": true,
+    "has_model": true,
+    "state_dict_keys": [
+      "brace_dual_state",
+      "ema_model",
+      "model",
+      "optimizer"
+    ],
+    "use_ema_cfg": true
+  },
+  "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+  "eval_deploys_ema": true,
+  "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_dual_mid.json",
+  "job_id": "A1",
+  "label": "dual_mid",
+  "probe_constraints": {
+    "base_solved": 0.001600792301663508,
+    "boundary": 0.0006463114768848754
+  },
+  "probe_summary": {
+    "base_solved": {
+      "probe_full_mean": 0.002147926874683451,
+      "probe_full_p90": 0.004546385522310931,
+      "probe_tail_ema_mean": 0.000557055434328504,
+      "probe_tail_mean": 0.0005092849485420932,
+      "probe_tail_p90": 0.000509789249432894,
+      "probe_tail_slope": 2.0362283600692114e-08,
+      "probe_tail_violation_fraction": 1.0,
+      "probe_warmup_max": 0.01054264085056881
+    },
+    "boundary": {
+      "probe_full_mean": 0.001233726436477533,
+      "probe_full_p90": 0.0025010946012722943,
+      "probe_tail_ema_mean": 0.00039005742836404055,
+      "probe_tail_mean": 0.00038624343256136247,
+      "probe_tail_p90": 0.00038659059112736334,
+      "probe_tail_slope": 4.364709897080117e-09,
+      "probe_tail_violation_fraction": 1.0,
+      "probe_warmup_max": 0.007799821129689614
+    },
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  },
+  "source": "calibration",
+  "step": 1235,
+  "variant": "calib_dual_mid"
+}

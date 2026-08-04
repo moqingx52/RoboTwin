@@ -1,0 +1,49 @@
+{
+  "brace_overrides": {
+    "dual_lr": 0.01,
+    "formulation": "dual_only",
+    "lambda_init": 0.0
+  },
+  "job": {
+    "anchor_enabled": true,
+    "brace_overrides": {
+      "dual_lr": 0.01,
+      "formulation": "dual_only",
+      "lambda_init": 0.0
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235,
+      2470
+    ],
+    "description": "Current dual_lr=0.01 control to full scheduler horizon",
+    "diagnostic_steps": 2470,
+    "job_id": "A1"
+  },
+  "job_config": {
+    "anchor_enabled": true,
+    "auto_fixed_beta_ratio": null,
+    "checkpoint_epochs": {
+      "1235": 5,
+      "247": 1,
+      "2470": 10,
+      "741": 3
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235,
+      2470
+    ],
+    "diagnostic_steps": 2470,
+    "dual_lr": 0.01,
+    "early_stop_enabled": true,
+    "grad_diag_at_checkpoints_only": true,
+    "job_id": "A1",
+    "lambda_max": null,
+    "record_peak_memory": true,
+    "scheduler_total_steps": 2470,
+    "warmstart_target_ratio": null
+  }
+}

@@ -27,6 +27,8 @@ dataset_dir=${BRACE_DATASET_DIR:-${brace_dir}/datasets}
 dataset_run_label=${BRACE_DATASET_RUN_LABEL:-place_pilot_v2.3}
 export_protocol=${BRACE_EXPORT_PROTOCOL_PATH:-${brace_dir}/export_protocol.v1.2.json}
 screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.2.json}
+confirmatory_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.2.confirmatory_preservation.json}
+confirmatory_seeds_file=${BRACE_CONFIRMATORY_SEEDS_FILE:-${brace_dir}/seeds/place_container_plate_confirmatory_v1.4.2_seeds.json}
 
 # shellcheck source=experiments/brace/run_paths.sh
 source "${repo_root}/experiments/brace/run_paths.sh"
@@ -802,31 +804,29 @@ PY
       --census-dir "${BRACE_CENSUS_DIR}" \
       --calibration-run-dir "${BRACE_CALIBRATION_RUN_DIR}" \
       --behavior-eval-dir "${BRACE_BEHAVIOR_EVAL_DIR}" \
-      --seeds-file "${BRACE_BEHAVIOR_SEEDS_FILE:-experiments/phase1/seeds/${tasks[0]}_seeds.json}" \
+      --seeds-file "${confirmatory_seeds_file}" \
       --pilot-seeds-file "${brace_dir}/seeds/${tasks[0]}_pilot_seeds.json" \
       --confirm-seeds-file "${brace_dir}/seeds/${tasks[0]}_confirm_seeds.json" \
       --dataset-manifest "${BRACE_PRESERVATION_DATASET_MANIFEST:-${brace_dir}/datasets/${dataset_run_label}_N1.jsonl}" \
-      --protocol "${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.1.confirmatory_preservation.json}" \
+      --protocol "${confirmatory_protocol}" \
       --min-untouched "${BRACE_MIN_UNTOUCHED_PRESERVATION:-60}" \
       --output "${cohort_output}"
     echo "${cohort_output}" > "${brace_dir}/runs/LATEST_preservation_cohort"
     ;;
 
   confirmatory-base-census)
-    confirm_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.1.confirmatory_preservation.json}
     census_run_dir="$(brace_stage_output_dir confirmatory_base_census confirmatory_base_census)"
     python experiments/brace/confirmatory_base_census.py \
       --task "${tasks[0]}" \
       --output "${census_run_dir}" \
-      --protocol "${confirm_protocol}" \
-      --seeds-file "${BRACE_BEHAVIOR_SEEDS_FILE:-experiments/phase1/seeds/${tasks[0]}_seeds.json}" \
+      --protocol "${confirmatory_protocol}" \
+      --seeds-file "${confirmatory_seeds_file}" \
       --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}" \
       --gpu "${BRACE_CENSUS_GPU:-0}"
     echo "${census_run_dir}" > "${brace_dir}/runs/LATEST_confirmatory_base_census"
     ;;
 
   confirmatory-preservation)
-    confirm_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.1.confirmatory_preservation.json}
     confirm_run_dir="$(brace_stage_output_dir confirmatory_preservation confirmatory_preservation)"
     if [[ ! -f "${brace_dir}/runs/LATEST_preservation_cohort" ]]; then
       echo "Run select-preservation-cohort first." >&2
@@ -837,13 +837,13 @@ PY
       echo "Blocked: preservation cohort is missing or does not meet the frozen untouched minimum: ${cohort_path}" >&2
       exit 2
     fi
-    confirm_protocol_sha="$(sha256sum "${confirm_protocol}" | awk '{print $1}')"
+    confirm_protocol_sha="$(sha256sum "${confirmatory_protocol}" | awk '{print $1}')"
     if [[ "$(jq -r '.protocol_sha256 // ""' "${cohort_path}")" != "${confirm_protocol_sha}" ]]; then
-      echo "Blocked: cohort protocol SHA does not match ${confirm_protocol}." >&2
+      echo "Blocked: cohort protocol SHA does not match ${confirmatory_protocol}." >&2
       exit 2
     fi
     python experiments/brace/orchestrate_calibration.py \
-      --protocol "${confirm_protocol}" \
+      --protocol "${confirmatory_protocol}" \
       --jobs "${BRACE_CONFIRMATORY_JOBS:-${brace_dir}/confirmatory_preservation_jobs.place_container_plate.v2.json}" \
       --task "${tasks[0]}" \
       --run-label "${dataset_run_label}" \
@@ -855,12 +855,11 @@ PY
     ;;
 
   confirmatory-preservation-eval)
-    confirm_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.1.confirmatory_preservation.json}
     eval_run_dir="$(brace_stage_output_dir confirmatory_preservation_eval confirmatory_preservation_eval)"
     python experiments/brace/orchestrate_confirmatory_eval.py \
       --task "${tasks[0]}" \
       --output "${eval_run_dir}" \
-      --protocol "${confirm_protocol}" \
+      --protocol "${confirmatory_protocol}" \
       --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}" \
       --gpus ${BRACE_BEHAVIOR_GPU_IDS:-0 1 2 3 4 5 6 7} \
       --max-retries "${BRACE_CONFIRMATORY_EVAL_MAX_RETRIES:-1}" \
@@ -869,12 +868,11 @@ PY
     ;;
 
   confirmatory-preservation-report)
-    confirm_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.1.confirmatory_preservation.json}
     eval_run_dir="${BRACE_CONFIRMATORY_EVAL_DIR:-$(cat "${brace_dir}/runs/LATEST_confirmatory_preservation_eval")}"
     cohort_path="$(cat "${brace_dir}/runs/LATEST_preservation_cohort")"
     census_dir="${BRACE_CENSUS_DIR:-$(cat "${brace_dir}/runs/LATEST_confirmatory_base_census")}"
     python experiments/brace/aggregate_confirmatory_preservation.py \
-      --protocol "${confirm_protocol}" \
+      --protocol "${confirmatory_protocol}" \
       --cohort "${cohort_path}" \
       --eval-dir "${eval_run_dir}" \
       --census-eval "${census_dir}/${tasks[0]}/census_base.json" \

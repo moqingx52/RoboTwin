@@ -1,0 +1,535 @@
+{
+  "created_at": "2026-08-03T03:10:39.688520+00:00",
+  "events": [
+    {
+      "event": "launched",
+      "gpu": 0,
+      "job": "A0",
+      "pid": 4009865
+    },
+    {
+      "event": "launched",
+      "gpu": 1,
+      "job": "A1",
+      "pid": 4009866
+    },
+    {
+      "event": "launched",
+      "gpu": 2,
+      "job": "A2",
+      "pid": 4009867
+    },
+    {
+      "event": "launched",
+      "gpu": 3,
+      "job": "A3",
+      "pid": 4009868
+    },
+    {
+      "event": "launched",
+      "gpu": 4,
+      "job": "A4",
+      "pid": 4009869
+    },
+    {
+      "event": "launched",
+      "gpu": 5,
+      "job": "A5",
+      "pid": 4009870
+    },
+    {
+      "event": "launched",
+      "gpu": 6,
+      "job": "A6",
+      "pid": 4009871
+    },
+    {
+      "event": "launched",
+      "gpu": 7,
+      "job": "A7",
+      "pid": 4009872
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "A4"
+    },
+    {
+      "event": "launched",
+      "gpu": 4,
+      "job": "A4",
+      "pid": 4011394
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "A4"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A0"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A2"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A7"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A3"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A5"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A6"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "A1"
+    }
+  ],
+  "gpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "jobs": {
+    "A0": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A0",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A0",
+      "job_spec": {
+        "anchor_enabled": false,
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "SFT-only / U1 control",
+        "diagnostic_steps": 1235,
+        "job_id": "A0"
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A0.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "A1": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A1",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A1",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "Current dual_lr=0.01 control to full scheduler horizon",
+        "diagnostic_steps": 2470,
+        "job_id": "A1"
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A1.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "A2": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A2",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A2"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A2",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.03,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "dual_lr=0.03",
+        "diagnostic_steps": 1235,
+        "job_id": "A2"
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A2.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "A3": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A3",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A3",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.1,
+          "formulation": "dual_only",
+          "lambda_init": 0.0,
+          "lambda_max": 1.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "dual_lr=0.1 with lambda clip",
+        "diagnostic_steps": 1235,
+        "job_id": "A3",
+        "lambda_max": 1.0
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A3.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "A4": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A4/summary.json",
+      "attempts": 2,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A4",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A4/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A4"
+      ],
+      "dependency": null,
+      "exit_code": 1,
+      "gpu": null,
+      "id": "A4",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "Lambda warm-start for initial anchor/SFT grad ratio ~0.3",
+        "diagnostic_steps": 1235,
+        "job_id": "A4",
+        "warmstart_target_ratio": 0.3
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A4.log",
+      "pid": null,
+      "status": "failed"
+    },
+    "A5": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A5",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A5"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A5",
+      "job_spec": {
+        "anchor_enabled": true,
+        "auto_fixed_beta_ratio": 0.3,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "fixed_beta": 0.0,
+          "formulation": "fixed_beta_dual"
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "Fixed beta distillation with grad ratio ~0.3",
+        "diagnostic_steps": 1235,
+        "job_id": "A5"
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A5.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "A6": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A6",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A6",
+      "job_spec": {
+        "anchor_enabled": true,
+        "auto_fixed_beta_ratio": 0.3,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "fixed_beta": 0.0,
+          "formulation": "augmented_lagrangian",
+          "rho": 10.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "Fixed beta + moderate augmented Lagrangian penalty",
+        "diagnostic_steps": 1235,
+        "job_id": "A6"
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A6.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "A7": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+        "--job-id",
+        "A7",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A7"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "A7",
+      "job_spec": {
+        "anchor_enabled": true,
+        "auto_fixed_beta_ratio": 0.3,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "fixed_beta": 0.0,
+          "formulation": "augmented_lagrangian",
+          "group_weights": {
+            "base_solved": 2.0,
+            "boundary": 1.0
+          },
+          "rho": 10.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235
+        ],
+        "description": "A6 with stronger base_solved group weight",
+        "diagnostic_steps": 1235,
+        "job_id": "A7"
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/logs/A7.log",
+      "pid": null,
+      "status": "completed"
+    }
+  },
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/calibration_jobs.place_container_plate.v1.json",
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.3.exploratory_calibration.json",
+  "protocol_sha256": "9db305bbaab138ab03d23b89a1064f5b231e61a5ef42cb1410806ef39ebf137d",
+  "run_dir": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+  "run_label": "place_pilot_v2.3",
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "status": "failed",
+  "summary": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/summary.json",
+  "task": "place_container_plate",
+  "updated_at": "2026-08-03T06:30:41.022686+00:00"
+}

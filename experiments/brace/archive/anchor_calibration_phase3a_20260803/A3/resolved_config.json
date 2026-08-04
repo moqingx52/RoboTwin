@@ -1,0 +1,50 @@
+{
+  "brace_overrides": {
+    "dual_lr": 0.1,
+    "formulation": "dual_only",
+    "lambda_init": 0.0,
+    "lambda_max": 1.0
+  },
+  "job": {
+    "anchor_enabled": true,
+    "brace_overrides": {
+      "dual_lr": 0.1,
+      "formulation": "dual_only",
+      "lambda_init": 0.0,
+      "lambda_max": 1.0
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235
+    ],
+    "description": "dual_lr=0.1 with lambda clip",
+    "diagnostic_steps": 1235,
+    "job_id": "A3",
+    "lambda_max": 1.0
+  },
+  "job_config": {
+    "anchor_enabled": true,
+    "auto_fixed_beta_ratio": null,
+    "checkpoint_epochs": {
+      "1235": 5,
+      "247": 1,
+      "2470": 10,
+      "741": 3
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235
+    ],
+    "diagnostic_steps": 1235,
+    "dual_lr": 0.1,
+    "early_stop_enabled": true,
+    "grad_diag_at_checkpoints_only": true,
+    "job_id": "A3",
+    "lambda_max": 1.0,
+    "record_peak_memory": true,
+    "scheduler_total_steps": 2470,
+    "warmstart_target_ratio": null
+  }
+}

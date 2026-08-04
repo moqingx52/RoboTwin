@@ -133,12 +133,19 @@ def select_preservation_cohort(
 ) -> dict[str, Any]:
     seed_payload = read_json(seeds_file)
     all_train = [int(seed) for seed in census_summary.get("train_seeds", seed_payload.get("train_rollout", []))]
-    all_id = [
-        int(seed)
-        for seed in census_summary.get(
-            "id_seeds", seed_payload.get("eval_id", seed_payload.get("id_heldout", []))
-        )
-    ]
+    if census_summary.get("schema_version", 1) >= 2:
+        census_candidate_ids = [int(seed) for seed in census_summary.get("census_candidate_ids", [])]
+        all_id = [int(seed) for seed in census_summary.get("id_heldout", [])]
+        enrollment_split = "census_candidate_id"
+    else:
+        census_candidate_ids = [
+            int(seed)
+            for seed in census_summary.get(
+                "id_seeds", seed_payload.get("eval_id", seed_payload.get("id_heldout", []))
+            )
+        ]
+        all_id = list(census_candidate_ids)
+        enrollment_split = "id_heldout"
     excluded = set()
     for values in exclusions.values():
         excluded.update(int(seed) for seed in values)
@@ -146,10 +153,10 @@ def select_preservation_cohort(
     min_successes = int(enrollment_rule["min_successes"])
     repeats_required = int(enrollment_rule["repeats_required"])
     rows = read_json(base_eval).get("rows", [])
-    id_counts = success_counts_by_seed(rows, "id_heldout")
+    id_counts = success_counts_by_seed(rows, enrollment_split)
     base_solved_candidates = eligible_seeds_from_eval(
         base_eval,
-        split="id_heldout",
+        split=enrollment_split,
         min_successes=min_successes,
         repeats_required=repeats_required,
     )
@@ -195,7 +202,10 @@ def select_preservation_cohort(
         "base_eval": str(base_eval),
         "seeds_file": str(seeds_file),
         "selection_rule": {
-            "untouched_preservation": f"integer success_count >= {min_successes} of {repeats_required} on census id_heldout",
+            "untouched_preservation": (
+                f"integer success_count >= {min_successes} of {repeats_required} "
+                f"on census {enrollment_split}"
+            ),
             "boundary": "eligible train_seen seeds ranked by base success-rate distance to 0.5, then env_seed",
         },
         "boundary_base_success_rates": {str(seed): train_rates[seed] for seed in boundary},
@@ -217,14 +227,14 @@ def main() -> int:
         type=Path,
         default=BRACE_DIR / "runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin",
     )
-    parser.add_argument("--seeds-file", type=Path, default=PHASE1_DIR / "seeds/place_container_plate_seeds.json")
+    parser.add_argument("--seeds-file", type=Path, default=BRACE_DIR / "seeds/place_container_plate_confirmatory_v1.4.2_seeds.json")
     parser.add_argument("--pilot-seeds-file", type=Path, default=BRACE_DIR / "seeds/place_container_plate_pilot_seeds.json")
     parser.add_argument("--confirm-seeds-file", type=Path, default=BRACE_DIR / "seeds/place_container_plate_confirm_seeds.json")
     parser.add_argument("--dataset-manifest", type=Path)
     parser.add_argument(
         "--protocol",
         type=Path,
-        default=BRACE_DIR / "screen_protocol.v1.4.1.confirmatory_preservation.json",
+        default=BRACE_DIR / "screen_protocol.v1.4.2.confirmatory_preservation.json",
     )
     parser.add_argument("--min-untouched", type=int, default=60)
     parser.add_argument("--boundary-count", type=int, default=20)

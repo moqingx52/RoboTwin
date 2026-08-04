@@ -99,16 +99,34 @@ def build_work_items(
     hard_repeats,
     extra_splits=None,
     extra_split_repeats=1,
+    *,
+    census_candidate_split=False,
+    census_candidate_id_count=None,
 ):
     items = []
-    for split, seeds, repeats in (
-        ("id_heldout", seed_payload["eval_id"], id_repeats),
-        ("train_seen", seed_payload["train_rollout"], train_repeats),
-        ("hard_20", hard_seeds, hard_repeats),
-    ):
-        for env_seed in seeds:
-            for repeat in range(repeats):
-                items.append((split, int(env_seed), repeat))
+    if census_candidate_split:
+        census_seeds = seed_payload.get("census_candidate_id")
+        if not census_seeds:
+            raise ValueError("census_candidate_split requires census_candidate_id in seeds file")
+        if census_candidate_id_count is not None:
+            census_seeds = list(census_seeds)[: int(census_candidate_id_count)]
+        for env_seed in census_seeds:
+            for repeat in range(id_repeats):
+                items.append(("census_candidate_id", int(env_seed), repeat))
+    else:
+        for split, seeds, repeats in (
+            ("id_heldout", seed_payload["eval_id"], id_repeats),
+        ):
+            for env_seed in seeds:
+                for repeat in range(repeats):
+                    items.append((split, int(env_seed), repeat))
+    for env_seed in seed_payload["train_rollout"]:
+        for repeat in range(train_repeats):
+            items.append(("train_seen", int(env_seed), repeat))
+    if not census_candidate_split:
+        for env_seed in hard_seeds:
+            for repeat in range(hard_repeats):
+                items.append(("hard_20", int(env_seed), repeat))
     for split_name, seeds in (extra_splits or {}).items():
         for env_seed in seeds:
             for repeat in range(extra_split_repeats):
@@ -126,8 +144,13 @@ def output_path(output_dir, task_name, variant, shard_id, num_shards):
     return output_dir / task_name / f"{variant}.json"
 
 
-def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_splits=None):
-    split_names = ["id_heldout", "train_seen", "hard_20"]
+def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_splits=None, *, census_candidate_split=False):
+    split_names = []
+    if census_candidate_split:
+        split_names.append("census_candidate_id")
+    else:
+        split_names.extend(["id_heldout", "hard_20"])
+    split_names.append("train_seen")
     if extra_splits:
         split_names.extend(str(name) for name in extra_splits)
     split_names = list(dict.fromkeys(split_names))
@@ -261,6 +284,16 @@ def main():
         type=Path,
         help="Optional JSON object mapping split name to env_seed list, e.g. base_solved_anchor.",
     )
+    parser.add_argument(
+        "--census-candidate-split",
+        action="store_true",
+        help="Evaluate census_candidate_id split instead of id_heldout (confirmatory census P1a).",
+    )
+    parser.add_argument(
+        "--census-candidate-id-count",
+        type=int,
+        help="Use only the first N census_candidate_id seeds when --census-candidate-split is set.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -277,6 +310,9 @@ def main():
     if args.train_seed_count is not None:
         seed_payload = dict(seed_payload)
         seed_payload["train_rollout"] = list(seed_payload["train_rollout"])[: args.train_seed_count]
+    if args.census_candidate_split and args.census_candidate_id_count is not None:
+        seed_payload = dict(seed_payload)
+        seed_payload["census_candidate_id"] = list(seed_payload["census_candidate_id"])[: args.census_candidate_id_count]
     seed_stats_path = args.rollout_dir / args.task_name / "seed_stats.json"
     seed_stats = read_json(seed_stats_path) if seed_stats_path.exists() else {}
     if args.hard_seeds_file:
@@ -301,6 +337,8 @@ def main():
         args.hard_repeats,
         extra_splits,
         args.extra_split_repeats,
+        census_candidate_split=args.census_candidate_split,
+        census_candidate_id_count=args.census_candidate_id_count,
     )
     if args.check_complete_result:
         merged_path = args.output_dir / args.task_name / f"{args.variant}.json"
@@ -340,7 +378,7 @@ def main():
         print(f"Resuming {out_path}: {len(rows)}/{len(work_items)} episodes already complete")
 
     if completed_keys == expected_keys:
-        write_json_atomic(out_path, build_summary(args, hard_seeds, hard_seed_source, rows, complete=True, extra_splits=extra_splits))
+        write_json_atomic(out_path, build_summary(args, hard_seeds, hard_seed_source, rows, complete=True, extra_splits=extra_splits, census_candidate_split=args.census_candidate_split))
         print(f"Shard already complete: {out_path}")
         return
 
@@ -362,7 +400,7 @@ def main():
             completed_keys.add(key)
             write_json_atomic(
                 out_path,
-                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits),
+                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits, census_candidate_split=args.census_candidate_split),
             )
     else:
         os.chdir(repo_path())
@@ -388,12 +426,12 @@ def main():
             completed_keys.add(key)
             write_json_atomic(
                 out_path,
-                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits),
+                build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits, census_candidate_split=args.census_candidate_split),
             )
             print(f"[{args.task_name}/{args.variant}] {split} seed={env_seed} repeat={repeat} success={row['success']}")
 
     complete = completed_keys == expected_keys
-    summary = build_summary(args, hard_seeds, hard_seed_source, rows, complete=complete, extra_splits=extra_splits)
+    summary = build_summary(args, hard_seeds, hard_seed_source, rows, complete=complete, extra_splits=extra_splits, census_candidate_split=args.census_candidate_split)
     write_json_atomic(out_path, summary)
     print(f"Wrote {out_path}")
 

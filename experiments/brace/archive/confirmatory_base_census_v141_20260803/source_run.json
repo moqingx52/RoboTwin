@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source_run": "experiments/brace/runs/20260803T144820Z_confirmatory_base_census_place_container_plate",
+  "archive_target": "archive/confirmatory_base_census_v141_20260803",
+  "artifact_filter": "json_and_jsonl_excluding_checkpoints_and_zarr",
+  "copied_files": [
+    "census_summary.json",
+    "meta.json",
+    "place_container_plate/census_base.json",
+    "place_container_plate/census_base_shard_00_of_03.json",
+    "place_container_plate/census_base_shard_01_of_03.json",
+    "place_container_plate/census_base_shard_02_of_03.json"
+  ]
+}

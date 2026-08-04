@@ -1,0 +1,354 @@
+{
+  "base_solved_coverage_audit": {
+    "base_solved_seed_count": 8,
+    "requires_base_solved_anchor_split": true,
+    "train_seen_count": 20,
+    "train_seen_missing": [
+      100024
+    ],
+    "train_seen_overlap": 7
+  },
+  "calibration_run_dir": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate",
+  "candidates": [
+    {
+      "checkpoint_audit": {
+        "checkpoint_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "deploys_ema": true,
+        "has_ema_model": true,
+        "has_model": true,
+        "state_dict_keys": [
+          "ema_model",
+          "model",
+          "optimizer"
+        ],
+        "use_ema_cfg": true
+      },
+      "checkpoint_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+      "eval_deploys_ema": true,
+      "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_base_original.json",
+      "job_id": null,
+      "label": "base_original",
+      "preservation": {
+        "base_success_count": 8,
+        "base_success_rate": 1.0,
+        "candidate_success_rate": 1.0,
+        "forgetting_rate": 0.0,
+        "forgetting_seeds": [],
+        "paired_seeds": 8,
+        "split": "base_solved_anchor"
+      },
+      "source": "base",
+      "step": null,
+      "variant": "calib_base_original"
+    },
+    {
+      "checkpoint_audit": {
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_1235.ckpt",
+        "deploys_ema": true,
+        "has_ema_model": true,
+        "has_model": true,
+        "state_dict_keys": [
+          "brace_dual_state",
+          "ema_model",
+          "model",
+          "optimizer"
+        ],
+        "use_ema_cfg": true
+      },
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A6/checkpoints/step_1235.ckpt",
+      "eval_deploys_ema": true,
+      "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_best_formulation_a6.json",
+      "job_id": "A6",
+      "label": "best_formulation_a6",
+      "preservation": {
+        "base_success_count": 8,
+        "base_success_rate": 1.0,
+        "candidate_success_rate": 1.0,
+        "forgetting_rate": 0.0,
+        "forgetting_seeds": [],
+        "paired_seeds": 8,
+        "split": "base_solved_anchor"
+      },
+      "probe_constraints": {
+        "base_solved": 0.0017037155533519883,
+        "boundary": 0.0004579980547229449
+      },
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.00321538532789984,
+          "probe_full_p90": 0.006639633731295665,
+          "probe_tail_ema_mean": 0.0008892115127916137,
+          "probe_tail_mean": 0.0016322505173350993,
+          "probe_tail_p90": 0.002485971788216072,
+          "probe_tail_slope": 6.158776108824701e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.009831627442811927
+        },
+        "boundary": {
+          "probe_full_mean": 0.0020652189531943544,
+          "probe_full_p90": 0.0053493019988915605,
+          "probe_tail_ema_mean": 0.000360639071756547,
+          "probe_tail_mean": 0.000492490437439604,
+          "probe_tail_p90": 0.0005456217474905619,
+          "probe_tail_slope": -2.563410354127386e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.00741173536516726
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "source": "calibration",
+      "step": 1235,
+      "variant": "calib_best_formulation_a6"
+    },
+    {
+      "checkpoint_audit": {
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_2470.ckpt",
+        "deploys_ema": true,
+        "has_ema_model": true,
+        "has_model": true,
+        "state_dict_keys": [
+          "brace_dual_state",
+          "ema_model",
+          "model",
+          "optimizer"
+        ],
+        "use_ema_cfg": true
+      },
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_2470.ckpt",
+      "eval_deploys_ema": true,
+      "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_dual_low_drift.json",
+      "job_id": "A1",
+      "label": "dual_low_drift",
+      "preservation": {
+        "base_success_count": 8,
+        "base_success_rate": 1.0,
+        "candidate_success_rate": 1.0,
+        "forgetting_rate": 0.0,
+        "forgetting_seeds": [],
+        "paired_seeds": 8,
+        "split": "base_solved_anchor"
+      },
+      "probe_constraints": {
+        "base_solved": 0.00050987588474527,
+        "boundary": 0.0003861767187724278
+      },
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.002147926874683451,
+          "probe_full_p90": 0.004546385522310931,
+          "probe_tail_ema_mean": 0.000557055434328504,
+          "probe_tail_mean": 0.0005092849485420932,
+          "probe_tail_p90": 0.000509789249432894,
+          "probe_tail_slope": 2.0362283600692114e-08,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.01054264085056881
+        },
+        "boundary": {
+          "probe_full_mean": 0.001233726436477533,
+          "probe_full_p90": 0.0025010946012722943,
+          "probe_tail_ema_mean": 0.00039005742836404055,
+          "probe_tail_mean": 0.00038624343256136247,
+          "probe_tail_p90": 0.00038659059112736334,
+          "probe_tail_slope": 4.364709897080117e-09,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.007799821129689614
+        },
+        "rows": 2470,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "source": "calibration",
+      "step": 2470,
+      "variant": "calib_dual_low_drift"
+    },
+    {
+      "checkpoint_audit": {
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+        "deploys_ema": true,
+        "has_ema_model": true,
+        "has_model": true,
+        "state_dict_keys": [
+          "brace_dual_state",
+          "ema_model",
+          "model",
+          "optimizer"
+        ],
+        "use_ema_cfg": true
+      },
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A1/checkpoints/step_1235.ckpt",
+      "eval_deploys_ema": true,
+      "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_dual_mid.json",
+      "job_id": "A1",
+      "label": "dual_mid",
+      "preservation": {
+        "base_success_count": 8,
+        "base_success_rate": 1.0,
+        "candidate_success_rate": 1.0,
+        "forgetting_rate": 0.0,
+        "forgetting_seeds": [],
+        "paired_seeds": 8,
+        "split": "base_solved_anchor"
+      },
+      "probe_constraints": {
+        "base_solved": 0.001600792301663508,
+        "boundary": 0.0006463114768848754
+      },
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.002147926874683451,
+          "probe_full_p90": 0.004546385522310931,
+          "probe_tail_ema_mean": 0.000557055434328504,
+          "probe_tail_mean": 0.0005092849485420932,
+          "probe_tail_p90": 0.000509789249432894,
+          "probe_tail_slope": 2.0362283600692114e-08,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.01054264085056881
+        },
+        "boundary": {
+          "probe_full_mean": 0.001233726436477533,
+          "probe_full_p90": 0.0025010946012722943,
+          "probe_tail_ema_mean": 0.00039005742836404055,
+          "probe_tail_mean": 0.00038624343256136247,
+          "probe_tail_p90": 0.00038659059112736334,
+          "probe_tail_slope": 4.364709897080117e-09,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.007799821129689614
+        },
+        "rows": 2470,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "source": "calibration",
+      "step": 1235,
+      "variant": "calib_dual_mid"
+    },
+    {
+      "checkpoint_audit": {
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_1235.ckpt",
+        "deploys_ema": true,
+        "has_ema_model": true,
+        "has_model": true,
+        "state_dict_keys": [
+          "brace_dual_state",
+          "ema_model",
+          "model",
+          "optimizer"
+        ],
+        "use_ema_cfg": true
+      },
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A3/checkpoints/step_1235.ckpt",
+      "eval_deploys_ema": true,
+      "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_high_dual_lr.json",
+      "job_id": "A3",
+      "label": "high_dual_lr",
+      "preservation": {
+        "base_success_count": 8,
+        "base_success_rate": 1.0,
+        "candidate_success_rate": 1.0,
+        "forgetting_rate": 0.0,
+        "forgetting_seeds": [],
+        "paired_seeds": 8,
+        "split": "base_solved_anchor"
+      },
+      "probe_constraints": {
+        "base_solved": 0.0021258020230258503,
+        "boundary": 0.0006066509061687005
+      },
+      "probe_summary": {
+        "base_solved": {
+          "probe_full_mean": 0.0033824448832389534,
+          "probe_full_p90": 0.007101784087717534,
+          "probe_tail_ema_mean": 0.0012977543385932222,
+          "probe_tail_mean": 0.0023839549702825025,
+          "probe_tail_p90": 0.00308919979336982,
+          "probe_tail_slope": -1.781356485779305e-05,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.010121723636984825
+        },
+        "boundary": {
+          "probe_full_mean": 0.0018713546732777922,
+          "probe_full_p90": 0.005072031573702901,
+          "probe_tail_ema_mean": 0.0002919545913027832,
+          "probe_tail_mean": 0.0005382289848057553,
+          "probe_tail_p90": 0.0006445738894399255,
+          "probe_tail_slope": -1.7736211677464633e-06,
+          "probe_tail_violation_fraction": 1.0,
+          "probe_warmup_max": 0.00742127513512969
+        },
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "source": "calibration",
+      "step": 1235,
+      "variant": "calib_high_dual_lr"
+    },
+    {
+      "checkpoint_audit": {
+        "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+        "deploys_ema": true,
+        "has_ema_model": true,
+        "has_model": true,
+        "state_dict_keys": [
+          "ema_model",
+          "model",
+          "optimizer"
+        ],
+        "use_ema_cfg": true
+      },
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260803T031036Z_anchor_calibration_place_container_plate/A0/checkpoints/step_1235.ckpt",
+      "eval_deploys_ema": true,
+      "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/place_container_plate/calib_sft_only.json",
+      "job_id": "A0",
+      "label": "sft_only",
+      "preservation": {
+        "base_success_count": 8,
+        "base_success_rate": 1.0,
+        "candidate_success_rate": 1.0,
+        "forgetting_rate": 0.0,
+        "forgetting_seeds": [],
+        "paired_seeds": 8,
+        "split": "base_solved_anchor"
+      },
+      "probe_constraints": {},
+      "probe_summary": {
+        "base_solved": {},
+        "boundary": {},
+        "rows": 1235,
+        "tail_mode": "steps",
+        "tail_rows": 50,
+        "tail_steps": 50
+      },
+      "source": "calibration",
+      "step": 1235,
+      "variant": "calib_sft_only"
+    }
+  ],
+  "eval_note": "DP deploy path uses workspace.ema_model when cfg.training.use_ema=true; diagnostic checkpoints include state_dicts.ema_model.",
+  "extra_splits_file": "/workspace/RoboTwin/experiments/brace/runs/20260803T073015Z_anchor_behavior_eval_place_container_plate_dump_bin_bigbin/base_solved_anchor_split.json",
+  "forgetting_gate_dual_vs_sft": {
+    "base_success_count": 8,
+    "failure_reason": null,
+    "forgetting_count_b2": 0,
+    "forgetting_count_u1": 0,
+    "forgetting_rate_b2": 0.0,
+    "forgetting_rate_u1": 0.0,
+    "min_paired_seeds": 5,
+    "newly_solved_count_b2": 0,
+    "newly_solved_count_u1": 0,
+    "paired_seeds": 8,
+    "passed": true,
+    "require_b2_forgetting_below_u1": true,
+    "split": "base_solved_anchor"
+  },
+  "schema_version": 2,
+  "seeds_file": "/workspace/RoboTwin/experiments/phase1/seeds/place_container_plate_seeds.json",
+  "stage": "anchor_behavior_eval",
+  "task": "place_container_plate"
+}
