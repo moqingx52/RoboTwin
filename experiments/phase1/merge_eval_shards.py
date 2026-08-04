@@ -5,6 +5,19 @@ from pathlib import Path
 from common import add_common_args, read_json, repo_path, write_json_atomic
 
 
+PROGRESS_KEYS = (
+    "id_repeats",
+    "train_repeats",
+    "hard_repeats",
+    "extra_split_repeats",
+    "policy_seed_offset",
+)
+OPTIONAL_PROGRESS_KEYS = (
+    "census_candidate_split",
+    "census_candidate_id_count",
+)
+
+
 def summarize(rows, split_name):
     split_rows = [row for row in rows if row["split"] == split_name]
     if not split_rows:
@@ -19,6 +32,26 @@ def summarize(rows, split_name):
         "mean_sr": sum(row["success"] for row in split_rows) / len(split_rows),
         "solved_coverage": solved / len(by_seed),
     }
+
+
+def _merged_progress(shard_progress: dict, completed_episodes: int, num_shards: int) -> dict:
+    progress = {
+        "complete": True,
+        "completed_episodes": completed_episodes,
+        "id_repeats": shard_progress.get("id_repeats"),
+        "train_repeats": shard_progress.get("train_repeats"),
+        "hard_repeats": shard_progress.get("hard_repeats"),
+        "extra_split_repeats": shard_progress.get("extra_split_repeats"),
+        "policy_seed_offset": shard_progress.get("policy_seed_offset"),
+        "shard_id": 0,
+        "num_shards": 1,
+        "merged_from_shards": num_shards,
+    }
+    if shard_progress.get("census_candidate_split"):
+        progress["census_candidate_split"] = True
+        if shard_progress.get("census_candidate_id_count") is not None:
+            progress["census_candidate_id_count"] = shard_progress["census_candidate_id_count"]
+    return progress
 
 
 def main():
@@ -51,13 +84,7 @@ def main():
                         f"Incompatible shard metadata for {path}: {key}={payload.get(key)!r}, "
                         f"expected {meta.get(key)!r}"
                     )
-            for key in (
-                "id_repeats",
-                "train_repeats",
-                "hard_repeats",
-                "extra_split_repeats",
-                "policy_seed_offset",
-            ):
+            for key in PROGRESS_KEYS + OPTIONAL_PROGRESS_KEYS:
                 if payload.get("progress", {}).get(key) != meta.get("progress", {}).get(key):
                     raise RuntimeError(
                         f"Incompatible shard metadata for {path}: progress.{key}="
@@ -91,18 +118,7 @@ def main():
         "hard_seeds": meta["hard_seeds"],
         "hard_seed_source": meta["hard_seed_source"],
         "rows": rows,
-        "progress": {
-            "complete": True,
-            "completed_episodes": len(rows),
-            "id_repeats": meta.get("progress", {}).get("id_repeats"),
-            "train_repeats": meta.get("progress", {}).get("train_repeats"),
-            "hard_repeats": meta.get("progress", {}).get("hard_repeats"),
-            "extra_split_repeats": meta.get("progress", {}).get("extra_split_repeats"),
-            "policy_seed_offset": meta.get("progress", {}).get("policy_seed_offset"),
-            "shard_id": 0,
-            "num_shards": 1,
-            "merged_from_shards": args.num_shards,
-        },
+        "progress": _merged_progress(meta.get("progress", {}), len(rows), args.num_shards),
     }
     out_path = task_dir / f"{args.variant}.json"
     write_json_atomic(out_path, summary)

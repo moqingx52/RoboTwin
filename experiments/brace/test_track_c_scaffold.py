@@ -1294,6 +1294,72 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertEqual(state["jobs"]["eval:N1:epoch1"]["attempts"], 0)
         self.assertNotIn("exit_code", state["jobs"]["eval:N1:epoch1"])
 
+    def test_merge_eval_shards_preserves_census_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            task_dir = root / "place_container_plate"
+            task_dir.mkdir(parents=True)
+            base_meta = {
+                "task_name": "place_container_plate",
+                "task_config": "demo_clean",
+                "variant": "census_base",
+                "ckpt_path": "checkpoint.ckpt",
+                "hard_seeds": [],
+                "hard_seed_source": "inline",
+                "rows": [{"split": "census_candidate_id", "env_seed": 1, "repeat": 0, "success": True}],
+                "progress": {
+                    "complete": True,
+                    "completed_episodes": 1,
+                    "id_repeats": 3,
+                    "train_repeats": 3,
+                    "hard_repeats": 0,
+                    "extra_split_repeats": 3,
+                    "policy_seed_offset": 3000,
+                    "shard_id": 0,
+                    "num_shards": 2,
+                    "census_candidate_split": True,
+                    "census_candidate_id_count": 200,
+                },
+            }
+            for shard in range(2):
+                payload = json.loads(json.dumps(base_meta))
+                payload["progress"]["shard_id"] = shard
+                payload["rows"] = [
+                    {
+                        "split": "census_candidate_id",
+                        "env_seed": 100 + shard,
+                        "repeat": 0,
+                        "success": True,
+                    }
+                ]
+                (task_dir / f"census_base_shard_{shard:02d}_of_02.json").write_text(
+                    json.dumps(payload), encoding="utf-8"
+                )
+            result = subprocess.run(
+                [
+                    "python",
+                    "experiments/phase1/merge_eval_shards.py",
+                    "--task",
+                    "place_container_plate",
+                    "--task-config",
+                    "demo_clean",
+                    "--variant",
+                    "census_base",
+                    "--output-dir",
+                    str(root),
+                    "--num-shards",
+                    "2",
+                ],
+                cwd=Path(__file__).resolve().parents[2],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            merged = json.loads((task_dir / "census_base.json").read_text(encoding="utf-8"))
+            self.assertTrue(merged["progress"]["census_candidate_split"])
+            self.assertEqual(merged["progress"]["census_candidate_id_count"], 200)
+
     def test_partial_eval_rows_are_migrated_to_resume_shards(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
