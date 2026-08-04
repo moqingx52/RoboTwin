@@ -29,6 +29,7 @@ export_protocol=${BRACE_EXPORT_PROTOCOL_PATH:-${brace_dir}/export_protocol.v1.2.
 screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.2.json}
 confirmatory_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.2.confirmatory_preservation.json}
 confirmatory_seeds_file=${BRACE_CONFIRMATORY_SEEDS_FILE:-${brace_dir}/seeds/place_container_plate_confirmatory_v1.4.2_seeds.json}
+confirmatory_jobs=${BRACE_CONFIRMATORY_JOBS:-${brace_dir}/confirmatory_preservation_jobs.place_container_plate.v3.json}
 
 # shellcheck source=experiments/brace/run_paths.sh
 source "${repo_root}/experiments/brace/run_paths.sh"
@@ -844,7 +845,7 @@ PY
     fi
     python experiments/brace/orchestrate_calibration.py \
       --protocol "${confirmatory_protocol}" \
-      --jobs "${BRACE_CONFIRMATORY_JOBS:-${brace_dir}/confirmatory_preservation_jobs.place_container_plate.v2.json}" \
+      --jobs "${confirmatory_jobs}" \
       --task "${tasks[0]}" \
       --run-label "${dataset_run_label}" \
       --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}" \
@@ -860,8 +861,9 @@ PY
       --task "${tasks[0]}" \
       --output "${eval_run_dir}" \
       --protocol "${confirmatory_protocol}" \
+      --seeds-file "${confirmatory_seeds_file}" \
       --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}" \
-      --gpus ${BRACE_BEHAVIOR_GPU_IDS:-0 1 2 3 4 5 6 7} \
+      --gpus ${BRACE_CONFIRMATORY_EVAL_GPU_IDS:-${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}} \
       --max-retries "${BRACE_CONFIRMATORY_EVAL_MAX_RETRIES:-1}" \
       --resume
     echo "${eval_run_dir}" > "${brace_dir}/runs/LATEST_confirmatory_preservation_eval"

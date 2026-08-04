@@ -108,14 +108,19 @@
 
 ## 当前阻塞与下一步
 
-1. **P1a（前置）**：`confirmatory-base-census`（offset **3000**，仅 ID+train，无 Hard）
+**v1.4.1 P1b 已于 2026-08-03 fail-closed（untouched=42&lt;60）。当前执行协议已升级为 v1.4.2（census 200 + adaptation ID 100）。**
+
+1. **P1a（前置）**：`confirmatory-base-census`（offset **3000**，census_candidate_id + train，无 Hard）
 2. **P1b**：`select-preservation-cohort`（整数 2/3 入组，校验 census provenance，`n>=60`）
-3. **P1c**：`confirmatory-preservation`（**10** DP jobs：C0/C1 × seeds 1–5，协议 **v1.4.1**）
-4. **P1d**：`confirmatory-preservation-eval` + `confirmatory-preservation-report`（offset **4000**，完整 H1 Pareto gate）
+3. **P1c**：`confirmatory-preservation`（**10** DP jobs：C0/C1 × seeds 1–5，协议 **v1.4.2**）
+4. **P1d**：`confirmatory-preservation-eval` + `confirmatory-preservation-report`（offset **4000**，完整 H1 Pareto gate；seeds **v1.4.2**）
 5. **P2–P5**：见 [`brace_phase3c_confirmatory_conclusion_20260803.md`](brace_phase3c_confirmatory_conclusion_20260803.md)
 
-**可执行协议：** `screen_protocol.v1.4.1.confirmatory_preservation.json`（SHA `dcdb8b51...`）
-**Jobs manifest：** `confirmatory_preservation_jobs.place_container_plate.v2.json`
+**可执行协议：** `screen_protocol.v1.4.2.confirmatory_preservation.json`
+**Seeds manifest：** `seeds/place_container_plate_confirmatory_v1.4.2_seeds.json`
+**Jobs manifest：** `confirmatory_preservation_jobs.place_container_plate.v3.json`
+
+**Superseded（勿用于新跑）：** v1.4.1 协议、`confirmatory_preservation_jobs.place_container_plate.v2.json`
 
 **暂缓：** 原 v1.4 + 直接 `select-preservation-cohort` / `confirmatory-preservation`（无 census）
 

@@ -50,17 +50,31 @@ def load_extra_splits(command: list[str]) -> dict[str, list[int]] | None:
     return {str(key): [int(seed) for seed in value] for key, value in payload.items()}
 
 
-def expected_episode_count(command: list[str]) -> int:
+def census_eval_options(command: list[str]) -> tuple[bool, int | None]:
+    census_split = "--census-candidate-split" in command
+    count = option(command, "--census-candidate-id-count")
+    return census_split, int(count) if count is not None else None
+
+
+def build_work_items_from_command(command: list[str]) -> list[tuple[str, int, int]]:
     seed_payload, hard = load_seed_payload(command)
     extra_splits = load_extra_splits(command)
-    id_repeats = int(option(command, "--id-repeats", 1))
-    train_repeats = int(option(command, "--train-repeats", 1))
-    hard_repeats = int(option(command, "--hard-repeats", 1))
-    extra_split_repeats = int(option(command, "--extra-split-repeats", 1))
-    items = build_work_items(
-        seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits, extra_split_repeats
+    census_split, census_count = census_eval_options(command)
+    return build_work_items(
+        seed_payload,
+        hard,
+        int(option(command, "--id-repeats", 3)),
+        int(option(command, "--train-repeats", 3)),
+        int(option(command, "--hard-repeats", 8)),
+        extra_splits,
+        int(option(command, "--extra-split-repeats", 1)),
+        census_candidate_split=census_split,
+        census_candidate_id_count=census_count,
     )
-    return len(items)
+
+
+def expected_episode_count(command: list[str]) -> int:
+    return len(build_work_items_from_command(command))
 
 
 def load_seed_payload(command: list[str]) -> tuple[dict, list[int]]:
@@ -76,6 +90,9 @@ def load_seed_payload(command: list[str]) -> tuple[dict, list[int]]:
         payload["eval_id"] = list(payload["eval_id"])[: int(id_count)]
     if train_count is not None:
         payload["train_rollout"] = list(payload["train_rollout"])[: int(train_count)]
+    census_split, census_count = census_eval_options(command)
+    if census_split and census_count is not None and "census_candidate_id" in payload:
+        payload["census_candidate_id"] = list(payload["census_candidate_id"])[: int(census_count)]
 
     hard_file = option(command, "--hard-seeds-file")
     if hard_file is None:
@@ -110,8 +127,17 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
     train_repeats = int(option(command, "--train-repeats", 3))
     hard_repeats = int(option(command, "--hard-repeats", 8))
     extra_split_repeats = int(option(command, "--extra-split-repeats", 1))
+    census_split, census_count = census_eval_options(command)
     items = build_work_items(
-        seed_payload, hard, id_repeats, train_repeats, hard_repeats, extra_splits, extra_split_repeats
+        seed_payload,
+        hard,
+        id_repeats,
+        train_repeats,
+        hard_repeats,
+        extra_splits,
+        extra_split_repeats,
+        census_candidate_split=census_split,
+        census_candidate_id_count=census_count,
     )
     expected_meta = {
         "task_name": option(command, "--task"),
@@ -131,6 +157,10 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
         "extra_split_repeats": extra_split_repeats,
         "policy_seed_offset": int(option(command, "--policy-seed-offset", 0)),
     }
+    if census_split:
+        expected_progress["census_candidate_split"] = True
+        if census_count is not None:
+            expected_progress["census_candidate_id_count"] = census_count
     mismatches.extend(
         f"progress.{key}={progress.get(key)!r}, expected {value!r}"
         for key, value in expected_progress.items()
@@ -161,9 +191,12 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
         payload["rows"] = shard_rows
         payload["splits"] = {
             split: summarize(shard_rows, split)
-            for split in sorted({row["split"] for row in shard_rows} or {"id_heldout", "train_seen", "hard_20"})
+            for split in sorted(
+                {row["split"] for row in shard_rows}
+                or ({"census_candidate_id", "train_seen"} if census_split else {"id_heldout", "train_seen", "hard_20"})
+            )
         }
-        payload["progress"] = {
+        shard_progress = {
             "complete": len(shard_rows) == expected,
             "completed_episodes": len(shard_rows),
             "id_repeats": id_repeats,
@@ -174,6 +207,11 @@ def seed_shards_from_partial(command: list[str], workers: int) -> int:
             "shard_id": shard,
             "num_shards": workers,
         }
+        if census_split:
+            shard_progress["census_candidate_split"] = True
+            if census_count is not None:
+                shard_progress["census_candidate_id_count"] = census_count
+        payload["progress"] = shard_progress
         write_json_atomic(path, payload)
     return len(rows)
 

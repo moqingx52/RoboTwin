@@ -452,7 +452,7 @@ class TrackCScaffoldTest(unittest.TestCase):
 
     def test_confirmatory_manifest_expands_all_training_seeds(self) -> None:
         manifest = json.loads(
-            Path("experiments/brace/confirmatory_preservation_jobs.place_container_plate.v2.json").read_text(
+            Path("experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json").read_text(
                 encoding="utf-8"
             )
         )
@@ -463,11 +463,38 @@ class TrackCScaffoldTest(unittest.TestCase):
             {(method, seed) for method in ("sft_only", "a1_dual") for seed in (1, 2, 3, 4, 5)},
         )
 
+    def test_confirmatory_jobs_v3_manifest_protocol_provenance(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        manifest_path = repo_root / "experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        protocol_path = repo_root / manifest["protocol_path"]
+        self.assertTrue(protocol_path.is_file())
+        self.assertEqual(protocol_path.name, "screen_protocol.v1.4.2.confirmatory_preservation.json")
+        protocol_sha_sidecar = protocol_path.parent / f"{protocol_path.name}.sha256"
+        self.assertTrue(protocol_sha_sidecar.is_file())
+        check_protocol = subprocess.run(
+            ["sha256sum", "-c", protocol_sha_sidecar.name],
+            cwd=protocol_path.parent,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(check_protocol.returncode, 0, check_protocol.stdout + check_protocol.stderr)
+        sha_sidecar = manifest_path.with_suffix(manifest_path.suffix + ".sha256")
+        check_manifest = subprocess.run(
+            ["sha256sum", "-c", sha_sidecar.name],
+            cwd=manifest_path.parent,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(check_manifest.returncode, 0, check_manifest.stdout + check_manifest.stderr)
+
     def test_confirmatory_eval_matrix_has_base_plus_ten_candidates(self) -> None:
         from experiments.brace.confirmatory_preservation_eval import build_candidate_labels
 
         protocol = json.loads(
-            Path("experiments/brace/screen_protocol.v1.4.1.confirmatory_preservation.json").read_text(
+            Path("experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json").read_text(
                 encoding="utf-8"
             )
         )

@@ -185,7 +185,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", default="place_container_plate")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--protocol", type=Path, default=BRACE_DIR / "screen_protocol.v1.4.1.confirmatory_preservation.json")
+    parser.add_argument("--protocol", type=Path, default=BRACE_DIR / "screen_protocol.v1.4.2.confirmatory_preservation.json")
     parser.add_argument("--cohort", type=Path, required=True)
     parser.add_argument("--training-run-dir", type=Path)
     parser.add_argument("--seeds-file", type=Path)

@@ -173,6 +173,16 @@ def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_spli
             "policy_seed_offset": args.policy_seed_offset,
             "shard_id": args.shard_id,
             "num_shards": args.num_shards,
+            **(
+                {"census_candidate_split": True}
+                if census_candidate_split
+                else {}
+            ),
+            **(
+                {"census_candidate_id_count": args.census_candidate_id_count}
+                if census_candidate_split and args.census_candidate_id_count is not None
+                else {}
+            ),
         },
     }
 
@@ -203,6 +213,10 @@ def validate_result_rows(path, args, hard_seeds, expected_keys):
             "shard_id": args.shard_id,
             "num_shards": args.num_shards,
         }
+        if args.census_candidate_split:
+            expected_progress["census_candidate_split"] = True
+            if args.census_candidate_id_count is not None:
+                expected_progress["census_candidate_id_count"] = args.census_candidate_id_count
         mismatches.extend(
             f"progress.{key}: found {progress.get(key)!r}, expected {value!r}"
             for key, value in expected_progress.items()
