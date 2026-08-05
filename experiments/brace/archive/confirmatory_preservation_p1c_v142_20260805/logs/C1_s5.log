@@ -1,0 +1,399 @@
+COMMAND ["python", "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", "--protocol", "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json", "--jobs", "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json", "--job-id", "C1_s5", "--task", "place_container_plate", "--run-label", "place_pilot_v2.3", "--checkpoint", "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt", "--traced-rollout-dir", "/workspace/RoboTwin/experiments/brace/rollouts_traced", "--output", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json", "--work-dir", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5"]
+/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/cuda/__init__.py:51: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_N1.zarr
+Using fixed source budget batches: expert=112, rollout=16, prefix=0, group_stratified_rollout=False
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Traceback (most recent call last):
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 154, in <module>
+    raise SystemExit(main())
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 133, in main
+    summary = run_calibration_job(
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 80, in run_calibration_job
+    summary = run_anchor_diagnostic(
+  File "/workspace/RoboTwin/experiments/brace/anchor_diagnostic_loop.py", line 388, in run_anchor_diagnostic
+    grad_norm_sft, grad_norm_anchor = measure_basic_grad_norms(
+  File "/workspace/RoboTwin/experiments/brace/anchor_grad_diagnostics.py", line 30, in measure_basic_grad_norms
+    scaled_raw.backward(retain_graph=True)
+  File "/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/_tensor.py", line 492, in backward
+    torch.autograd.backward(
+  File "/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/autograd/__init__.py", line 251, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.76 GiB. GPU 0 has a total capacty of 23.53 GiB of which 1.63 GiB is free. Including non-PyTorch memory, this process has 21.89 GiB memory in use. Of the allocated memory 19.54 GiB is allocated by PyTorch, and 1.87 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+COMMAND ["python", "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", "--protocol", "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json", "--jobs", "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json", "--job-id", "C1_s5", "--task", "place_container_plate", "--run-label", "place_pilot_v2.3", "--checkpoint", "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt", "--traced-rollout-dir", "/workspace/RoboTwin/experiments/brace/rollouts_traced", "--output", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json", "--work-dir", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5"]
+/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/cuda/__init__.py:51: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_N1.zarr
+Using fixed source budget batches: expert=112, rollout=16, prefix=0, group_stratified_rollout=False
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Traceback (most recent call last):
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 154, in <module>
+    raise SystemExit(main())
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 133, in main
+    summary = run_calibration_job(
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 80, in run_calibration_job
+    summary = run_anchor_diagnostic(
+  File "/workspace/RoboTwin/experiments/brace/anchor_diagnostic_loop.py", line 388, in run_anchor_diagnostic
+    grad_norm_sft, grad_norm_anchor = measure_basic_grad_norms(
+  File "/workspace/RoboTwin/experiments/brace/anchor_grad_diagnostics.py", line 30, in measure_basic_grad_norms
+    scaled_raw.backward(retain_graph=True)
+  File "/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/_tensor.py", line 492, in backward
+    torch.autograd.backward(
+  File "/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/autograd/__init__.py", line 251, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.76 GiB. GPU 0 has a total capacty of 23.53 GiB of which 1.63 GiB is free. Including non-PyTorch memory, this process has 21.89 GiB memory in use. Of the allocated memory 19.54 GiB is allocated by PyTorch, and 1.87 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+COMMAND ["python", "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", "--protocol", "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json", "--jobs", "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json", "--job-id", "C1_s5", "--task", "place_container_plate", "--run-label", "place_pilot_v2.3", "--checkpoint", "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt", "--traced-rollout-dir", "/workspace/RoboTwin/experiments/brace/rollouts_traced", "--output", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json", "--work-dir", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5"]
+/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/cuda/__init__.py:51: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_N1.zarr
+Using fixed source budget batches: expert=112, rollout=16, prefix=0, group_stratified_rollout=False
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Traceback (most recent call last):
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 154, in <module>
+    raise SystemExit(main())
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 133, in main
+    summary = run_calibration_job(
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 80, in run_calibration_job
+    summary = run_anchor_diagnostic(
+  File "/workspace/RoboTwin/experiments/brace/anchor_diagnostic_loop.py", line 396, in run_anchor_diagnostic
+    grad_norm_sft, grad_norm_anchor = measure_basic_grad_norms(
+  File "/workspace/RoboTwin/experiments/brace/anchor_grad_diagnostics.py", line 35, in measure_basic_grad_norms
+    grads_sft = torch.autograd.grad(
+  File "/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/autograd/__init__.py", line 394, in grad
+    result = Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.76 GiB. GPU 0 has a total capacty of 23.53 GiB of which 1.50 GiB is free. Including non-PyTorch memory, this process has 22.02 GiB memory in use. Of the allocated memory 19.53 GiB is allocated by PyTorch, and 2.00 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+COMMAND ["python", "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", "--protocol", "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json", "--jobs", "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json", "--job-id", "C1_s5", "--task", "place_container_plate", "--run-label", "place_pilot_v2.3", "--checkpoint", "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt", "--traced-rollout-dir", "/workspace/RoboTwin/experiments/brace/rollouts_traced", "--output", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json", "--work-dir", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5"]
+/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/cuda/__init__.py:51: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_N1.zarr
+Using fixed source budget batches: expert=112, rollout=16, prefix=0, group_stratified_rollout=False
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Traceback (most recent call last):
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 154, in <module>
+    raise SystemExit(main())
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 133, in main
+    summary = run_calibration_job(
+  File "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", line 80, in run_calibration_job
+    summary = run_anchor_diagnostic(
+  File "/workspace/RoboTwin/experiments/brace/anchor_diagnostic_loop.py", line 396, in run_anchor_diagnostic
+    grad_norm_sft, grad_norm_anchor = measure_basic_grad_norms(
+  File "/workspace/RoboTwin/experiments/brace/anchor_grad_diagnostics.py", line 35, in measure_basic_grad_norms
+    grads_sft = torch.autograd.grad(
+  File "/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/autograd/__init__.py", line 394, in grad
+    result = Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.76 GiB. GPU 0 has a total capacty of 23.53 GiB of which 1.50 GiB is free. Including non-PyTorch memory, this process has 22.02 GiB memory in use. Of the allocated memory 19.53 GiB is allocated by PyTorch, and 2.00 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+COMMAND ["python", "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", "--protocol", "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json", "--jobs", "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json", "--job-id", "C1_s5", "--task", "place_container_plate", "--run-label", "place_pilot_v2.3", "--checkpoint", "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt", "--traced-rollout-dir", "/workspace/RoboTwin/experiments/brace/rollouts_traced", "--output", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json", "--work-dir", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5"]
+/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/cuda/__init__.py:51: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_N1.zarr
+Using fixed source budget batches: expert=112, rollout=16, prefix=0, group_stratified_rollout=False
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/place_container_plate_anchor_replay.zarr
+{
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "job_id": "C1_s5",
+  "exploratory": false,
+  "promotion_eligible": true,
+  "protocol_revision": "screen.v1.4.2.confirmatory_preservation",
+  "training_seed": 5,
+  "passed": false,
+  "complete": true,
+  "early_stop_reason": null,
+  "diagnostic_steps": 2470,
+  "steps_completed": 2470,
+  "scheduler_total_steps": 2470,
+  "feasibility": {
+    "passed": false,
+    "missing_groups": [],
+    "groups": {
+      "base_solved": {
+        "mean": 0.0012722767952609364,
+        "median": 0.0003371740021975711,
+        "p90": 0.0039895504713058465,
+        "violation_fraction": 0.8785425101214575,
+        "epsilon": 0.0001,
+        "mean_pass": false,
+        "p90_pass": false,
+        "violation_fraction_pass": false,
+        "ema_mean": 0.00102942394775659,
+        "ema_p90": 0.003424498857930302,
+        "ema_pass": false,
+        "ema_missing": false,
+        "raw_pass": false,
+        "passed": false
+      },
+      "boundary": {
+        "mean": 0.0015644732984087574,
+        "median": 0.0003967845841543749,
+        "p90": 0.004309500521048895,
+        "violation_fraction": 0.8955465587044534,
+        "epsilon": 0.0001,
+        "mean_pass": false,
+        "p90_pass": false,
+        "violation_fraction_pass": false,
+        "ema_mean": 0.0012447813042606552,
+        "ema_p90": 0.0034513395046815248,
+        "ema_pass": false,
+        "ema_missing": false,
+        "raw_pass": false,
+        "passed": false
+      }
+    },
+    "require_raw_and_ema": true
+  },
+  "feasibility_on_probe": {
+    "passed": false,
+    "missing_groups": [],
+    "groups": {
+      "base_solved": {
+        "mean": 0.0023877273348089515,
+        "median": 0.0015606698919630921,
+        "p90": 0.005121369473636149,
+        "violation_fraction": 0.9951417004048583,
+        "epsilon": 0.0001,
+        "mean_pass": false,
+        "p90_pass": false,
+        "violation_fraction_pass": false,
+        "ema_mean": 0.0018400363214621078,
+        "ema_p90": 0.004108780024883646,
+        "ema_pass": false,
+        "ema_missing": false,
+        "raw_pass": false,
+        "passed": false
+      },
+      "boundary": {
+        "mean": 0.001142299558927548,
+        "median": 0.0005221748548744168,
+        "p90": 0.0028862503357231606,
+        "violation_fraction": 0.9939271255060729,
+        "epsilon": 0.0001,
+        "mean_pass": false,
+        "p90_pass": false,
+        "violation_fraction_pass": false,
+        "ema_mean": 0.0009476121091260782,
+        "ema_p90": 0.003285969405745464,
+        "ema_pass": false,
+        "ema_missing": false,
+        "raw_pass": false,
+        "passed": false
+      }
+    },
+    "require_raw_and_ema": true
+  },
+  "trajectory_summary": {
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50,
+    "base_solved": {
+      "train_warmup_max": 0.03344215825200081,
+      "train_tail_mean": 0.00012043648013786878,
+      "train_tail_p90": 0.00020035307679791006,
+      "train_tail_violation_fraction": 0.56,
+      "train_tail_slope": -4.5065787471445207e-07,
+      "train_full_mean": 0.0012722767952609364,
+      "train_full_p90": 0.0039895504713058465,
+      "train_tail_ema_mean": 0.00012128312242566608,
+      "train_dual_final": 0.028968265280127525
+    },
+    "boundary": {
+      "train_warmup_max": 0.052614349871873856,
+      "train_tail_mean": 0.00013773602484434377,
+      "train_tail_p90": 0.00022821685852250084,
+      "train_tail_violation_fraction": 0.56,
+      "train_tail_slope": -1.3015592650139749e-06,
+      "train_full_mean": 0.0015644732984087574,
+      "train_full_p90": 0.004309500521048895,
+      "train_tail_ema_mean": 0.00014281550538726152,
+      "train_dual_final": 0.03618588298559189
+    },
+    "train_dual_final": {
+      "base_solved": 0.028968265280127525,
+      "boundary": 0.03618588298559189
+    }
+  },
+  "probe_summary": {
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50,
+    "base_solved": {
+      "probe_warmup_max": 0.011856832386304935,
+      "probe_tail_mean": 0.000763002528983634,
+      "probe_tail_p90": 0.000764052565015542,
+      "probe_tail_violation_fraction": 1.0,
+      "probe_tail_slope": 4.995108589345989e-08,
+      "probe_full_mean": 0.0023877273348089515,
+      "probe_full_p90": 0.005121369473636149,
+      "probe_tail_ema_mean": 0.0007862676168830755
+    },
+    "boundary": {
+      "probe_warmup_max": 0.008185625541955233,
+      "probe_tail_mean": 0.00026712021683730807,
+      "probe_tail_p90": 0.00026724821770282385,
+      "probe_tail_violation_fraction": 1.0,
+      "probe_tail_slope": -1.6660257150389806e-09,
+      "probe_full_mean": 0.001142299558927548,
+      "probe_full_p90": 0.0028862503357231606,
+      "probe_tail_ema_mean": 0.0002766115694612381
+    }
+  },
+  "gate_note": "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; held-out probe tail summaries are forensic-only until a calibrated protocol is frozen.",
+  "dataset_manifest_sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+  "anchor_manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "probe_split_sha256": "01d509cfd9d4be43b5ee8189ef7a93a3435103093fe2841611afbf65a82bc99d",
+  "probe_split_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/anchor_probe_split.json",
+  "rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "teacher_hash_before": "b7d8318965063901d61b9d850be6100f86681b5c415eea0deb9f7e5153e86570",
+  "teacher_hash_end": "b7d8318965063901d61b9d850be6100f86681b5c415eea0deb9f7e5153e86570",
+  "teacher_hash_stable": true,
+  "probe_seed": 42,
+  "probe_num_draws": 6,
+  "probe_env_seeds": [
+    100000,
+    100011,
+    100014,
+    100016,
+    100017,
+    100021,
+    100041
+  ],
+  "train_env_seed_count": 8,
+  "probe_env_seed_count": 8,
+  "checkpoint_steps": [
+    247,
+    741,
+    1235,
+    2470
+  ],
+  "checkpoint_artifacts": {
+    "247": {
+      "epoch": 1,
+      "probe_constraints": {
+        "base_solved": 0.004487227144030233,
+        "boundary": 0.004265040159225464
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.005634774764378865,
+        "boundary_ema_drift": 0.0057566532244284945
+      },
+      "probe_stats": {
+        "probe_draw_count": 6,
+        "probe_constraint_p90/base_solved": 0.005299226380884647,
+        "probe_constraint_max/base_solved": 0.005683216731995344,
+        "probe_constraint_p90/boundary": 0.006079117534682155,
+        "probe_constraint_max/boundary": 0.006998807191848755,
+        "probe_monitor_p90/base_solved_ema_drift": 0.006358626764267683,
+        "probe_monitor_p90/boundary_ema_drift": 0.007113022496923804
+      },
+      "dual": {
+        "base_solved": 0.01587630808353424,
+        "boundary": 0.019099393859505653
+      },
+      "lr": 2.47e-05,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_247.ckpt",
+      "anchor_to_sft_grad_ratio": 0.037195375898576806
+    },
+    "741": {
+      "epoch": 3,
+      "probe_constraints": {
+        "base_solved": 0.0010896437258149187,
+        "boundary": 0.0008130916661078421
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.0010860771775090445,
+        "boundary_ema_drift": 0.0004686520636217513
+      },
+      "probe_stats": {
+        "probe_draw_count": 6,
+        "probe_constraint_p90/base_solved": 0.001609855331480503,
+        "probe_constraint_max/base_solved": 0.0020865709520876408,
+        "probe_constraint_p90/boundary": 0.0019214120402466506,
+        "probe_constraint_max/boundary": 0.0033524346072226763,
+        "probe_monitor_p90/base_solved_ema_drift": 0.0015890506329014897,
+        "probe_monitor_p90/boundary_ema_drift": 0.0010637261730153114
+      },
+      "dual": {
+        "base_solved": 0.02368396893143654,
+        "boundary": 0.029377829283475876
+      },
+      "lr": 4.817627606686408e-05,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_741.ckpt",
+      "anchor_to_sft_grad_ratio": 0.048327264293027965
+    },
+    "1235": {
+      "epoch": 5,
+      "probe_constraints": {
+        "base_solved": 0.0009003006319593018,
+        "boundary": 0.0005541604708317512
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.0014294700522441417,
+        "boundary_ema_drift": 0.0003184958926188604
+      },
+      "probe_stats": {
+        "probe_draw_count": 6,
+        "probe_constraint_p90/base_solved": 0.0012255787150934339,
+        "probe_constraint_max/base_solved": 0.0012335226638242602,
+        "probe_constraint_p90/boundary": 0.0013028553657932207,
+        "probe_constraint_max/boundary": 0.0022991409059613943,
+        "probe_monitor_p90/base_solved_ema_drift": 0.002243348630145192,
+        "probe_monitor_p90/boundary_ema_drift": 0.0007261703576659784
+      },
+      "dual": {
+        "base_solved": 0.026835773140192032,
+        "boundary": 0.03377806767821312
+      },
+      "lr": 3.470503827099127e-05,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_1235.ckpt",
+      "anchor_to_sft_grad_ratio": 0.026810988006960423
+    },
+    "2470": {
+      "epoch": 10,
+      "probe_constraints": {
+        "base_solved": 0.0007645606965525076,
+        "boundary": 0.00026714565440973576
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.0007839676836738363,
+        "boundary_ema_drift": 0.000275584141490981
+      },
+      "probe_stats": {
+        "probe_draw_count": 6,
+        "probe_constraint_p90/base_solved": 0.0010930654825642705,
+        "probe_constraint_max/base_solved": 0.001262444769963622,
+        "probe_constraint_p90/boundary": 0.000654271301755216,
+        "probe_constraint_max/boundary": 0.0011696540750563145,
+        "probe_monitor_p90/base_solved_ema_drift": 0.0011403425014577806,
+        "probe_monitor_p90/boundary_ema_drift": 0.0006777936214348301
+      },
+      "dual": {
+        "base_solved": 0.028968265280127525,
+        "boundary": 0.03618588298559189
+      },
+      "lr": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_2470.ckpt",
+      "anchor_to_sft_grad_ratio": 0.023888539615015227
+    }
+  },
+  "checkpoint_paths": {
+    "247": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_247.ckpt",
+    "741": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_741.ckpt",
+    "1235": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_1235.ckpt",
+    "2470": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_2470.ckpt"
+  },
+  "trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/feasibility_trajectory.jsonl",
+  "probe_trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/feasibility_probe_trajectory.jsonl",
+  "git_commit": "4a19bd8d13a3ea7ef69598be64501c70a446bea2",
+  "resolved_config_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/resolved_config.json",
+  "config_sha256": "1f015071ba450dccbf50843c417c605faff01ff56fa83770004567e352d8d32d",
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+  "jobs_manifest_sha256": "446a7488c2d0fef72bcc904dfdc00e5d69bfa612cf722367ca0ca8bb65c19003"
+}

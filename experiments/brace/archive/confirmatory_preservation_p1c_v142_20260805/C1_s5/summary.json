@@ -1,0 +1,304 @@
+{
+  "anchor_manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "checkpoint_artifacts": {
+    "1235": {
+      "anchor_to_sft_grad_ratio": 0.026810988006960423,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_1235.ckpt",
+      "dual": {
+        "base_solved": 0.026835773140192032,
+        "boundary": 0.03377806767821312
+      },
+      "epoch": 5,
+      "lr": 3.470503827099127e-05,
+      "probe_constraints": {
+        "base_solved": 0.0009003006319593018,
+        "boundary": 0.0005541604708317512
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.0014294700522441417,
+        "boundary_ema_drift": 0.0003184958926188604
+      },
+      "probe_stats": {
+        "probe_constraint_max/base_solved": 0.0012335226638242602,
+        "probe_constraint_max/boundary": 0.0022991409059613943,
+        "probe_constraint_p90/base_solved": 0.0012255787150934339,
+        "probe_constraint_p90/boundary": 0.0013028553657932207,
+        "probe_draw_count": 6,
+        "probe_monitor_p90/base_solved_ema_drift": 0.002243348630145192,
+        "probe_monitor_p90/boundary_ema_drift": 0.0007261703576659784
+      }
+    },
+    "247": {
+      "anchor_to_sft_grad_ratio": 0.037195375898576806,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_247.ckpt",
+      "dual": {
+        "base_solved": 0.01587630808353424,
+        "boundary": 0.019099393859505653
+      },
+      "epoch": 1,
+      "lr": 2.47e-05,
+      "probe_constraints": {
+        "base_solved": 0.004487227144030233,
+        "boundary": 0.004265040159225464
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.005634774764378865,
+        "boundary_ema_drift": 0.0057566532244284945
+      },
+      "probe_stats": {
+        "probe_constraint_max/base_solved": 0.005683216731995344,
+        "probe_constraint_max/boundary": 0.006998807191848755,
+        "probe_constraint_p90/base_solved": 0.005299226380884647,
+        "probe_constraint_p90/boundary": 0.006079117534682155,
+        "probe_draw_count": 6,
+        "probe_monitor_p90/base_solved_ema_drift": 0.006358626764267683,
+        "probe_monitor_p90/boundary_ema_drift": 0.007113022496923804
+      }
+    },
+    "2470": {
+      "anchor_to_sft_grad_ratio": 0.023888539615015227,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_2470.ckpt",
+      "dual": {
+        "base_solved": 0.028968265280127525,
+        "boundary": 0.03618588298559189
+      },
+      "epoch": 10,
+      "lr": 0.0,
+      "probe_constraints": {
+        "base_solved": 0.0007645606965525076,
+        "boundary": 0.00026714565440973576
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.0007839676836738363,
+        "boundary_ema_drift": 0.000275584141490981
+      },
+      "probe_stats": {
+        "probe_constraint_max/base_solved": 0.001262444769963622,
+        "probe_constraint_max/boundary": 0.0011696540750563145,
+        "probe_constraint_p90/base_solved": 0.0010930654825642705,
+        "probe_constraint_p90/boundary": 0.000654271301755216,
+        "probe_draw_count": 6,
+        "probe_monitor_p90/base_solved_ema_drift": 0.0011403425014577806,
+        "probe_monitor_p90/boundary_ema_drift": 0.0006777936214348301
+      }
+    },
+    "741": {
+      "anchor_to_sft_grad_ratio": 0.048327264293027965,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_741.ckpt",
+      "dual": {
+        "base_solved": 0.02368396893143654,
+        "boundary": 0.029377829283475876
+      },
+      "epoch": 3,
+      "lr": 4.817627606686408e-05,
+      "probe_constraints": {
+        "base_solved": 0.0010896437258149187,
+        "boundary": 0.0008130916661078421
+      },
+      "probe_monitor": {
+        "base_solved_ema_drift": 0.0010860771775090445,
+        "boundary_ema_drift": 0.0004686520636217513
+      },
+      "probe_stats": {
+        "probe_constraint_max/base_solved": 0.0020865709520876408,
+        "probe_constraint_max/boundary": 0.0033524346072226763,
+        "probe_constraint_p90/base_solved": 0.001609855331480503,
+        "probe_constraint_p90/boundary": 0.0019214120402466506,
+        "probe_draw_count": 6,
+        "probe_monitor_p90/base_solved_ema_drift": 0.0015890506329014897,
+        "probe_monitor_p90/boundary_ema_drift": 0.0010637261730153114
+      }
+    }
+  },
+  "checkpoint_paths": {
+    "1235": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_1235.ckpt",
+    "247": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_247.ckpt",
+    "2470": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_2470.ckpt",
+    "741": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/checkpoints/step_741.ckpt"
+  },
+  "checkpoint_steps": [
+    247,
+    741,
+    1235,
+    2470
+  ],
+  "complete": true,
+  "config_sha256": "1f015071ba450dccbf50843c417c605faff01ff56fa83770004567e352d8d32d",
+  "dataset_manifest_sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+  "diagnostic_steps": 2470,
+  "early_stop_reason": null,
+  "exploratory": false,
+  "feasibility": {
+    "groups": {
+      "base_solved": {
+        "ema_mean": 0.00102942394775659,
+        "ema_missing": false,
+        "ema_p90": 0.003424498857930302,
+        "ema_pass": false,
+        "epsilon": 0.0001,
+        "mean": 0.0012722767952609364,
+        "mean_pass": false,
+        "median": 0.0003371740021975711,
+        "p90": 0.0039895504713058465,
+        "p90_pass": false,
+        "passed": false,
+        "raw_pass": false,
+        "violation_fraction": 0.8785425101214575,
+        "violation_fraction_pass": false
+      },
+      "boundary": {
+        "ema_mean": 0.0012447813042606552,
+        "ema_missing": false,
+        "ema_p90": 0.0034513395046815248,
+        "ema_pass": false,
+        "epsilon": 0.0001,
+        "mean": 0.0015644732984087574,
+        "mean_pass": false,
+        "median": 0.0003967845841543749,
+        "p90": 0.004309500521048895,
+        "p90_pass": false,
+        "passed": false,
+        "raw_pass": false,
+        "violation_fraction": 0.8955465587044534,
+        "violation_fraction_pass": false
+      }
+    },
+    "missing_groups": [],
+    "passed": false,
+    "require_raw_and_ema": true
+  },
+  "feasibility_on_probe": {
+    "groups": {
+      "base_solved": {
+        "ema_mean": 0.0018400363214621078,
+        "ema_missing": false,
+        "ema_p90": 0.004108780024883646,
+        "ema_pass": false,
+        "epsilon": 0.0001,
+        "mean": 0.0023877273348089515,
+        "mean_pass": false,
+        "median": 0.0015606698919630921,
+        "p90": 0.005121369473636149,
+        "p90_pass": false,
+        "passed": false,
+        "raw_pass": false,
+        "violation_fraction": 0.9951417004048583,
+        "violation_fraction_pass": false
+      },
+      "boundary": {
+        "ema_mean": 0.0009476121091260782,
+        "ema_missing": false,
+        "ema_p90": 0.003285969405745464,
+        "ema_pass": false,
+        "epsilon": 0.0001,
+        "mean": 0.001142299558927548,
+        "mean_pass": false,
+        "median": 0.0005221748548744168,
+        "p90": 0.0028862503357231606,
+        "p90_pass": false,
+        "passed": false,
+        "raw_pass": false,
+        "violation_fraction": 0.9939271255060729,
+        "violation_fraction_pass": false
+      }
+    },
+    "missing_groups": [],
+    "passed": false,
+    "require_raw_and_ema": true
+  },
+  "gate_note": "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; held-out probe tail summaries are forensic-only until a calibrated protocol is frozen.",
+  "git_commit": "4a19bd8d13a3ea7ef69598be64501c70a446bea2",
+  "job_id": "C1_s5",
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+  "jobs_manifest_sha256": "446a7488c2d0fef72bcc904dfdc00e5d69bfa612cf722367ca0ca8bb65c19003",
+  "passed": false,
+  "probe_env_seed_count": 8,
+  "probe_env_seeds": [
+    100000,
+    100011,
+    100014,
+    100016,
+    100017,
+    100021,
+    100041
+  ],
+  "probe_num_draws": 6,
+  "probe_seed": 42,
+  "probe_split_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/anchor_probe_split.json",
+  "probe_split_sha256": "01d509cfd9d4be43b5ee8189ef7a93a3435103093fe2841611afbf65a82bc99d",
+  "probe_summary": {
+    "base_solved": {
+      "probe_full_mean": 0.0023877273348089515,
+      "probe_full_p90": 0.005121369473636149,
+      "probe_tail_ema_mean": 0.0007862676168830755,
+      "probe_tail_mean": 0.000763002528983634,
+      "probe_tail_p90": 0.000764052565015542,
+      "probe_tail_slope": 4.995108589345989e-08,
+      "probe_tail_violation_fraction": 1.0,
+      "probe_warmup_max": 0.011856832386304935
+    },
+    "boundary": {
+      "probe_full_mean": 0.001142299558927548,
+      "probe_full_p90": 0.0028862503357231606,
+      "probe_tail_ema_mean": 0.0002766115694612381,
+      "probe_tail_mean": 0.00026712021683730807,
+      "probe_tail_p90": 0.00026724821770282385,
+      "probe_tail_slope": -1.6660257150389806e-09,
+      "probe_tail_violation_fraction": 1.0,
+      "probe_warmup_max": 0.008185625541955233
+    },
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  },
+  "probe_trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/feasibility_probe_trajectory.jsonl",
+  "promotion_eligible": true,
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+  "protocol_revision": "screen.v1.4.2.confirmatory_preservation",
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "resolved_config_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/resolved_config.json",
+  "rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "scheduler_total_steps": 2470,
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "steps_completed": 2470,
+  "teacher_hash_before": "b7d8318965063901d61b9d850be6100f86681b5c415eea0deb9f7e5153e86570",
+  "teacher_hash_end": "b7d8318965063901d61b9d850be6100f86681b5c415eea0deb9f7e5153e86570",
+  "teacher_hash_stable": true,
+  "train_env_seed_count": 8,
+  "training_seed": 5,
+  "trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/feasibility_trajectory.jsonl",
+  "trajectory_summary": {
+    "base_solved": {
+      "train_dual_final": 0.028968265280127525,
+      "train_full_mean": 0.0012722767952609364,
+      "train_full_p90": 0.0039895504713058465,
+      "train_tail_ema_mean": 0.00012128312242566608,
+      "train_tail_mean": 0.00012043648013786878,
+      "train_tail_p90": 0.00020035307679791006,
+      "train_tail_slope": -4.5065787471445207e-07,
+      "train_tail_violation_fraction": 0.56,
+      "train_warmup_max": 0.03344215825200081
+    },
+    "boundary": {
+      "train_dual_final": 0.03618588298559189,
+      "train_full_mean": 0.0015644732984087574,
+      "train_full_p90": 0.004309500521048895,
+      "train_tail_ema_mean": 0.00014281550538726152,
+      "train_tail_mean": 0.00013773602484434377,
+      "train_tail_p90": 0.00022821685852250084,
+      "train_tail_slope": -1.3015592650139749e-06,
+      "train_tail_violation_fraction": 0.56,
+      "train_warmup_max": 0.052614349871873856
+    },
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50,
+    "train_dual_final": {
+      "base_solved": 0.028968265280127525,
+      "boundary": 0.03618588298559189
+    }
+  }
+}

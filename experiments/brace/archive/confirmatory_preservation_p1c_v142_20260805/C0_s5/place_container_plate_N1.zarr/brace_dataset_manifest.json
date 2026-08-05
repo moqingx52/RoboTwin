@@ -1,0 +1,14 @@
+{
+  "chunk_episodes": 11,
+  "dataset": "N1",
+  "expert_episodes": 200,
+  "expert_path": "/workspace/RoboTwin/policy/DP/data_phase1_200/place_container_plate-expert_only.zarr",
+  "horizon": 8,
+  "n_action_steps": 6,
+  "n_obs_steps": 3,
+  "optimizer_examples_per_natural_epoch": 31656,
+  "schema_version": 1,
+  "source_manifest": "/workspace/RoboTwin/experiments/brace/datasets/place_pilot_v2.3_N1.jsonl",
+  "source_manifest_sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+  "task": "place_container_plate"
+}

@@ -1,0 +1,864 @@
+{
+  "created_at": "2026-08-04T21:37:03.750292+00:00",
+  "events": [
+    {
+      "event": "launched",
+      "gpu": 0,
+      "job": "C0_s1",
+      "pid": 613007
+    },
+    {
+      "event": "launched",
+      "gpu": 1,
+      "job": "C0_s2",
+      "pid": 613008
+    },
+    {
+      "event": "launched",
+      "gpu": 2,
+      "job": "C0_s3",
+      "pid": 613009
+    },
+    {
+      "event": "launched",
+      "gpu": 3,
+      "job": "C0_s4",
+      "pid": 613010
+    },
+    {
+      "event": "launched",
+      "gpu": 4,
+      "job": "C0_s5",
+      "pid": 613011
+    },
+    {
+      "event": "launched",
+      "gpu": 5,
+      "job": "C1_s1",
+      "pid": 613012
+    },
+    {
+      "event": "launched",
+      "gpu": 6,
+      "job": "C1_s2",
+      "pid": 613013
+    },
+    {
+      "event": "launched",
+      "gpu": 7,
+      "job": "C1_s3",
+      "pid": 613014
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s1"
+    },
+    {
+      "event": "launched",
+      "gpu": 5,
+      "job": "C1_s1",
+      "pid": 614543
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s2"
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s3"
+    },
+    {
+      "event": "launched",
+      "gpu": 6,
+      "job": "C1_s2",
+      "pid": 614660
+    },
+    {
+      "event": "launched",
+      "gpu": 7,
+      "job": "C1_s3",
+      "pid": 614661
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s1"
+    },
+    {
+      "event": "launched",
+      "gpu": 5,
+      "job": "C1_s4",
+      "pid": 615104
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s2"
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s3"
+    },
+    {
+      "event": "launched",
+      "gpu": 6,
+      "job": "C1_s5",
+      "pid": 615180
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s4"
+    },
+    {
+      "event": "launched",
+      "gpu": 5,
+      "job": "C1_s4",
+      "pid": 615480
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s5"
+    },
+    {
+      "event": "launched",
+      "gpu": 6,
+      "job": "C1_s5",
+      "pid": 615595
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s4"
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s5"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C0_s3"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C0_s1"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C0_s2"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C0_s5"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C0_s4"
+    },
+    {
+      "event": "launched",
+      "gpu": 0,
+      "job": "C1_s1",
+      "pid": 616172
+    },
+    {
+      "event": "launched",
+      "gpu": 1,
+      "job": "C1_s2",
+      "pid": 616173
+    },
+    {
+      "event": "launched",
+      "gpu": 2,
+      "job": "C1_s3",
+      "pid": 616174
+    },
+    {
+      "event": "launched",
+      "gpu": 3,
+      "job": "C1_s4",
+      "pid": 616175
+    },
+    {
+      "event": "launched",
+      "gpu": 4,
+      "job": "C1_s5",
+      "pid": 616176
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s1"
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s5"
+    },
+    {
+      "event": "launched",
+      "gpu": 0,
+      "job": "C1_s1",
+      "pid": 617295
+    },
+    {
+      "event": "launched",
+      "gpu": 4,
+      "job": "C1_s5",
+      "pid": 617296
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s3"
+    },
+    {
+      "event": "launched",
+      "gpu": 2,
+      "job": "C1_s3",
+      "pid": 617669
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s4"
+    },
+    {
+      "event": "launched",
+      "gpu": 3,
+      "job": "C1_s4",
+      "pid": 617856
+    },
+    {
+      "event": "pending",
+      "exit_code": 1,
+      "job": "C1_s2"
+    },
+    {
+      "event": "launched",
+      "gpu": 1,
+      "job": "C1_s2",
+      "pid": 617922
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s3"
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s1"
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s5"
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s4"
+    },
+    {
+      "event": "failed",
+      "exit_code": 1,
+      "job": "C1_s2"
+    },
+    {
+      "event": "launched",
+      "gpu": 0,
+      "job": "C1_s1",
+      "pid": 618494
+    },
+    {
+      "event": "launched",
+      "gpu": 1,
+      "job": "C1_s2",
+      "pid": 618495
+    },
+    {
+      "event": "launched",
+      "gpu": 2,
+      "job": "C1_s3",
+      "pid": 618496
+    },
+    {
+      "event": "launched",
+      "gpu": 3,
+      "job": "C1_s4",
+      "pid": 618497
+    },
+    {
+      "event": "launched",
+      "gpu": 4,
+      "job": "C1_s5",
+      "pid": 618498
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C1_s3"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C1_s1"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C1_s4"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C1_s2"
+    },
+    {
+      "event": "completed",
+      "exit_code": 0,
+      "job": "C1_s5"
+    }
+  ],
+  "gpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "jobs": {
+    "C0_s1": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s1/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C0_s1",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s1/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s1"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C0_s1",
+      "job_spec": {
+        "anchor_enabled": false,
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "SFT-only control (anchor off)",
+        "diagnostic_steps": 2470,
+        "job_id": "C0_s1",
+        "method": "sft_only",
+        "training_seed": 1
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C0_s1.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C0_s2": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s2/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C0_s2",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s2/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s2"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C0_s2",
+      "job_spec": {
+        "anchor_enabled": false,
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "SFT-only control (anchor off), training seed 2",
+        "diagnostic_steps": 2470,
+        "job_id": "C0_s2",
+        "method": "sft_only",
+        "training_seed": 2
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C0_s2.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C0_s3": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C0_s3",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C0_s3",
+      "job_spec": {
+        "anchor_enabled": false,
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "SFT-only control (anchor off), training seed 3",
+        "diagnostic_steps": 2470,
+        "job_id": "C0_s3",
+        "method": "sft_only",
+        "training_seed": 3
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C0_s3.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C0_s4": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s4/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C0_s4",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s4/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s4"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C0_s4",
+      "job_spec": {
+        "anchor_enabled": false,
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "SFT-only control (anchor off), training seed 4",
+        "diagnostic_steps": 2470,
+        "job_id": "C0_s4",
+        "method": "sft_only",
+        "training_seed": 4
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C0_s4.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C0_s5": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C0_s5",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C0_s5",
+      "job_spec": {
+        "anchor_enabled": false,
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "SFT-only control (anchor off), training seed 5",
+        "diagnostic_steps": 2470,
+        "job_id": "C0_s5",
+        "method": "sft_only",
+        "training_seed": 5
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C0_s5.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C1_s1": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s1/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C1_s1",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s1/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s1"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C1_s1",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "Frozen A1 dual anchor confirmatory",
+        "diagnostic_steps": 2470,
+        "job_id": "C1_s1",
+        "method": "a1_dual",
+        "training_seed": 1
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C1_s1.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C1_s2": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s2/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C1_s2",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s2/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s2"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C1_s2",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "Frozen A1 dual anchor confirmatory, training seed 2",
+        "diagnostic_steps": 2470,
+        "job_id": "C1_s2",
+        "method": "a1_dual",
+        "training_seed": 2
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C1_s2.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C1_s3": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s3/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C1_s3",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s3/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s3"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C1_s3",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "Frozen A1 dual anchor confirmatory, training seed 3",
+        "diagnostic_steps": 2470,
+        "job_id": "C1_s3",
+        "method": "a1_dual",
+        "training_seed": 3
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C1_s3.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C1_s4": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s4/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C1_s4",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s4/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s4"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C1_s4",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "Frozen A1 dual anchor confirmatory, training seed 4",
+        "diagnostic_steps": 2470,
+        "job_id": "C1_s4",
+        "method": "a1_dual",
+        "training_seed": 4
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C1_s4.log",
+      "pid": null,
+      "status": "completed"
+    },
+    "C1_s5": {
+      "artifact": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json",
+      "attempts": 1,
+      "command": [
+        "python",
+        "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py",
+        "--protocol",
+        "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+        "--jobs",
+        "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+        "--job-id",
+        "C1_s5",
+        "--task",
+        "place_container_plate",
+        "--run-label",
+        "place_pilot_v2.3",
+        "--checkpoint",
+        "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "--traced-rollout-dir",
+        "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+        "--output",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5/summary.json",
+        "--work-dir",
+        "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s5"
+      ],
+      "dependency": null,
+      "exit_code": 0,
+      "gpu": null,
+      "id": "C1_s5",
+      "job_spec": {
+        "anchor_enabled": true,
+        "brace_overrides": {
+          "dual_lr": 0.01,
+          "formulation": "dual_only",
+          "lambda_init": 0.0
+        },
+        "checkpoint_steps": [
+          247,
+          741,
+          1235,
+          2470
+        ],
+        "description": "Frozen A1 dual anchor confirmatory, training seed 5",
+        "diagnostic_steps": 2470,
+        "job_id": "C1_s5",
+        "method": "a1_dual",
+        "training_seed": 5
+      },
+      "kind": "calibration",
+      "log": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/logs/C1_s5.log",
+      "pid": null,
+      "status": "completed"
+    }
+  },
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+  "jobs_manifest_sha256": "446a7488c2d0fef72bcc904dfdc00e5d69bfa612cf722367ca0ca8bb65c19003",
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "run_dir": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin",
+  "run_label": "place_pilot_v2.3",
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "status": "completed",
+  "summary": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/summary.json",
+  "task": "place_container_plate",
+  "updated_at": "2026-08-05T09:31:55.047732+00:00"
+}

@@ -1,0 +1,10 @@
+{
+  "archive_target": "archive/confirmatory_preservation_cohort_v142_20260804",
+  "artifact_filter": "json_jsonl_log_and_zarr_manifests_excluding_checkpoints",
+  "copied_files": [
+    "meta.json",
+    "place_container_plate_preservation_cohort.json"
+  ],
+  "schema_version": 1,
+  "source_run": "experiments/brace/runs/20260804T213623Z_select_preservation_cohort_place_container_plate_dump_bin_bigbin"
+}

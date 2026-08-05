@@ -1,0 +1,159 @@
+{
+  "episodes": [
+    {
+      "base_outcome": false,
+      "env_seed": 100000,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100000_4.hdf5",
+      "hdf5_sha256": "16559f6170f8aaafab527c3665bedaf58499727d22e820ead78dda597b3ce04b",
+      "preservation_group": "boundary",
+      "rollout_id": 4
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100004,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100004_0.hdf5",
+      "hdf5_sha256": "03b8a050e18d9b1e6518c9bbcc99780a9d0e491933ace8e2cfa2452da57bb4ea",
+      "preservation_group": "boundary",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100011,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100011_4.hdf5",
+      "hdf5_sha256": "56c1a8be75ac17d35855694e2115ab080c408368a108ff7145e688c15ec6ce68",
+      "preservation_group": "boundary",
+      "rollout_id": 4
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100017,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100017_5.hdf5",
+      "hdf5_sha256": "e5fefe56c43f3e42e147a150fec72359662486b339e0efc12c68ece20f94c59d",
+      "preservation_group": "boundary",
+      "rollout_id": 5
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100020,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100020_1.hdf5",
+      "hdf5_sha256": "b308352bf82db0802197f99087043c02158b5c0f1b788c108c33e3c9bc6a83c5",
+      "preservation_group": "boundary",
+      "rollout_id": 1
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100023,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100023_1.hdf5",
+      "hdf5_sha256": "2f41d526a102b7d890490286a0599053cc559424b1cc82e6e4e344a79c5b83fe",
+      "preservation_group": "boundary",
+      "rollout_id": 1
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100032,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100032_1.hdf5",
+      "hdf5_sha256": "743909bfacf0bd467b0ef1abcbf4702e15f7c744a5d1b77cd87f9c27622f7b52",
+      "preservation_group": "boundary",
+      "rollout_id": 1
+    },
+    {
+      "base_outcome": false,
+      "env_seed": 100041,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/failures/episode_100041_0.hdf5",
+      "hdf5_sha256": "44e17646cb4272646488ace583e8fedb95890ef911d143fd2ac327d9882626e7",
+      "preservation_group": "boundary",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100005,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100005_0.hdf5",
+      "hdf5_sha256": "80970b82539d986c1685d09d2aed42da32df7fcf7d8dd8addf0cc88750cc5679",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100008,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100008_0.hdf5",
+      "hdf5_sha256": "b3adf796074df1868bbaa6886fff921c7100211518773c1aba9f219452dcc313",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100010,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100010_0.hdf5",
+      "hdf5_sha256": "fd3d57a4c3c53d256c30cb960c58cf268e551bb17230781b5fbd3932591945df",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100014,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100014_0.hdf5",
+      "hdf5_sha256": "401077478f6764947b1417c8335d2ab31ea7b833fae473cf81c374e5d6be2239",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100016,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100016_0.hdf5",
+      "hdf5_sha256": "ce175b5f31ededf4f781dbefa7f49bce9b9677a4f06df8709de411ac7e0375c2",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100019,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100019_0.hdf5",
+      "hdf5_sha256": "e28de255effa8418f9592ec04e2e69a36f8e384630e5cd94db25a0ed6f8e0f12",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100021,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100021_0.hdf5",
+      "hdf5_sha256": "2f097d0b557551da7c1b2b51cdde646820e6b5095aa1e5067b4dd66f803ee932",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    },
+    {
+      "base_outcome": true,
+      "env_seed": 100024,
+      "hdf5_path": "/workspace/RoboTwin/experiments/brace/rollouts_traced/place_container_plate/successes/episode_100024_0.hdf5",
+      "hdf5_sha256": "d4b2bb02e9190dd5f0b821489bfb94de03620dd203be5de68682ba8feb73716c",
+      "preservation_group": "base_solved",
+      "rollout_id": 0
+    }
+  ],
+  "group_counts": {
+    "base_solved": 8,
+    "boundary": 8
+  },
+  "horizon": 8,
+  "manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "schema_version": 1,
+  "task": "place_container_plate",
+  "unique_env_seeds": [
+    100000,
+    100004,
+    100005,
+    100008,
+    100010,
+    100011,
+    100014,
+    100016,
+    100017,
+    100019,
+    100020,
+    100021,
+    100023,
+    100024,
+    100032,
+    100041
+  ]
+}

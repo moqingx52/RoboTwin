@@ -1,6 +1,6 @@
 # BRACE 实验日志（滚动）
 
-> 最后更新：**2026-08-04**
+> 最后更新：**2026-08-05**
 > 当前 branch 协议：**v2.3**（`experiments/brace/protocol.v2.3.json`）
 > 设计文档：`docs/brace_cloud_experiment_plan.md`、`docs/brace_audit_v2_design.md`
 > 三轨路线：`docs/brace_track_abc_roadmap.md`
@@ -13,7 +13,10 @@
 
 | 日期 | 阶段 | 任务 | Gate | 文档 / 归档 |
 |------|------|------|------|-------------|
-| 2026-08-04 | Confirmatory v1.4.2 | census feasibility revision | **待跑** P1a→P1b | `screen_protocol.v1.4.2.confirmatory_preservation.json` · `seeds/place_container_plate_confirmatory_v1.4.2_seeds.json` |
+| 2026-08-05 | Confirmatory v1.4.2 | P1c preservation training | **complete**（10/10 jobs, step 2470） | `archive/confirmatory_preservation_p1c_v142_20260805/` |
+| 2026-08-04 | Confirmatory v1.4.2 | P1b preservation cohort | **complete**（meets_min_untouched） | `archive/confirmatory_preservation_cohort_v142_20260804/` |
+| 2026-08-04 | Confirmatory v1.4.2 | P1a base census | complete（900 ep, offset 3000） | `archive/confirmatory_base_census_v142_20260804/` |
+| 2026-08-04 | Confirmatory v1.4.2 | census feasibility revision | code + archives landed | `screen_protocol.v1.4.2.confirmatory_preservation.json` · commit `4a19bd8` OOM fix |
 | 2026-08-03 | Confirmatory v1.4.1 | P1b preservation cohort | **protocol-feasibility failure**（untouched=42&lt;60） | `runs/20260803T235334Z_select_preservation_cohort_*` · [`brace_v1.4.1_census_feasibility_failure_20260803.md`](brace_v1.4.1_census_feasibility_failure_20260803.md) |
 | 2026-08-03 | Confirmatory v1.4.1 | P1a base census | complete（600 ep, offset 3000） | `runs/20260803T144820Z_confirmatory_base_census_*` |
 | 2026-08-03 | Phase 3C | anchor behavior eval | **进入确认实验**（非理论完成） | [`brace_phase3c_confirmatory_conclusion_20260803.md`](brace_phase3c_confirmatory_conclusion_20260803.md) · `runs/20260803T073015Z_anchor_behavior_eval_*` |
@@ -108,21 +111,24 @@
 
 ## 当前阻塞与下一步
 
-**v1.4.1 P1b 已于 2026-08-03 fail-closed（untouched=42&lt;60）。当前执行协议已升级为 v1.4.2（census 200 + adaptation ID 100）。**
+**v1.4.2 P1a→P1c 已完成（2026-08-05）。C1 OOM 由 commit `4a19bd8` 修复后 resume 成功。**
 
-1. **P1a（前置）**：`confirmatory-base-census`（offset **3000**，census_candidate_id + train，无 Hard）
-2. **P1b**：`select-preservation-cohort`（整数 2/3 入组，校验 census provenance，`n>=60`）
-3. **P1c**：`confirmatory-preservation`（**10** DP jobs：C0/C1 × seeds 1–5，协议 **v1.4.2**）
-4. **P1d**：`confirmatory-preservation-eval` + `confirmatory-preservation-report`（offset **4000**，完整 H1 Pareto gate；seeds **v1.4.2**）
+1. ~~**P1a**~~ `confirmatory-base-census` ✓
+2. ~~**P1b**~~ `select-preservation-cohort` ✓
+3. ~~**P1c**~~ `confirmatory-preservation` ✓（C0/C1 × seeds 1–5，10/10 complete）
+4. **P1d（当前）**：`confirmatory-preservation-eval` + `confirmatory-preservation-report`（offset **4000**，H1 Pareto gate）
 5. **P2–P5**：见 [`brace_phase3c_confirmatory_conclusion_20260803.md`](brace_phase3c_confirmatory_conclusion_20260803.md)
+
+**归档取证（JSON/jsonl/log，无 ckpt）：**
+- `archive/confirmatory_base_census_v142_20260804/`
+- `archive/confirmatory_preservation_cohort_v142_20260804/`
+- `archive/confirmatory_preservation_p1c_v142_20260805/`
 
 **可执行协议：** `screen_protocol.v1.4.2.confirmatory_preservation.json`
 **Seeds manifest：** `seeds/place_container_plate_confirmatory_v1.4.2_seeds.json`
 **Jobs manifest：** `confirmatory_preservation_jobs.place_container_plate.v3.json`
 
 **Superseded（勿用于新跑）：** v1.4.1 协议、`confirmatory_preservation_jobs.place_container_plate.v2.json`
-
-**暂缓：** 原 v1.4 + 直接 `select-preservation-cohort` / `confirmatory-preservation`（无 census）
 
 ---
 

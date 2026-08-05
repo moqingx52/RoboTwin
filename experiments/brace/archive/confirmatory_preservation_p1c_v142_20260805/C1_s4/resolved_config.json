@@ -1,0 +1,46 @@
+{
+  "brace_overrides": {
+    "dual_lr": 0.01,
+    "formulation": "dual_only",
+    "lambda_init": 0.0
+  },
+  "job": {
+    "anchor_enabled": true,
+    "brace_overrides": {
+      "dual_lr": 0.01,
+      "formulation": "dual_only",
+      "lambda_init": 0.0
+    },
+    "checkpoint_steps": [
+      247,
+      741,
+      1235,
+      2470
+    ],
+    "description": "Frozen A1 dual anchor confirmatory, training seed 4",
+    "diagnostic_steps": 2470,
+    "job_id": "C1_s4",
+    "method": "a1_dual",
+    "training_seed": 4
+  },
+  "job_config": {
+    "anchor_enabled": true,
+    "auto_fixed_beta_ratio": null,
+    "checkpoint_epochs": {},
+    "checkpoint_steps": [
+      247,
+      741,
+      1235,
+      2470
+    ],
+    "diagnostic_steps": 2470,
+    "dual_lr": 0.01,
+    "early_stop_enabled": true,
+    "grad_diag_at_checkpoints_only": true,
+    "job_id": "C1_s4",
+    "lambda_max": null,
+    "record_peak_memory": true,
+    "scheduler_total_steps": 2470,
+    "warmstart_target_ratio": null
+  }
+}

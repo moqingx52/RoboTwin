@@ -1,0 +1,2437 @@
+{
+  "ckpt_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+  "hard_seed_source": "/workspace/RoboTwin/experiments/phase1/eval_results_200/hard_eval_seeds/place_container_plate.json",
+  "hard_seeds": [],
+  "progress": {
+    "census_candidate_id_count": 200,
+    "census_candidate_split": true,
+    "complete": true,
+    "completed_episodes": 300,
+    "extra_split_repeats": 3,
+    "hard_repeats": 0,
+    "id_repeats": 3,
+    "num_shards": 3,
+    "policy_seed_offset": 3000,
+    "shard_id": 1,
+    "train_repeats": 3
+  },
+  "rows": [
+    {
+      "env_seed": 100114,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 133,
+      "success": true
+    },
+    {
+      "env_seed": 100115,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100116,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100117,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100118,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100119,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 133,
+      "success": true
+    },
+    {
+      "env_seed": 100121,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100122,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100123,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100124,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100125,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100126,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100127,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100129,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100130,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100131,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100132,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100133,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100134,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100135,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100137,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 134,
+      "success": true
+    },
+    {
+      "env_seed": 100138,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100139,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100140,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100141,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100143,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100144,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100145,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100146,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100147,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100148,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100149,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100150,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 123,
+      "success": true
+    },
+    {
+      "env_seed": 100151,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100153,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100154,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100155,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100156,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100157,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100158,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100160,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100162,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100163,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 134,
+      "success": true
+    },
+    {
+      "env_seed": 100164,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 126,
+      "success": true
+    },
+    {
+      "env_seed": 100165,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100167,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 109,
+      "success": true
+    },
+    {
+      "env_seed": 100168,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100169,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100170,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100171,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 123,
+      "success": true
+    },
+    {
+      "env_seed": 100172,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 118,
+      "success": true
+    },
+    {
+      "env_seed": 100173,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100174,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100175,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100176,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100177,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100178,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100179,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100180,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100181,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100182,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 126,
+      "success": true
+    },
+    {
+      "env_seed": 100184,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100185,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100186,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100187,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100188,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100190,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100191,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100192,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100193,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100194,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100197,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100199,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100200,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100201,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100203,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100204,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100207,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100208,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100209,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100210,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100211,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100212,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100213,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100214,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100215,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100216,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100218,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 123,
+      "success": true
+    },
+    {
+      "env_seed": 100220,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100221,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100222,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100223,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100224,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100226,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100227,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 133,
+      "success": true
+    },
+    {
+      "env_seed": 100228,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 144,
+      "success": true
+    },
+    {
+      "env_seed": 100229,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100230,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100232,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 126,
+      "success": true
+    },
+    {
+      "env_seed": 100233,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100234,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100235,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100236,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100237,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100238,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100240,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 133,
+      "success": true
+    },
+    {
+      "env_seed": 100241,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 150,
+      "success": true
+    },
+    {
+      "env_seed": 100242,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100244,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 112,
+      "success": true
+    },
+    {
+      "env_seed": 100245,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100246,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100249,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100250,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 116,
+      "success": true
+    },
+    {
+      "env_seed": 100251,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100252,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 112,
+      "success": true
+    },
+    {
+      "env_seed": 100253,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100254,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100255,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100256,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 143,
+      "success": true
+    },
+    {
+      "env_seed": 100257,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100258,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100260,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100261,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100264,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100265,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100267,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100268,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100269,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100270,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100271,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100272,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100273,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 110,
+      "success": true
+    },
+    {
+      "env_seed": 100274,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100275,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100276,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100277,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100278,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 145,
+      "success": true
+    },
+    {
+      "env_seed": 100279,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 111,
+      "success": true
+    },
+    {
+      "env_seed": 100281,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100282,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100283,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100284,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100285,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100286,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100287,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100288,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 139,
+      "success": true
+    },
+    {
+      "env_seed": 100289,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100290,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100291,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100292,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100293,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100294,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100297,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100298,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100299,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100301,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100302,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100303,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100305,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100306,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100307,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100309,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100310,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100311,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100312,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100313,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 116,
+      "success": true
+    },
+    {
+      "env_seed": 100314,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100315,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100316,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 138,
+      "success": true
+    },
+    {
+      "env_seed": 100317,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100318,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100319,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100320,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100321,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100322,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100323,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100324,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100326,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100327,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 132,
+      "success": true
+    },
+    {
+      "env_seed": 100328,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100329,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100330,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100331,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 135,
+      "success": true
+    },
+    {
+      "env_seed": 100333,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100334,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100335,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100336,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100337,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100338,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100339,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 126,
+      "success": true
+    },
+    {
+      "env_seed": 100341,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100343,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100344,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100345,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100346,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100347,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100348,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100350,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100351,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100352,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "census_candidate_id",
+      "steps": 138,
+      "success": true
+    },
+    {
+      "env_seed": 100000,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100003,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100004,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 144,
+      "success": true
+    },
+    {
+      "env_seed": 100005,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100006,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100007,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100008,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 116,
+      "success": true
+    },
+    {
+      "env_seed": 100009,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100010,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100011,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100012,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100014,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 132,
+      "success": true
+    },
+    {
+      "env_seed": 100015,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100016,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100017,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100018,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100019,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100020,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100021,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100023,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100024,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100025,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 131,
+      "success": true
+    },
+    {
+      "env_seed": 100026,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100027,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100028,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100030,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100031,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100032,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100033,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100034,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100035,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100036,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 139,
+      "success": true
+    },
+    {
+      "env_seed": 100037,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100038,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100039,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100041,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100042,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100043,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100044,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100045,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100046,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100048,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100049,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100050,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100051,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100053,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100056,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100057,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100058,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100059,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100060,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 121,
+      "success": true
+    },
+    {
+      "env_seed": 100061,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 134,
+      "success": true
+    },
+    {
+      "env_seed": 100062,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100063,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 130,
+      "success": true
+    },
+    {
+      "env_seed": 100064,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100065,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 126,
+      "success": true
+    },
+    {
+      "env_seed": 100066,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100067,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100068,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100069,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100070,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 138,
+      "success": true
+    },
+    {
+      "env_seed": 100071,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 126,
+      "success": true
+    },
+    {
+      "env_seed": 100072,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 123,
+      "success": true
+    },
+    {
+      "env_seed": 100073,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 117,
+      "success": true
+    },
+    {
+      "env_seed": 100074,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 114,
+      "success": true
+    },
+    {
+      "env_seed": 100075,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100076,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 122,
+      "success": true
+    },
+    {
+      "env_seed": 100077,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100078,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 116,
+      "success": true
+    },
+    {
+      "env_seed": 100079,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100080,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100081,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 125,
+      "success": true
+    },
+    {
+      "env_seed": 100082,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100083,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100084,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100085,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100086,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100087,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 123,
+      "success": true
+    },
+    {
+      "env_seed": 100088,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100089,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 133,
+      "success": true
+    },
+    {
+      "env_seed": 100090,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100091,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100092,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100096,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100097,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 133,
+      "success": true
+    },
+    {
+      "env_seed": 100098,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 116,
+      "success": true
+    },
+    {
+      "env_seed": 100099,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100100,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 128,
+      "success": true
+    },
+    {
+      "env_seed": 100101,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100103,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 120,
+      "success": true
+    },
+    {
+      "env_seed": 100104,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100105,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 127,
+      "success": true
+    },
+    {
+      "env_seed": 100106,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 113,
+      "success": true
+    },
+    {
+      "env_seed": 100107,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100108,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100109,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100110,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 119,
+      "success": true
+    },
+    {
+      "env_seed": 100111,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 115,
+      "success": true
+    },
+    {
+      "env_seed": 100112,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 400,
+      "success": false
+    },
+    {
+      "env_seed": 100113,
+      "policy_seed": 3001,
+      "repeat": 1,
+      "split": "train_seen",
+      "steps": 119,
+      "success": true
+    }
+  ],
+  "splits": {
+    "census_candidate_id": {
+      "episodes": 200,
+      "mean_sr": 0.585,
+      "seeds": 200,
+      "solved_coverage": 0.585
+    },
+    "train_seen": {
+      "episodes": 100,
+      "mean_sr": 0.65,
+      "seeds": 100,
+      "solved_coverage": 0.65
+    }
+  },
+  "task_config": "demo_clean",
+  "task_name": "place_container_plate",
+  "variant": "census_base"
+}

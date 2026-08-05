@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-08-04T21:37:01Z",
+  "git_commit": "06b9c289ca5da8e8082086c59d318ae8425b31ae",
+  "hostname": "bc1504c598b7",
+  "pid": 612865,
+  "run_id": "20260804T213700Z",
+  "schema_version": 1,
+  "stage": "confirmatory_preservation",
+  "subpath": "confirmatory_preservation",
+  "tasks": [
+    "dump_bin_bigbin"
+  ]
+}

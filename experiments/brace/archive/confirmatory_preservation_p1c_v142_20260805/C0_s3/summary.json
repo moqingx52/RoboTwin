@@ -1,0 +1,142 @@
+{
+  "anchor_manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "checkpoint_artifacts": {
+    "1235": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_1235.ckpt",
+      "dual": {},
+      "epoch": 5,
+      "lr": 3.470503827099127e-05,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    },
+    "247": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_247.ckpt",
+      "dual": {},
+      "epoch": 1,
+      "lr": 2.47e-05,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    },
+    "2470": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_2470.ckpt",
+      "dual": {},
+      "epoch": 10,
+      "lr": 0.0,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    },
+    "741": {
+      "anchor_to_sft_grad_ratio": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_741.ckpt",
+      "dual": {},
+      "epoch": 3,
+      "lr": 4.817627606686408e-05,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      }
+    }
+  },
+  "checkpoint_paths": {
+    "1235": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_1235.ckpt",
+    "247": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_247.ckpt",
+    "2470": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_2470.ckpt",
+    "741": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_741.ckpt"
+  },
+  "checkpoint_steps": [
+    247,
+    741,
+    1235,
+    2470
+  ],
+  "complete": true,
+  "config_sha256": "71bde4908436dedfd451f13c5504a3c45f6fe9ce34fdbfaedb74a6eccd98ab34",
+  "dataset_manifest_sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+  "diagnostic_steps": 2470,
+  "early_stop_reason": null,
+  "exploratory": false,
+  "feasibility": {
+    "groups": {},
+    "missing_groups": [
+      "base_solved",
+      "boundary"
+    ],
+    "passed": false,
+    "require_raw_and_ema": true
+  },
+  "feasibility_on_probe": {
+    "groups": {},
+    "missing_groups": [
+      "base_solved",
+      "boundary"
+    ],
+    "passed": false,
+    "require_raw_and_ema": true
+  },
+  "gate_note": "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; held-out probe tail summaries are forensic-only until a calibrated protocol is frozen.",
+  "git_commit": "06b9c289ca5da8e8082086c59d318ae8425b31ae",
+  "job_id": "C0_s3",
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+  "jobs_manifest_sha256": "446a7488c2d0fef72bcc904dfdc00e5d69bfa612cf722367ca0ca8bb65c19003",
+  "passed": false,
+  "probe_env_seed_count": 8,
+  "probe_env_seeds": [
+    100000,
+    100011,
+    100014,
+    100016,
+    100017,
+    100021,
+    100041
+  ],
+  "probe_num_draws": 6,
+  "probe_seed": 42,
+  "probe_split_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/anchor_probe_split.json",
+  "probe_split_sha256": "01d509cfd9d4be43b5ee8189ef7a93a3435103093fe2841611afbf65a82bc99d",
+  "probe_summary": {
+    "base_solved": {},
+    "boundary": {},
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  },
+  "probe_trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/feasibility_probe_trajectory.jsonl",
+  "promotion_eligible": true,
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+  "protocol_revision": "screen.v1.4.2.confirmatory_preservation",
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "resolved_config_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/resolved_config.json",
+  "rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "scheduler_total_steps": 2470,
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "steps_completed": 2470,
+  "teacher_hash_before": null,
+  "teacher_hash_end": null,
+  "teacher_hash_stable": true,
+  "train_env_seed_count": 8,
+  "training_seed": 3,
+  "trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/feasibility_trajectory.jsonl",
+  "trajectory_summary": {
+    "base_solved": {},
+    "boundary": {},
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50
+  }
+}

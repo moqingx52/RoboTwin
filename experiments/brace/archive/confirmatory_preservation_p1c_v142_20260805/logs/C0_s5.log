@@ -1,0 +1,148 @@
+COMMAND ["python", "/workspace/RoboTwin/experiments/brace/anchor_calibration_runner.py", "--protocol", "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json", "--jobs", "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json", "--job-id", "C0_s5", "--task", "place_container_plate", "--run-label", "place_pilot_v2.3", "--checkpoint", "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt", "--traced-rollout-dir", "/workspace/RoboTwin/experiments/brace/rollouts_traced", "--output", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/summary.json", "--work-dir", "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5"]
+/root/miniconda/envs/RoboTwin/lib/python3.10/site-packages/torch/cuda/__init__.py:51: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/place_container_plate_anchor_replay.zarr
+Opening replay buffer on disk to limit host RAM: /workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/place_container_plate_N1.zarr
+Using fixed source budget batches: expert=112, rollout=16, prefix=0, group_stratified_rollout=False
+{
+  "schema_version": 3,
+  "stage": "anchor_calibration",
+  "job_id": "C0_s5",
+  "exploratory": false,
+  "promotion_eligible": true,
+  "protocol_revision": "screen.v1.4.2.confirmatory_preservation",
+  "training_seed": 5,
+  "passed": false,
+  "complete": true,
+  "early_stop_reason": null,
+  "diagnostic_steps": 2470,
+  "steps_completed": 2470,
+  "scheduler_total_steps": 2470,
+  "feasibility": {
+    "passed": false,
+    "missing_groups": [
+      "base_solved",
+      "boundary"
+    ],
+    "groups": {},
+    "require_raw_and_ema": true
+  },
+  "feasibility_on_probe": {
+    "passed": false,
+    "missing_groups": [
+      "base_solved",
+      "boundary"
+    ],
+    "groups": {},
+    "require_raw_and_ema": true
+  },
+  "trajectory_summary": {
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50,
+    "base_solved": {},
+    "boundary": {}
+  },
+  "probe_summary": {
+    "rows": 2470,
+    "tail_mode": "steps",
+    "tail_rows": 50,
+    "tail_steps": 50,
+    "base_solved": {},
+    "boundary": {}
+  },
+  "gate_note": "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; held-out probe tail summaries are forensic-only until a calibrated protocol is frozen.",
+  "dataset_manifest_sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+  "anchor_manifest_sha256": "9de32fe3d4c6fd1291d430cca7a9bd5608b84e765a9a88cdb37ee1fca19e9641",
+  "probe_split_sha256": "01d509cfd9d4be43b5ee8189ef7a93a3435103093fe2841611afbf65a82bc99d",
+  "probe_split_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/anchor_probe_split.json",
+  "rollout_dir": "/workspace/RoboTwin/experiments/brace/rollouts_traced",
+  "teacher_hash_before": null,
+  "teacher_hash_end": null,
+  "teacher_hash_stable": true,
+  "probe_seed": 42,
+  "probe_num_draws": 6,
+  "probe_env_seeds": [
+    100000,
+    100011,
+    100014,
+    100016,
+    100017,
+    100021,
+    100041
+  ],
+  "train_env_seed_count": 8,
+  "probe_env_seed_count": 8,
+  "checkpoint_steps": [
+    247,
+    741,
+    1235,
+    2470
+  ],
+  "checkpoint_artifacts": {
+    "247": {
+      "epoch": 1,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      },
+      "dual": {},
+      "lr": 2.47e-05,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_247.ckpt",
+      "anchor_to_sft_grad_ratio": 0.0
+    },
+    "741": {
+      "epoch": 3,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      },
+      "dual": {},
+      "lr": 4.817627606686408e-05,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_741.ckpt",
+      "anchor_to_sft_grad_ratio": 0.0
+    },
+    "1235": {
+      "epoch": 5,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      },
+      "dual": {},
+      "lr": 3.470503827099127e-05,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_1235.ckpt",
+      "anchor_to_sft_grad_ratio": 0.0
+    },
+    "2470": {
+      "epoch": 10,
+      "probe_constraints": {},
+      "probe_monitor": {},
+      "probe_stats": {
+        "probe_draw_count": 0
+      },
+      "dual": {},
+      "lr": 0.0,
+      "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_2470.ckpt",
+      "anchor_to_sft_grad_ratio": 0.0
+    }
+  },
+  "checkpoint_paths": {
+    "247": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_247.ckpt",
+    "741": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_741.ckpt",
+    "1235": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_1235.ckpt",
+    "2470": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/checkpoints/step_2470.ckpt"
+  },
+  "trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/feasibility_trajectory.jsonl",
+  "probe_trajectory_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/feasibility_probe_trajectory.jsonl",
+  "git_commit": "06b9c289ca5da8e8082086c59d318ae8425b31ae",
+  "resolved_config_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s5/resolved_config.json",
+  "config_sha256": "71b23878fc1e80ad2d673ba703e02619ee9eea24ae0671d20e87fa236bcbe537",
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/screen_protocol.v1.4.2.confirmatory_preservation.json",
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "jobs_manifest_path": "/workspace/RoboTwin/experiments/brace/confirmatory_preservation_jobs.place_container_plate.v3.json",
+  "jobs_manifest_sha256": "446a7488c2d0fef72bcc904dfdc00e5d69bfa612cf722367ca0ca8bb65c19003"
+}
