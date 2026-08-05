@@ -843,6 +843,9 @@ PY
       echo "Blocked: cohort protocol SHA does not match ${confirmatory_protocol}." >&2
       exit 2
     fi
+    # Publish the immutable run directory before launching so a failed
+    # orchestrator remains directly discoverable and resumable.
+    echo "${confirm_run_dir}" > "${brace_dir}/runs/LATEST_confirmatory_preservation"
     python experiments/brace/orchestrate_calibration.py \
       --protocol "${confirmatory_protocol}" \
       --jobs "${confirmatory_jobs}" \
@@ -852,7 +855,6 @@ PY
       --run-dir "${confirm_run_dir}" \
       --gpus ${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7} \
       --max-retries "${BRACE_CONFIRMATORY_MAX_RETRIES:-1}"
-    echo "${confirm_run_dir}" > "${brace_dir}/runs/LATEST_confirmatory_preservation"
     ;;
 
   confirmatory-preservation-eval)

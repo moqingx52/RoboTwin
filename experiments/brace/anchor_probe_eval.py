@@ -114,13 +114,16 @@ def _evaluate_single_draw(
             noisy_action = payload["noisy_action"]
             timesteps = payload["timesteps"]
             teacher_pred = payload["teacher_pred"]
-            student_pred = student.denoise_action(obs, noisy_action, timesteps)
-            constraints[group] = float(torch.mean((student_pred - teacher_pred) ** 2).detach().item())
-            if reference_student is not None:
-                with torch.no_grad():
+            # Probe evaluation is metric-only. Building six student autograd
+            # graphs here needlessly recreates a large activation-memory peak
+            # after every optimizer step.
+            with torch.no_grad():
+                student_pred = student.denoise_action(obs, noisy_action, timesteps)
+                constraints[group] = float(torch.mean((student_pred - teacher_pred) ** 2).item())
+                if reference_student is not None:
                     ref_pred = reference_student.denoise_action(obs, noisy_action, timesteps)
                     monitor[f"{group}_ema_drift"] = float(
-                        torch.mean((ref_pred - teacher_pred) ** 2).detach().item()
+                        torch.mean((ref_pred - teacher_pred) ** 2).item()
                     )
     finally:
         student.train(student_was_training)

@@ -16,9 +16,9 @@ from omegaconf import OmegaConf, open_dict
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 from experiments.brace.anchor_grad_diagnostics import (
+    backward_accumulate_and_measure,
     estimate_warmstart_lambdas,
     flatten_grad_norm,
-    measure_basic_grad_norms,
     measure_checkpoint_grad_metrics,
 )
 from experiments.brace.anchor_probe_eval import evaluate_probe_draws, materialize_probe_draws
@@ -319,11 +319,19 @@ def run_anchor_diagnostic(
                     f"expected {sorted(expected_group_values)}"
                 )
 
-        raw_loss, _ = aggregate_training_loss(workspace.model, batch, workspace.cfg)
         reference_student = workspace.ema_model if workspace.cfg.training.use_ema else None
+        params = [param for param in workspace.model.parameters() if param.requires_grad]
+        is_checkpoint_step = bool(job.checkpoint_steps) and (step + 1) in job.checkpoint_steps
 
         step0_grad_probe = False
-        if job.anchor_enabled and anchor_batch is not None and workspace.brace_dual_state is not None:
+        if (
+            job.anchor_enabled
+            and anchor_batch is not None
+            and workspace.brace_dual_state is not None
+            and step == 0
+            and (job.warmstart_target_ratio is not None or job.auto_fixed_beta_ratio is not None)
+        ):
+            raw_loss, _ = aggregate_training_loss(workspace.model, batch, workspace.cfg)
             anchor_term, anchor_constraints, anchor_epsilons, anchor_monitor = compute_brace_anchor_loss(
                 workspace.model,
                 workspace.brace_teacher,
@@ -337,7 +345,6 @@ def run_anchor_diagnostic(
                 and job.warmstart_target_ratio is not None
                 and step == 0
             ):
-                params = [param for param in workspace.model.parameters() if param.requires_grad]
                 scaled_raw = raw_loss / grad_accum
                 lambdas = estimate_warmstart_lambdas(
                     params,
@@ -354,7 +361,6 @@ def run_anchor_diagnostic(
                 and step == 0
                 and anchor_constraints
             ):
-                params = [param for param in workspace.model.parameters() if param.requires_grad]
                 scaled_raw = raw_loss / grad_accum
                 betas = estimate_warmstart_lambdas(
                     params,
@@ -372,45 +378,81 @@ def run_anchor_diagnostic(
                     torch.cuda.empty_cache()
                 continue
 
-        total_loss = raw_loss + anchor_term
-        params = [param for param in workspace.model.parameters() if param.requires_grad]
-        scaled_raw = raw_loss / grad_accum
-        scaled_anchor = anchor_term / grad_accum
-        scaled_total = total_loss / grad_accum
-
-        is_checkpoint_step = bool(job.checkpoint_steps) and (step + 1) in job.checkpoint_steps
         grad_norm_sft = 0.0
         grad_norm_anchor = 0.0
         group_grad_metrics: dict[str, float | None] = {}
         grad_cosine = None
 
-        if job.anchor_enabled and workspace.brace_dual_state is not None:
-            grad_norm_sft, grad_norm_anchor = measure_basic_grad_norms(
-                params,
-                scaled_raw=scaled_raw,
-                scaled_anchor=scaled_anchor,
-            )
-            if is_checkpoint_step:
+        run_grad_diagnostic = is_checkpoint_step or not job.grad_diag_at_checkpoints_only
+        if (
+            run_grad_diagnostic
+            and job.anchor_enabled
+            and anchor_batch is not None
+            and workspace.brace_dual_state is not None
+        ):
+            # Diagnostics use a separate RNG-isolated pass.  The SFT backward is
+            # completed (and its activation graph freed) before constructing the
+            # anchor graph, avoiding the former retain_graph memory peak.
+            fork_devices = [device] if device.type == "cuda" else []
+            with torch.random.fork_rng(devices=fork_devices):
+                workspace.optimizer.zero_grad(set_to_none=True)
+                diagnostic_raw, _ = aggregate_training_loss(workspace.model, batch, workspace.cfg)
+                (diagnostic_raw / grad_accum).backward()
+                diagnostic_sft_norm = flatten_grad_norm(params)
+                diagnostic_anchor, diagnostic_constraints, _, _ = compute_brace_anchor_loss(
+                    workspace.model,
+                    workspace.brace_teacher,
+                    anchor_batch,
+                    workspace.cfg,
+                    workspace.brace_dual_state,
+                    reference_student=reference_student,
+                )
                 dual_values_pre = workspace.brace_dual_state.as_dict()
                 group_grad_metrics = measure_checkpoint_grad_metrics(
                     params,
-                    scaled_raw=scaled_raw,
-                    scaled_anchor=scaled_anchor,
-                    anchor_constraints=anchor_constraints,
+                    scaled_anchor=diagnostic_anchor / grad_accum,
+                    anchor_constraints=diagnostic_constraints,
                     grad_accum=grad_accum,
                     dual_values=dual_values_pre,
-                    grad_norm_sft=grad_norm_sft,
+                    grad_norm_sft=diagnostic_sft_norm,
                 )
                 grad_cosine = group_grad_metrics.pop("grad_cosine_sft_anchor", None)
+                diagnostic_anchor_norm = float(group_grad_metrics.pop("grad_norm_anchor", 0.0))
             workspace.optimizer.zero_grad(set_to_none=True)
-            scaled_total.backward()
+            del diagnostic_raw, diagnostic_anchor, diagnostic_constraints
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
+
+        # Accumulate the mathematically identical total gradient in two
+        # graph-freeing backwards.  SFT activations are gone before the anchor
+        # teacher/student forward is materialized.
+        workspace.optimizer.zero_grad(set_to_none=True)
+        raw_loss, _ = aggregate_training_loss(workspace.model, batch, workspace.cfg)
+        (raw_loss / grad_accum).backward()
+        grad_norm_sft = flatten_grad_norm(params)
+
+        if job.anchor_enabled and anchor_batch is not None and workspace.brace_dual_state is not None:
+            anchor_term, anchor_constraints, anchor_epsilons, anchor_monitor = compute_brace_anchor_loss(
+                workspace.model,
+                workspace.brace_teacher,
+                anchor_batch,
+                workspace.cfg,
+                workspace.brace_dual_state,
+                reference_student=reference_student,
+            )
+            grad_norm_anchor, training_grad_cosine = backward_accumulate_and_measure(
+                params, anchor_term / grad_accum
+            )
+            if run_grad_diagnostic:
+                grad_norm_sft = diagnostic_sft_norm
+                grad_norm_anchor = diagnostic_anchor_norm
+            else:
+                grad_cosine = training_grad_cosine
             grad_norm_total = flatten_grad_norm(params)
         else:
-            workspace.optimizer.zero_grad(set_to_none=True)
-            scaled_total.backward()
-            grad_norm_sft = flatten_grad_norm(params)
             grad_norm_anchor = 0.0
             grad_norm_total = grad_norm_sft
+        total_loss = raw_loss.detach() + anchor_term.detach()
 
         if (step + 1) % grad_accum == 0:
             workspace.optimizer.step()
