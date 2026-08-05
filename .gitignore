@@ -20,6 +20,7 @@ assets/*
 !assets/files
 
 policy/weights/*
+policy/wall-x/
 
 envs/curobo/*
 
