@@ -1,0 +1,23 @@
+{
+  "checkpoint_audit": {
+    "checkpoint_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "deploys_ema": true,
+    "has_ema_model": true,
+    "has_model": true,
+    "state_dict_keys": [
+      "ema_model",
+      "model",
+      "optimizer"
+    ],
+    "use_ema_cfg": true
+  },
+  "checkpoint_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+  "checkpoint_sha256": "8fd41687fda187f59355fe2928cac533e7d8ff053b4c4558ead4f75dc404fa02",
+  "cohort_sha256": "623cdbbe5f30faf1d98e024b4c2985c3a25d5a3e5240a1bf04dbd041263bc8d6",
+  "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260805T100117Z_confirmatory_preservation_eval_place_container_plate_dump_bin_bigbin/place_container_plate/confirm_base_original.json",
+  "eval_sha256": "901833e3bca117680c460ea9f72f61206a8c37949e86c3d68b8659d1d5e775d4",
+  "label": "base_original",
+  "policy_seed_offset": 4000,
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "variant": "confirm_base_original"
+}

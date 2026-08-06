@@ -1,0 +1,491 @@
+{
+  "base_fresh_preservation_diagnostic": {
+    "denominator_source": "frozen_census_cohort",
+    "forgetting_count": 7,
+    "forgetting_rate": 0.11666666666666667,
+    "forgetting_seeds": [
+      100160,
+      100186,
+      100213,
+      100228,
+      100236,
+      100241,
+      100269
+    ],
+    "paired_seeds": 60,
+    "split": "untouched_preservation"
+  },
+  "cohort_untouched_n": 60,
+  "failed_gates": [
+    "preservation_absolute_gate",
+    "preservation_relative_gate",
+    "preservation_sign_test",
+    "preservation_bootstrap_ci"
+  ],
+  "gates": {
+    "adaptation_bootstrap_ci": {
+      "lower": -0.03866666666666667,
+      "passed": true,
+      "point": -0.009999999999999998,
+      "replicates": 10000,
+      "upper": 0.018
+    },
+    "adaptation_noninferiority_gate": {
+      "directional_wins": 5,
+      "margin_absolute": -0.05,
+      "passed": true,
+      "required_wins": 5
+    },
+    "adaptation_sign_test": {
+      "n": 5,
+      "p_value": 0.03125,
+      "passed": true,
+      "wins": 5
+    },
+    "artifact_provenance_complete": {
+      "details": {
+        "census_eval_sha256": "05df7cbdaf095323f29aa7c42d01c76d72d8eeabdec533cb292c58c03e7fdd96",
+        "checkpoint_sha256": {
+          "base_original": "8fd41687fda187f59355fe2928cac533e7d8ff053b4c4558ead4f75dc404fa02",
+          "c0_s1": "8d406c8a803e98e58daa150dad0b23a4a40980114fd6671c0cda0193a0ec25f0",
+          "c0_s2": "a288234512cd0bad3c9b2b0f14dc3e35fe8be76ebf39f478017abe67a9015286",
+          "c0_s3": "b78f670d62edcfa8519d4d040d217457d9232beec99cbfa699ee19017e73496e",
+          "c0_s4": "6a9463c9ce8fca76d5cb71c55ddc737b5d372ed3dc214d3804347de829a671e6",
+          "c0_s5": "c3fdec43cfb8f49d99bce37d8a036dc8f5bd599af9741208f5cd504a8e391471",
+          "c1_s1": "bac08f8a2034d4c28a526cce63c11de68e5b272c3f2a6641f9129a935d5a3084",
+          "c1_s2": "dca6aac3672a0841d685da019e051a1d5813cc38c31253e5963653ad88fc2aaf",
+          "c1_s3": "2fbfde9d97616f1731a68099b671074592425a34b97162a167ec79371d9e9bea",
+          "c1_s4": "333e76ff623c821e5db253df8bad861b6a0ac0de2088cfe30d69d6d35bfd5376",
+          "c1_s5": "48d608178097da05119b59e7d3869d7079b70f537146f6bd178f28e554273b0f"
+        },
+        "cohort_sha256": "623cdbbe5f30faf1d98e024b4c2985c3a25d5a3e5240a1bf04dbd041263bc8d6",
+        "complete": true,
+        "eval_sha256": {
+          "base_original": "901833e3bca117680c460ea9f72f61206a8c37949e86c3d68b8659d1d5e775d4",
+          "c0_s1": "75ca8f02b6384f569927d2f340ff0d2876cea0f829dbf4e35503e791b9bd0e1c",
+          "c0_s2": "0e97f4a7ae92a6ac5146fc35bae23b0bbbe1385f5c276e496c4239874f14b4de",
+          "c0_s3": "74e6c4df27d7dde378414c6ec335e4baa3ddb2e70cf515eb502dba9f5ac9baf5",
+          "c0_s4": "e1bbd5e1280ae7de6071aa294f5feaec3b7ee6090d44e518c167550fdf147533",
+          "c0_s5": "d56f016a2eac484b13ed37f5f2723edacf27eb903c1685f6aeee72d749bd3af1",
+          "c1_s1": "530952ccda3536ab2acb69341cfea734e58f693b92fdadcf4c700436dc618666",
+          "c1_s2": "6421889ade87c0a83637db4a6ff612344320b7746b814eec4979dc9599337fdc",
+          "c1_s3": "2aa1cbdbb21ea4550a5024773ac139b1cb98cc79f852958934ada2d0419227c7",
+          "c1_s4": "8578555b96be70d63591cfb3cde8e55be6df5855bf99216d10e7cefe8d718066",
+          "c1_s5": "b91ecbe55ccb9f7c1cdda2ba01046d95f9c66f54a524953433401c6dd6f1d905"
+        },
+        "partial_sha256": {
+          "base_original": "1129531104c30d0802978a2427d0d41ca7baf43dc7235ef271d7c2f453e27213",
+          "c0_s1": "6230f498994edca88da770f5898305ee7e3384358e9f6a2af2ee934d9701daf6",
+          "c0_s2": "28dc48c76c0bd55d740682f146e680a7f8d18b3355b18664c12e59121d877b8f",
+          "c0_s3": "63a78c81cd9c4103747ce7feb785c5d81cbda9c0be94c9b6c77e2d022a03a519",
+          "c0_s4": "00bd4b2bc6af60ca131fce1422cede2dfd08c09410e3e16d8842d40bd67fa7f0",
+          "c0_s5": "aea246c3c033987e265cfd5a11976a2c8f8d96e16ae4f4d5e036b4183cbe3892",
+          "c1_s1": "1047fa37868c67b98ed1d1a702ddb63e0e6723fac8e64268a17254b621594fe6",
+          "c1_s2": "fabb58653ae4e0f63a01bdf7889162f2109629356470ed5e389b8f925a7dee3b",
+          "c1_s3": "b906e1b021e052ab58203f99b7591964b96136471bb6a180b46ba46034f90c3d",
+          "c1_s4": "9925308323074d3142e3fc8ba46a3c3960251b4b327a90022358bf0d9a113c37",
+          "c1_s5": "010379085b123dfc541361afd10e09e6ab597b585917809a49d9a034bb453c2e"
+        },
+        "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29"
+      },
+      "passed": true
+    },
+    "preservation_absolute_gate": {
+      "cohort_n": 60,
+      "forgetting_events": 51,
+      "passed": false,
+      "target": 0.05,
+      "training_seed_exposures": 300,
+      "zero_event_upper_bound_95_per_training_seed": 0.04870291331009746
+    },
+    "preservation_bootstrap_ci": {
+      "lower": -0.07333333333333333,
+      "passed": false,
+      "point": -0.023333333333333327,
+      "replicates": 10000,
+      "upper": 0.023333333333333334
+    },
+    "preservation_relative_gate": {
+      "directional_wins": 1,
+      "passed": false,
+      "required_wins": 5
+    },
+    "preservation_sign_test": {
+      "n": 5,
+      "p_value": 0.96875,
+      "passed": false,
+      "wins": 1
+    }
+  },
+  "h1_status": "failed",
+  "operational_probe_diagnostic": {
+    "c1_s1": {
+      "checks": {
+        "base_solved_tail_p90_max": true,
+        "boundary_tail_p90_max": true
+      },
+      "limits": {
+        "base_solved_tail_p90_max": 0.001,
+        "boundary_tail_p90_max": 0.001
+      },
+      "observed": {
+        "base_solved_tail_p90_max": 0.000703487079590559,
+        "boundary_tail_p90_max": 0.0007359672890743241
+      },
+      "passed": true
+    },
+    "c1_s2": {
+      "checks": {
+        "base_solved_tail_p90_max": true,
+        "boundary_tail_p90_max": true
+      },
+      "limits": {
+        "base_solved_tail_p90_max": 0.001,
+        "boundary_tail_p90_max": 0.001
+      },
+      "observed": {
+        "base_solved_tail_p90_max": 0.0004786390345543623,
+        "boundary_tail_p90_max": 0.0006940236416994594
+      },
+      "passed": true
+    },
+    "c1_s3": {
+      "checks": {
+        "base_solved_tail_p90_max": true,
+        "boundary_tail_p90_max": true
+      },
+      "limits": {
+        "base_solved_tail_p90_max": 0.001,
+        "boundary_tail_p90_max": 0.001
+      },
+      "observed": {
+        "base_solved_tail_p90_max": 0.0005169067153474316,
+        "boundary_tail_p90_max": 0.0006518556110677309
+      },
+      "passed": true
+    },
+    "c1_s4": {
+      "checks": {
+        "base_solved_tail_p90_max": true,
+        "boundary_tail_p90_max": true
+      },
+      "limits": {
+        "base_solved_tail_p90_max": 0.001,
+        "boundary_tail_p90_max": 0.001
+      },
+      "observed": {
+        "base_solved_tail_p90_max": 0.000683542137267068,
+        "boundary_tail_p90_max": 0.00048331727884942666
+      },
+      "passed": true
+    },
+    "c1_s5": {
+      "checks": {
+        "base_solved_tail_p90_max": false,
+        "boundary_tail_p90_max": true
+      },
+      "limits": {
+        "base_solved_tail_p90_max": 0.001,
+        "boundary_tail_p90_max": 0.001
+      },
+      "observed": {
+        "base_solved_tail_p90_max": 0.0010930654825642705,
+        "boundary_tail_p90_max": 0.000654271301755216
+      },
+      "passed": false
+    }
+  },
+  "per_training_seed": {
+    "1": {
+      "c0_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 12,
+        "forgetting_rate": 0.2,
+        "forgetting_seeds": [
+          100150,
+          100157,
+          100160,
+          100186,
+          100213,
+          100228,
+          100229,
+          100236,
+          100244,
+          100249,
+          100267,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "c1_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 16,
+        "forgetting_rate": 0.26666666666666666,
+        "forgetting_seeds": [
+          100144,
+          100150,
+          100160,
+          100167,
+          100182,
+          100186,
+          100213,
+          100228,
+          100236,
+          100238,
+          100241,
+          100244,
+          100250,
+          100255,
+          100267,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "delta_adaptation_id": -0.023333333333333334,
+      "delta_preservation_forgetting_rate": 0.06666666666666665
+    },
+    "2": {
+      "c0_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 9,
+        "forgetting_rate": 0.15,
+        "forgetting_seeds": [
+          100150,
+          100158,
+          100186,
+          100213,
+          100228,
+          100236,
+          100241,
+          100255,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "c1_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 10,
+        "forgetting_rate": 0.16666666666666666,
+        "forgetting_seeds": [
+          100150,
+          100154,
+          100186,
+          100213,
+          100228,
+          100236,
+          100241,
+          100249,
+          100250,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "delta_adaptation_id": 0.01666666666666667,
+      "delta_preservation_forgetting_rate": 0.016666666666666663
+    },
+    "3": {
+      "c0_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 7,
+        "forgetting_rate": 0.11666666666666667,
+        "forgetting_seeds": [
+          100160,
+          100213,
+          100228,
+          100236,
+          100244,
+          100255,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "c1_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 7,
+        "forgetting_rate": 0.11666666666666667,
+        "forgetting_seeds": [
+          100150,
+          100213,
+          100228,
+          100236,
+          100241,
+          100249,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "delta_adaptation_id": -0.04,
+      "delta_preservation_forgetting_rate": 0.0
+    },
+    "4": {
+      "c0_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 7,
+        "forgetting_rate": 0.11666666666666667,
+        "forgetting_seeds": [
+          100213,
+          100223,
+          100228,
+          100236,
+          100241,
+          100255,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "c1_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 10,
+        "forgetting_rate": 0.16666666666666666,
+        "forgetting_seeds": [
+          100150,
+          100186,
+          100213,
+          100228,
+          100236,
+          100241,
+          100244,
+          100250,
+          100267,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "delta_adaptation_id": -0.01,
+      "delta_preservation_forgetting_rate": 0.04999999999999999
+    },
+    "5": {
+      "c0_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 9,
+        "forgetting_rate": 0.15,
+        "forgetting_seeds": [
+          100160,
+          100213,
+          100228,
+          100229,
+          100236,
+          100241,
+          100244,
+          100255,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "c1_forgetting": {
+        "denominator_source": "frozen_census_cohort",
+        "forgetting_count": 8,
+        "forgetting_rate": 0.13333333333333333,
+        "forgetting_seeds": [
+          100150,
+          100158,
+          100186,
+          100213,
+          100236,
+          100241,
+          100249,
+          100269
+        ],
+        "paired_seeds": 60,
+        "split": "untouched_preservation"
+      },
+      "delta_adaptation_id": 0.006666666666666665,
+      "delta_preservation_forgetting_rate": -0.016666666666666663
+    }
+  },
+  "protocol_revision": "screen.v1.4.2.confirmatory_preservation",
+  "provenance": {
+    "census_eval_sha256": "05df7cbdaf095323f29aa7c42d01c76d72d8eeabdec533cb292c58c03e7fdd96",
+    "checkpoint_sha256": {
+      "base_original": "8fd41687fda187f59355fe2928cac533e7d8ff053b4c4558ead4f75dc404fa02",
+      "c0_s1": "8d406c8a803e98e58daa150dad0b23a4a40980114fd6671c0cda0193a0ec25f0",
+      "c0_s2": "a288234512cd0bad3c9b2b0f14dc3e35fe8be76ebf39f478017abe67a9015286",
+      "c0_s3": "b78f670d62edcfa8519d4d040d217457d9232beec99cbfa699ee19017e73496e",
+      "c0_s4": "6a9463c9ce8fca76d5cb71c55ddc737b5d372ed3dc214d3804347de829a671e6",
+      "c0_s5": "c3fdec43cfb8f49d99bce37d8a036dc8f5bd599af9741208f5cd504a8e391471",
+      "c1_s1": "bac08f8a2034d4c28a526cce63c11de68e5b272c3f2a6641f9129a935d5a3084",
+      "c1_s2": "dca6aac3672a0841d685da019e051a1d5813cc38c31253e5963653ad88fc2aaf",
+      "c1_s3": "2fbfde9d97616f1731a68099b671074592425a34b97162a167ec79371d9e9bea",
+      "c1_s4": "333e76ff623c821e5db253df8bad861b6a0ac0de2088cfe30d69d6d35bfd5376",
+      "c1_s5": "48d608178097da05119b59e7d3869d7079b70f537146f6bd178f28e554273b0f"
+    },
+    "cohort_sha256": "623cdbbe5f30faf1d98e024b4c2985c3a25d5a3e5240a1bf04dbd041263bc8d6",
+    "complete": true,
+    "eval_sha256": {
+      "base_original": "901833e3bca117680c460ea9f72f61206a8c37949e86c3d68b8659d1d5e775d4",
+      "c0_s1": "75ca8f02b6384f569927d2f340ff0d2876cea0f829dbf4e35503e791b9bd0e1c",
+      "c0_s2": "0e97f4a7ae92a6ac5146fc35bae23b0bbbe1385f5c276e496c4239874f14b4de",
+      "c0_s3": "74e6c4df27d7dde378414c6ec335e4baa3ddb2e70cf515eb502dba9f5ac9baf5",
+      "c0_s4": "e1bbd5e1280ae7de6071aa294f5feaec3b7ee6090d44e518c167550fdf147533",
+      "c0_s5": "d56f016a2eac484b13ed37f5f2723edacf27eb903c1685f6aeee72d749bd3af1",
+      "c1_s1": "530952ccda3536ab2acb69341cfea734e58f693b92fdadcf4c700436dc618666",
+      "c1_s2": "6421889ade87c0a83637db4a6ff612344320b7746b814eec4979dc9599337fdc",
+      "c1_s3": "2aa1cbdbb21ea4550a5024773ac139b1cb98cc79f852958934ada2d0419227c7",
+      "c1_s4": "8578555b96be70d63591cfb3cde8e55be6df5855bf99216d10e7cefe8d718066",
+      "c1_s5": "b91ecbe55ccb9f7c1cdda2ba01046d95f9c66f54a524953433401c6dd6f1d905"
+    },
+    "partial_sha256": {
+      "base_original": "1129531104c30d0802978a2427d0d41ca7baf43dc7235ef271d7c2f453e27213",
+      "c0_s1": "6230f498994edca88da770f5898305ee7e3384358e9f6a2af2ee934d9701daf6",
+      "c0_s2": "28dc48c76c0bd55d740682f146e680a7f8d18b3355b18664c12e59121d877b8f",
+      "c0_s3": "63a78c81cd9c4103747ce7feb785c5d81cbda9c0be94c9b6c77e2d022a03a519",
+      "c0_s4": "00bd4b2bc6af60ca131fce1422cede2dfd08c09410e3e16d8842d40bd67fa7f0",
+      "c0_s5": "aea246c3c033987e265cfd5a11976a2c8f8d96e16ae4f4d5e036b4183cbe3892",
+      "c1_s1": "1047fa37868c67b98ed1d1a702ddb63e0e6723fac8e64268a17254b621594fe6",
+      "c1_s2": "fabb58653ae4e0f63a01bdf7889162f2109629356470ed5e389b8f925a7dee3b",
+      "c1_s3": "b906e1b021e052ab58203f99b7591964b96136471bb6a180b46ba46034f90c3d",
+      "c1_s4": "9925308323074d3142e3fc8ba46a3c3960251b4b327a90022358bf0d9a113c37",
+      "c1_s5": "010379085b123dfc541361afd10e09e6ab597b585917809a49d9a034bb453c2e"
+    },
+    "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29"
+  },
+  "schema_version": 1,
+  "secondary_adaptation": {
+    "mean_hard_20_c1_minus_base": 0.1075,
+    "mean_hard_20_c1_minus_c0": -0.0075,
+    "mean_train_seen_c1_minus_c0": 0.005333333333333332,
+    "note": "Frozen reporting only; excluded from H1 conjunction and checkpoint selection.",
+    "per_training_seed": {
+      "1": {
+        "gate_eligible": false,
+        "hard_20_c1_minus_base": 0.06875,
+        "hard_20_c1_minus_c0": -0.04375,
+        "train_seen_c1_minus_c0": 0.02666666666666666
+      },
+      "2": {
+        "gate_eligible": false,
+        "hard_20_c1_minus_base": 0.1375,
+        "hard_20_c1_minus_c0": 0.0125,
+        "train_seen_c1_minus_c0": 0.05
+      },
+      "3": {
+        "gate_eligible": false,
+        "hard_20_c1_minus_base": 0.10625,
+        "hard_20_c1_minus_c0": -0.025,
+        "train_seen_c1_minus_c0": -0.019999999999999997
+      },
+      "4": {
+        "gate_eligible": false,
+        "hard_20_c1_minus_base": 0.1125,
+        "hard_20_c1_minus_c0": 0.04375,
+        "train_seen_c1_minus_c0": -0.023333333333333334
+      },
+      "5": {
+        "gate_eligible": false,
+        "hard_20_c1_minus_base": 0.1125,
+        "hard_20_c1_minus_c0": -0.025,
+        "train_seen_c1_minus_c0": -0.006666666666666665
+      }
+    }
+  },
+  "stage": "confirmatory_preservation_aggregate"
+}

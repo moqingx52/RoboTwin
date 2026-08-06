@@ -1,6 +1,6 @@
 # BRACE 实验日志（滚动）
 
-> 最后更新：**2026-08-05**
+> 最后更新：**2026-08-06**
 > 当前 branch 协议：**v2.3**（`experiments/brace/protocol.v2.3.json`）
 > 设计文档：`docs/brace_cloud_experiment_plan.md`、`docs/brace_audit_v2_design.md`
 > 三轨路线：`docs/brace_track_abc_roadmap.md`
@@ -13,6 +13,7 @@
 
 | 日期 | 阶段 | 任务 | Gate | 文档 / 归档 |
 |------|------|------|------|-------------|
+| 2026-08-06 | Confirmatory v1.4.2 | P1d preservation eval + report | **H1 failed**（adaptation ✓ / preservation ✗） | `archive/confirmatory_preservation_p1d_v142_20260806/` |
 | 2026-08-05 | Confirmatory v1.4.2 | P1c preservation training | **complete**（10/10 jobs, step 2470） | `archive/confirmatory_preservation_p1c_v142_20260805/` |
 | 2026-08-04 | Confirmatory v1.4.2 | P1b preservation cohort | **complete**（meets_min_untouched） | `archive/confirmatory_preservation_cohort_v142_20260804/` |
 | 2026-08-04 | Confirmatory v1.4.2 | P1a base census | complete（900 ep, offset 3000） | `archive/confirmatory_base_census_v142_20260804/` |
@@ -109,20 +110,39 @@
 
 ---
 
+## 2026-08-06 — Confirmatory P1d eval + report（H1 结论）
+
+**Run：** `experiments/brace/runs/20260805T100117Z_confirmatory_preservation_eval_place_container_plate_dump_bin_bigbin/`
+**归档：** `archive/confirmatory_preservation_p1d_v142_20260806/`
+
+| 维度 | 结果 |
+|------|------|
+| Orchestrator | 11/11 eval jobs complete |
+| Adaptation（C1 vs C0, id_heldout） | **passed**（5/5 seeds, p=0.031） |
+| Preservation（untouched n=60） | **failed**（51 forgetting events; 1/5 relative wins） |
+| Base fresh forgetting | 11.7%（7/60） |
+| **H1 合取** | **failed** |
+
+**解读：** C1（A1 dual anchor）在 ID 适应上显著优于 C0（SFT-only），但未能通过 preservation gate；fine-tune 后遗忘事件过多，且 anchor 相对 SFT 无明显防忘优势。按 protocol，`block_factorial` 与 `block_dump_transfer` 仍生效。
+
+---
+
 ## 当前阻塞与下一步
 
-**v1.4.2 P1a→P1c 已完成（2026-08-05）。C1 OOM 由 commit `4a19bd8` 修复后 resume 成功。**
+**v1.4.2 P1a→P1d 已全部完成（2026-08-06）。H1 未通过，需新 protocol revision 后再跑 preservation 改进 pilot。**
 
 1. ~~**P1a**~~ `confirmatory-base-census` ✓
 2. ~~**P1b**~~ `select-preservation-cohort` ✓
 3. ~~**P1c**~~ `confirmatory-preservation` ✓（C0/C1 × seeds 1–5，10/10 complete）
-4. **P1d（当前）**：`confirmatory-preservation-eval` + `confirmatory-preservation-report`（offset **4000**，H1 Pareto gate）
-5. **P2–P5**：见 [`brace_phase3c_confirmatory_conclusion_20260803.md`](brace_phase3c_confirmatory_conclusion_20260803.md)
+4. ~~**P1d**~~ `confirmatory-preservation-eval` + `confirmatory-preservation-report` ✓（H1 **failed**）
+5. **P1e（待定）**：preservation 改进 pilot（λ warm-start / dual_lr / checkpoint selection 等，需 v1.4.3+）
+6. **P2–P5**：见 [`brace_phase3c_confirmatory_conclusion_20260803.md`](brace_phase3c_confirmatory_conclusion_20260803.md)
 
 **归档取证（JSON/jsonl/log，无 ckpt）：**
 - `archive/confirmatory_base_census_v142_20260804/`
 - `archive/confirmatory_preservation_cohort_v142_20260804/`
 - `archive/confirmatory_preservation_p1c_v142_20260805/`
+- `archive/confirmatory_preservation_p1d_v142_20260806/`
 
 **可执行协议：** `screen_protocol.v1.4.2.confirmatory_preservation.json`
 **Seeds manifest：** `seeds/place_container_plate_confirmatory_v1.4.2_seeds.json`

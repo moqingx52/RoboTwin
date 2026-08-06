@@ -1,0 +1,9 @@
+{
+  "failed_labels": [],
+  "jobs_completed": 11,
+  "jobs_failed": 0,
+  "jobs_total": 11,
+  "schema_version": 1,
+  "stage": "confirmatory_preservation_eval",
+  "status": "completed"
+}

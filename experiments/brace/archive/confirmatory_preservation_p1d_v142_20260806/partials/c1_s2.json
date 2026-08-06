@@ -1,0 +1,41 @@
+{
+  "checkpoint_audit": {
+    "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s2/checkpoints/step_2470.ckpt",
+    "deploys_ema": true,
+    "has_ema_model": true,
+    "has_model": true,
+    "state_dict_keys": [
+      "brace_dual_state",
+      "ema_model",
+      "model",
+      "optimizer"
+    ],
+    "use_ema_cfg": true
+  },
+  "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C1_s2/checkpoints/step_2470.ckpt",
+  "checkpoint_sha256": "dca6aac3672a0841d685da019e051a1d5813cc38c31253e5963653ad88fc2aaf",
+  "cohort_sha256": "623cdbbe5f30faf1d98e024b4c2985c3a25d5a3e5240a1bf04dbd041263bc8d6",
+  "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260805T100117Z_confirmatory_preservation_eval_place_container_plate_dump_bin_bigbin/place_container_plate/confirm_c1_s2.json",
+  "eval_sha256": "6421889ade87c0a83637db4a6ff612344320b7746b814eec4979dc9599337fdc",
+  "job_id": "C1_s2",
+  "label": "c1_s2",
+  "operational_probe_gate": {
+    "checks": {
+      "base_solved_tail_p90_max": true,
+      "boundary_tail_p90_max": true
+    },
+    "limits": {
+      "base_solved_tail_p90_max": 0.001,
+      "boundary_tail_p90_max": 0.001
+    },
+    "observed": {
+      "base_solved_tail_p90_max": 0.0004786390345543623,
+      "boundary_tail_p90_max": 0.0006940236416994594
+    },
+    "passed": true
+  },
+  "policy_seed_offset": 4000,
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "training_seed": 2,
+  "variant": "confirm_c1_s2"
+}

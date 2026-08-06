@@ -1,0 +1,26 @@
+{
+  "checkpoint_audit": {
+    "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_2470.ckpt",
+    "deploys_ema": true,
+    "has_ema_model": true,
+    "has_model": true,
+    "state_dict_keys": [
+      "ema_model",
+      "model",
+      "optimizer"
+    ],
+    "use_ema_cfg": true
+  },
+  "checkpoint_path": "/workspace/RoboTwin/experiments/brace/runs/20260804T213700Z_confirmatory_preservation_place_container_plate_dump_bin_bigbin/C0_s3/checkpoints/step_2470.ckpt",
+  "checkpoint_sha256": "b78f670d62edcfa8519d4d040d217457d9232beec99cbfa699ee19017e73496e",
+  "cohort_sha256": "623cdbbe5f30faf1d98e024b4c2985c3a25d5a3e5240a1bf04dbd041263bc8d6",
+  "eval_output": "/workspace/RoboTwin/experiments/brace/runs/20260805T100117Z_confirmatory_preservation_eval_place_container_plate_dump_bin_bigbin/place_container_plate/confirm_c0_s3.json",
+  "eval_sha256": "74e6c4df27d7dde378414c6ec335e4baa3ddb2e70cf515eb502dba9f5ac9baf5",
+  "job_id": "C0_s3",
+  "label": "c0_s3",
+  "operational_probe_gate": null,
+  "policy_seed_offset": 4000,
+  "protocol_sha256": "dba2d2d0ef18c898fc50860e0c682927051268bf023a72925ebf59ffd34f7b29",
+  "training_seed": 3,
+  "variant": "confirm_c0_s3"
+}
