@@ -1,0 +1,793 @@
+{
+  "candidate_count": 100,
+  "candidate_partition": "rollout_train",
+  "criterion": "expert_script_simulator_solvability_only",
+  "determinism": {
+    "probe_repeats": 1,
+    "probe_success_rule": "single"
+  },
+  "expert_demo_count": 50,
+  "expert_demo_seeds": [
+    200000,
+    200001,
+    200002,
+    200003,
+    200004,
+    200007,
+    200009,
+    200010,
+    200011,
+    200013,
+    200014,
+    200018,
+    200019,
+    200021,
+    200024,
+    200025,
+    200027,
+    200028,
+    200030,
+    200031,
+    200033,
+    200036,
+    200037,
+    200039,
+    200040,
+    200042,
+    200045,
+    200048,
+    200049,
+    200050,
+    200052,
+    200053,
+    200054,
+    200055,
+    200057,
+    200059,
+    200060,
+    200061,
+    200063,
+    200064,
+    200065,
+    200066,
+    200067,
+    200069,
+    200070,
+    200071,
+    200072,
+    200074,
+    200077,
+    200078
+  ],
+  "expert_exception_count": 0,
+  "learning_policy_performance_consulted": false,
+  "passed": true,
+  "provenance": {
+    "code": {
+      "code_commit": "6ecc08a8801a2b892297431e3cfb9b0194a9020d",
+      "code_dirty": true
+    },
+    "software": {
+      "python": "3.13.13",
+      "torch": "2.12.0+cu130"
+    },
+    "source_evidence": {
+      "path": "experiments/brace/archive/seed_feasibility_pilot_20260807/shake_bottle_feasibility.json",
+      "schema_version": 1,
+      "sha256": "f1f5c9bee4ae331a27cf8ff34c44a18e475d132dc6f89bed9781a9e79a48a253"
+    },
+    "task": "shake_bottle",
+    "task_config": "demo_clean",
+    "task_config_sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0"
+  },
+  "results": [
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200000
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200001
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200002
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200003
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200004
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200005), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200005
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200006), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200006
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200007
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200008), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200008
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200009
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200010
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200011
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200012), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200012
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200013
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200014
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200015), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200015
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200016), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200016
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200017), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200017
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200018
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200019
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200020), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200020
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200021
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200022), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200022
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200023), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200023
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200024
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200025
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200026), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200026
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200027
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200028
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 200029 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "seed": 200029
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200030
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200031
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200032), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200032
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200033
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200034), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200034
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200035), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200035
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200036
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200037
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200038), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200038
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200039
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200040
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200041), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200041
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200042
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200043), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200043
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200044), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200044
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200045
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200046), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200046
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200047), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200047
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200048
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200049
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200050
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200051), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200051
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200052
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200053
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200054
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200055
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200056), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200056
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200057
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200058), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200058
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200059
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200060
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200061
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200062), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200062
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200063
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200064
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200065
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200066
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200067
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200068), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200068
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200069
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200070
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200071
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200072
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200073), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200073
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200074
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200075), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200075
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200076), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200076
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200077
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200078
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200079
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200080
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200081), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200081
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200082
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200083), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200083
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200084
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200085
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200086
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200087
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200088
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200089
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200090), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200090
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 200091 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "seed": 200091
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200092
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200093
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200094
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200095
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200096
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 200097
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200098), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200098
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Objects is unstable in seed(200099), unstable objects: 001_bottle",
+      "error_type": "simulator_unstable",
+      "passed": false,
+      "seed": 200099
+    }
+  ],
+  "schema_version": 2,
+  "seed_not_solvable_count": 35,
+  "selection_rule": "first_n_solvable_in_manifest_order",
+  "solvable_count_in_candidates": 65,
+  "stage": "seed_feasibility_scan",
+  "task": "shake_bottle",
+  "task_config": "demo_clean",
+  "task_status": "passed"
+}

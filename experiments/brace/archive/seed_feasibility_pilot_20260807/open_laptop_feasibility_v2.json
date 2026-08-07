@@ -1,0 +1,793 @@
+{
+  "candidate_count": 100,
+  "candidate_partition": "rollout_train",
+  "criterion": "expert_script_simulator_solvability_only",
+  "determinism": {
+    "probe_repeats": 1,
+    "probe_success_rule": "single"
+  },
+  "expert_demo_count": 50,
+  "expert_demo_seeds": [
+    170000,
+    170002,
+    170003,
+    170004,
+    170005,
+    170006,
+    170007,
+    170008,
+    170009,
+    170014,
+    170015,
+    170016,
+    170017,
+    170018,
+    170019,
+    170020,
+    170021,
+    170022,
+    170023,
+    170024,
+    170025,
+    170026,
+    170027,
+    170028,
+    170029,
+    170030,
+    170031,
+    170033,
+    170034,
+    170035,
+    170037,
+    170039,
+    170040,
+    170041,
+    170042,
+    170043,
+    170045,
+    170048,
+    170049,
+    170051,
+    170052,
+    170054,
+    170055,
+    170056,
+    170058,
+    170059,
+    170060,
+    170061,
+    170062,
+    170063
+  ],
+  "expert_exception_count": 20,
+  "learning_policy_performance_consulted": false,
+  "passed": true,
+  "provenance": {
+    "code": {
+      "code_commit": "6ecc08a8801a2b892297431e3cfb9b0194a9020d",
+      "code_dirty": true
+    },
+    "software": {
+      "python": "3.13.13",
+      "torch": "2.12.0+cu130"
+    },
+    "source_evidence": {
+      "path": "experiments/brace/archive/seed_feasibility_pilot_20260807/open_laptop_feasibility.json",
+      "schema_version": 1,
+      "sha256": "a4490fcb4dcfe7e73fcaf513a50bf8000e5a8c7e992408c2f180331b4ef50dca"
+    },
+    "task": "open_laptop",
+    "task_config": "demo_clean",
+    "task_config_sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0"
+  },
+  "results": [
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170000
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170001
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170002
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170003
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170004
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170005
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170006
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170007
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170008
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170009
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170010
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 170011 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "seed": 170011
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170012
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170013
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170014
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170015
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170016
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170017
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170018
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170019
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170020
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170021
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170022
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170023
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170024
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170025
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170026
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170027
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170028
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170029
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170030
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170031
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170032
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170033
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170034
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170035
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170036
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170037
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170038
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170039
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170040
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170041
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170042
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170043
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170044
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170045
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170046
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170047
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170048
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170049
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170050
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170051
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170052
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170053
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170054
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170055
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170056
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170057
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170058
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170059
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170060
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170061
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170062
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170063
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170064
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170065
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170066
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170067
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170068
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170069
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170070
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170071
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170072
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170073
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170074
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170075
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170076
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170077
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170078
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170079
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170080
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170081
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170082
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170083
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170084
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170085
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170086
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170087
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170088
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170089
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170090
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170091
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170092
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170093
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170094
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170095
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170096
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170097
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "seed": 170098
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "target_pose cannot be None for move action.",
+      "error_type": "expert_assertion_failed",
+      "passed": false,
+      "seed": 170099
+    }
+  ],
+  "schema_version": 2,
+  "seed_not_solvable_count": 1,
+  "selection_rule": "first_n_solvable_in_manifest_order",
+  "solvable_count_in_candidates": 79,
+  "stage": "seed_feasibility_scan",
+  "task": "open_laptop",
+  "task_config": "demo_clean",
+  "task_status": "passed"
+}

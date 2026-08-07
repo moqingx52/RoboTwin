@@ -39,6 +39,84 @@ def sha256_sidecar_valid(path: Path) -> bool:
     return bool(fields) and fields[0] == file_sha256(path)
 
 
+SUPPLEMENT_PARTITION_NAME = "expert_demo_supplement"
+SUPPLEMENT_SELECTION_RULE = "original_pool_first_then_supplement_ascending"
+
+
+def base_partition_counts(protocol: dict[str, Any]) -> list[tuple[str, int]]:
+    cfg = protocol.get("seed_partitions", {})
+    return [
+        ("rollout_train", int(cfg.get("rollout_train_count", 100))),
+        ("anchor_candidate", int(cfg.get("anchor_candidate_count", 200))),
+        ("census_candidate", int(cfg.get("census_candidate_count", 200))),
+        ("confirm_easy", int(cfg.get("confirm_easy_count", 100))),
+        ("confirm_hard", int(cfg.get("confirm_hard_count", 100))),
+    ]
+
+
+def validate_multitask_amendment(amendment_path: Path, protocol_path: Path) -> list[str]:
+    """Validate a brace.multitask.v1.1 supplement amendment against its protocol."""
+    amendment_path = amendment_path.resolve()
+    protocol_path = protocol_path.resolve()
+    if not amendment_path.is_file():
+        return [f"missing amendment: {amendment_path}"]
+    if not sha256_sidecar_valid(amendment_path):
+        return [f"missing or invalid amendment SHA256 sidecar: {amendment_path}"]
+    amendment = read_json(amendment_path)
+    errors: list[str] = []
+    if amendment.get("amendment_revision") != "brace.multitask.v1.1":
+        errors.append("unexpected amendment_revision")
+    applies_to = amendment.get("applies_to", {})
+    if applies_to.get("protocol_revision") != "brace.multitask.v1":
+        errors.append("amendment applies_to.protocol_revision must be brace.multitask.v1")
+    if not protocol_path.is_file():
+        errors.append(f"missing protocol: {protocol_path}")
+        return errors
+    if not sha256_sidecar_valid(protocol_path):
+        errors.append(f"missing or invalid protocol SHA256 sidecar: {protocol_path}")
+    if applies_to.get("protocol_sha256") != file_sha256(protocol_path):
+        errors.append("amendment applies_to.protocol_sha256 does not match the protocol file")
+    if not amendment.get("date") or not amendment.get("reason"):
+        errors.append("amendment must record date and reason")
+    original = amendment.get("original_evidence", [])
+    if not isinstance(original, list) or not original:
+        errors.append("amendment must bind original_evidence (task + evidence_sha256)")
+    for entry in original:
+        if not isinstance(entry, dict) or not entry.get("task") or not entry.get("evidence_sha256"):
+            errors.append("original_evidence entries need task and evidence_sha256")
+    supplement = amendment.get("supplement", {})
+    if supplement.get("partition_name") != SUPPLEMENT_PARTITION_NAME:
+        errors.append(f"supplement.partition_name must be {SUPPLEMENT_PARTITION_NAME}")
+    if supplement.get("selection_rule") != SUPPLEMENT_SELECTION_RULE:
+        errors.append(f"supplement.selection_rule must be {SUPPLEMENT_SELECTION_RULE}")
+    if supplement.get("uniform_for_all_tasks") is not True:
+        errors.append("supplement must be uniform for all tasks")
+    if supplement.get("criterion") != "expert_script_simulator_solvability_only":
+        errors.append("supplement criterion must be expert-script solvability only")
+    if supplement.get("learned_policy_performance_consulted") is not False:
+        errors.append("supplement must not consult learned-policy performance")
+    try:
+        offset = int(supplement.get("task_base_offset", -1))
+        count = int(supplement.get("count", -1))
+    except (TypeError, ValueError):
+        offset, count = -1, -1
+    if offset < 0 or count < 1:
+        errors.append("supplement task_base_offset/count must be non-negative integers")
+    elif protocol_path.is_file():
+        protocol = read_json(protocol_path)
+        stride = int(protocol.get("seed_partitions", {}).get("partition_stride", 0))
+        base_total = sum(count for _, count in base_partition_counts(protocol))
+        if offset != base_total:
+            errors.append(
+                f"supplement offset {offset} must equal the total base partition count {base_total}"
+            )
+        if offset + count > stride:
+            errors.append(
+                f"supplement range [{offset},{offset + count}) exceeds partition_stride {stride}"
+            )
+    return errors
+
+
 def validate_method_pilot_summary(summary: dict[str, Any], gate: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if summary.get("task") != gate.get("task"):
@@ -97,6 +175,9 @@ def validate_multitask_protocol(
             errors.append(f"missing or invalid {label} SHA256 sidecar: {path}")
     if protocol_path.is_file() and not sha256_sidecar_valid(protocol_path):
         errors.append(f"missing or invalid protocol SHA256 sidecar: {protocol_path}")
+    amendment_path = resolve_repo_path(protocol.get("amendment", "")) if protocol.get("amendment") else None
+    if amendment_path is not None:
+        errors.extend(f"amendment: {error}" for error in validate_multitask_amendment(amendment_path, protocol_path))
     if errors:
         return {"passed": False, "errors": errors}
 
@@ -183,27 +264,52 @@ def validate_multitask_protocol(
     }
 
 
-def build_seed_manifest(protocol: dict[str, Any], task_manifest: dict[str, Any], task: str) -> dict[str, Any]:
+def build_seed_manifest(
+    protocol: dict[str, Any],
+    task_manifest: dict[str, Any],
+    task: str,
+    *,
+    amendment: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     all_tasks = list(task_manifest["development_tasks"]) + list(task_manifest["heldout_tasks"])
     if task not in all_tasks:
         raise ValueError(f"task is not preregistered: {task}")
     cfg = protocol["seed_partitions"]
     task_index = all_tasks.index(task)
     cursor = int(cfg["start_seed"]) + task_index * int(cfg["partition_stride"])
-    counts = [
-        ("rollout_train", int(cfg["rollout_train_count"])),
-        ("anchor_candidate", int(cfg["anchor_candidate_count"])),
-        ("census_candidate", int(cfg["census_candidate_count"])),
-        ("confirm_easy", int(cfg["confirm_easy_count"])),
-        ("confirm_hard", int(cfg["confirm_hard_count"])),
-    ]
+    counts = base_partition_counts(protocol)
     partitions: dict[str, list[int]] = {}
     for name, count in counts:
         partitions[name] = list(range(cursor, cursor + count))
         cursor += count
+    supplement = None
+    if amendment is not None:
+        supplement = amendment.get("supplement", {})
+    elif protocol.get("amendment"):
+        amendment_path = resolve_repo_path(protocol["amendment"])
+        if amendment_path.is_file():
+            supplement = read_json(amendment_path).get("supplement", {})
+    if supplement:
+        name = str(supplement.get("partition_name", SUPPLEMENT_PARTITION_NAME))
+        offset = int(supplement.get("task_base_offset", 0))
+        count = int(supplement.get("count", 0))
+        base = int(cfg["start_seed"]) + task_index * int(cfg["partition_stride"])
+        partitions[name] = list(range(base + offset, base + offset + count))
     flat = [seed for values in partitions.values() for seed in values]
     if len(flat) != len(set(flat)):
         raise AssertionError("generated seed partitions overlap")
+    notes = [
+        "Candidate env seeds are deterministic and disjoint.",
+        "rollout_train retains the full 100-seed candidate pool; expert_demo is selected later.",
+        "partitions hold only mutually exclusive candidate/eval partitions; expert_demo lives in cohorts.",
+        "Freeze only from expert-script/simulator solvability evidence; learned-policy outcomes must not be consulted.",
+        "Set status=frozen only after recording passed feasibility evidence and its SHA256.",
+    ]
+    if supplement:
+        notes.append(
+            f"{SUPPLEMENT_PARTITION_NAME} is the amendment-supplied backup pool "
+            "(brace.multitask.v1.1); used only when the original pool is insufficient."
+        )
     return {
         "schema_version": 1,
         "task": task,
@@ -223,17 +329,12 @@ def build_seed_manifest(protocol: dict[str, Any], task_manifest: dict[str, Any],
             "evidence_path": None,
             "evidence_sha256": None,
         },
-        "partitions": {
-            **partitions,
+        "cohorts": {
             "expert_demo": [],
         },
+        "partitions": partitions,
         "policy_seed_offsets": cfg["policy_seed_offsets"],
-        "notes": [
-            "Candidate env seeds are deterministic and disjoint.",
-            "rollout_train retains the full 100-seed candidate pool; expert_demo is selected later.",
-            "Freeze only from expert-script/simulator solvability evidence; learned-policy outcomes must not be consulted.",
-            "Set status=frozen only after recording passed feasibility evidence and its SHA256.",
-        ]
+        "notes": notes,
     }
 
 

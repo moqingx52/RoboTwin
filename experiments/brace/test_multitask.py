@@ -18,22 +18,31 @@ from experiments.brace.aggregate_multitask import (
     rows_by_key,
     validate_eval_payload,
 )
+from experiments.brace.aggregate_seed_feasibility_batch import build_batch_summary
 from experiments.brace.multitask_protocol import (
+    SUPPLEMENT_PARTITION_NAME,
     build_seed_manifest,
     file_sha256,
     validate_method_pilot_summary,
+    validate_multitask_amendment,
     validate_multitask_protocol,
 )
 from experiments.brace.multitask_scheduler import Scheduler, validate_job_manifest
+from experiments.brace.prepare_multitask_demo_seeds import check_manifest_frozen
+from experiments.brace.scan_seed_feasibility import merge_probe_results, shard_slice
 from experiments.brace.seed_feasibility import (
+    PROBE_SUCCESS_RULE_MAJORITY,
     TASK_STATUS_EXPERT_EXCEPTION,
     TASK_STATUS_INSUFFICIENT,
     TASK_STATUS_PASSED,
     apply_provisional_expert_demo_to_manifest,
     build_feasibility_evidence,
     derive_task_status,
+    expert_demo_source_pool,
+    probe_repeat_outcome,
     select_expert_demo_seeds,
     validate_feasibility_evidence,
+    validate_seed_manifest_layout,
 )
 
 
@@ -290,6 +299,7 @@ class MultitaskProtocolTest(unittest.TestCase):
                 "rollout_train": [10, 11, 12, 13],
                 "anchor_candidate": [100],
             },
+            "cohorts": {"expert_demo": []},
             "feasibility": {"passed": False},
         }
         evidence = build_feasibility_evidence(
@@ -306,13 +316,392 @@ class MultitaskProtocolTest(unittest.TestCase):
         self.assertEqual(validate_feasibility_evidence(evidence), [])
         updated = apply_provisional_expert_demo_to_manifest(manifest, evidence)
         self.assertEqual(updated["partitions"]["rollout_train"], [10, 11, 12, 13])
-        self.assertEqual(updated["partitions"]["expert_demo"], [11, 13])
+        self.assertNotIn("expert_demo", updated["partitions"])
+        self.assertEqual(updated["cohorts"]["expert_demo"], [11, 13])
         self.assertEqual(updated["status"], "candidate_unvalidated")
         self.assertTrue(updated["expert_demo_selection"]["provisional"])
         self.assertEqual(
             updated["expert_demo_selection"]["rule"],
             "first_n_solvable_in_manifest_order",
         )
+
+    def test_evidence_schema_v2_records_provenance_and_determinism(self) -> None:
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11, 12, 13],
+            probe_results=[
+                {"seed": 10, "passed": False},
+                {"seed": 11, "passed": True},
+                {"seed": 12, "passed": False},
+                {"seed": 13, "passed": True},
+            ],
+            required_count=2,
+            gpus=["3"],
+            shard_count=2,
+            probe_repeats=3,
+            probe_success_rule=PROBE_SUCCESS_RULE_MAJORITY,
+        )
+        self.assertEqual(evidence["schema_version"], 2)
+        self.assertEqual(evidence["task_status"], TASK_STATUS_PASSED)
+        self.assertEqual(evidence["gpus"], ["3"])
+        self.assertEqual(evidence["shard_count"], 2)
+        self.assertEqual(evidence["determinism"]["probe_repeats"], 3)
+        provenance = evidence["provenance"]
+        self.assertTrue(provenance["code"]["code_commit"])
+        self.assertTrue(provenance["task_config_sha256"])
+        self.assertEqual(validate_feasibility_evidence(evidence), [])
+
+    def test_validator_rejects_passed_evidence_without_task_status(self) -> None:
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11, 12, 13],
+            probe_results=[
+                {"seed": 10, "passed": False},
+                {"seed": 11, "passed": True},
+                {"seed": 12, "passed": False},
+                {"seed": 13, "passed": True},
+            ],
+            required_count=2,
+        )
+        evidence.pop("task_status")
+        errors = validate_feasibility_evidence(evidence)
+        self.assertTrue(any("task_status" in error for error in errors))
+
+    def test_validator_rejects_duplicate_result_seeds(self) -> None:
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11],
+            probe_results=[
+                {"seed": 10, "passed": True},
+                {"seed": 10, "passed": False},
+            ],
+            required_count=1,
+        )
+        errors = validate_feasibility_evidence(evidence)
+        self.assertTrue(any("duplicate" in error for error in errors))
+
+    def test_manifest_layout_rejects_partition_overlap_and_deprecated_expert_demo(self) -> None:
+        errors = validate_seed_manifest_layout({
+            "partitions": {
+                "rollout_train": [10, 11, 12],
+                "anchor_candidate": [12, 13],
+            },
+        })
+        self.assertTrue(any("overlap" in error for error in errors))
+        errors = validate_seed_manifest_layout({
+            "partitions": {
+                "rollout_train": [10, 11, 12],
+                "expert_demo": [10, 11],
+            },
+        })
+        self.assertTrue(any("deprecated" in error for error in errors))
+        self.assertEqual(
+            validate_seed_manifest_layout({
+                "partitions": {"rollout_train": [10, 11], "anchor_candidate": [100]},
+                "cohorts": {"expert_demo": [10]},
+            }),
+            [],
+        )
+        errors = validate_seed_manifest_layout({
+            "partitions": {"rollout_train": [10, 11]},
+            "cohorts": {"expert_demo": [10, 999]},
+        })
+        self.assertTrue(any("expert_demo_supplement" in error for error in errors))
+
+    def test_seed_manifest_reserves_supplement_partition(self) -> None:
+        protocol = json.loads(self.protocol_path.read_text(encoding="utf-8"))
+        amendment = json.loads((BRACE_DIR / "multitask_amendment.v1.1.json").read_text(encoding="utf-8"))
+        manifest = build_seed_manifest(protocol, self.tasks, "lift_pot", amendment=amendment)
+        supplement = manifest["partitions"]["expert_demo_supplement"]
+        self.assertEqual(len(supplement), 200)
+        base = 150000
+        self.assertEqual(supplement, list(range(base + 700, base + 900)))
+        flat = [seed for values in manifest["partitions"].values() for seed in values]
+        self.assertEqual(len(flat), len(set(flat)))
+        self.assertEqual(
+            expert_demo_source_pool(manifest),
+            manifest["partitions"]["rollout_train"] + manifest["partitions"]["expert_demo_supplement"],
+        )
+
+    def test_amendment_validates_and_binds_original_evidence(self) -> None:
+        amendment_path = BRACE_DIR / "multitask_amendment.v1.1.json"
+        protocol_path = BRACE_DIR / "multitask_protocol.v1.json"
+        self.assertEqual(validate_multitask_amendment(amendment_path, protocol_path), [])
+        amendment = json.loads(amendment_path.read_text(encoding="utf-8"))
+        tampered = json.loads(json.dumps(amendment))
+        tampered["supplement"]["partition_name"] = "other_pool"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "amendment.json"
+            path.write_text(json.dumps(tampered), encoding="utf-8")
+            Path(str(path) + ".sha256").write_text(
+                f"{file_sha256(path)}  amendment.json\n", encoding="utf-8"
+            )
+            errors = validate_multitask_amendment(path, protocol_path)
+        self.assertTrue(any("partition_name" in error for error in errors))
+        tampered = json.loads(json.dumps(amendment))
+        tampered["applies_to"]["protocol_sha256"] = "0" * 64
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "amendment.json"
+            path.write_text(json.dumps(tampered), encoding="utf-8")
+            Path(str(path) + ".sha256").write_text(
+                f"{file_sha256(path)}  amendment.json\n", encoding="utf-8"
+            )
+            errors = validate_multitask_amendment(path, protocol_path)
+        self.assertTrue(any("protocol_sha256" in error for error in errors))
+        tampered = json.loads(json.dumps(amendment))
+        del tampered["original_evidence"]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "amendment.json"
+            path.write_text(json.dumps(tampered), encoding="utf-8")
+            Path(str(path) + ".sha256").write_text(
+                f"{file_sha256(path)}  amendment.json\n", encoding="utf-8"
+            )
+            errors = validate_multitask_amendment(path, protocol_path)
+        self.assertTrue(any("original_evidence" in error for error in errors))
+
+    def test_combined_supplement_evidence_validates_and_sets_manifest_flag(self) -> None:
+        base = list(range(10, 15))
+        base_results = [
+            {"seed": seed, "passed": seed in (10, 11, 12, 13)}
+            for seed in base
+        ]
+        original = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=base,
+            probe_results=base_results,
+            required_count=5,
+        )
+        self.assertEqual(original["task_status"], TASK_STATUS_INSUFFICIENT)
+        supplement = list(range(100, 106))
+        supplement_results = [{"seed": seed, "passed": True} for seed in supplement]
+        combined = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=base + supplement,
+            probe_results=base_results + supplement_results,
+            required_count=5,
+            supplement={
+                "partition": "expert_demo_supplement",
+                "count": len(supplement),
+                "original_pool_solvable": 4,
+                "original_pool_candidate_count": len(base),
+                "original_pool_task_status": TASK_STATUS_INSUFFICIENT,
+                "original_evidence_path": "runs/run/task_a_feasibility.json",
+                "original_evidence_sha256": "a" * 64,
+                "selection_rule": "original_pool_first_then_supplement_ascending",
+                "supplement_solvable": len(supplement),
+                "supplement_shard_count": 1,
+                "used": True,
+                "supplement_seeds_used": [100],
+            },
+        )
+        self.assertEqual(combined["task_status"], TASK_STATUS_PASSED)
+        self.assertEqual(combined["expert_demo_seeds"], [10, 11, 12, 13, 100])
+        self.assertEqual(validate_feasibility_evidence(combined), [])
+        manifest = {
+            "partitions": {
+                "rollout_train": base,
+                "expert_demo_supplement": supplement,
+            },
+            "cohorts": {"expert_demo": []},
+            "feasibility": {"passed": False},
+        }
+        updated = apply_provisional_expert_demo_to_manifest(manifest, combined)
+        self.assertEqual(updated["cohorts"]["expert_demo"], [10, 11, 12, 13, 100])
+        self.assertTrue(updated["expert_demo_selection"]["supplement_used"])
+
+    def test_batch_summary_prefers_supplemented_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "task_a_feasibility.json").write_text(json.dumps({"passed": True}), encoding="utf-8")
+            evidence = build_feasibility_evidence(
+                task="task_a",
+                candidate_seeds=[10, 11],
+                probe_results=[
+                    {"seed": 10, "passed": True},
+                    {"seed": 11, "passed": True},
+                ],
+                required_count=2,
+            )
+            (root / "task_a_supplemented_feasibility.json").write_text(json.dumps(evidence), encoding="utf-8")
+            summary = build_batch_summary(root, ["task_a"])
+            self.assertTrue(
+                summary["tasks"]["task_a"]["evidence_path"].endswith("task_a_supplemented_feasibility.json")
+            )
+
+    def test_probe_repeat_outcome_majority_rule(self) -> None:
+        task_env = mock.Mock()
+        task_env.setup_demo = mock.Mock()
+        task_env.close_env = mock.Mock()
+        task_env.play_once = mock.Mock()
+        outcomes = iter([(True, None), (False, RuntimeError("boom")), (False, RuntimeError("boom"))])
+
+        def fake_play_once() -> None:
+            task_env.plan_success, _ = next(outcomes)
+
+        task_env.play_once.side_effect = fake_play_once
+        task_env.check_success = mock.Mock(return_value=True)
+        row = probe_repeat_outcome(
+            task_env,
+            {"render_freq": 0},
+            7,
+            episode_idx=0,
+            probe_repeats=3,
+            success_rule=PROBE_SUCCESS_RULE_MAJORITY,
+        )
+        self.assertFalse(row["passed"])
+        self.assertEqual(row["probe_passed_count"], 1)
+        self.assertEqual(row["probe_repeats"], 3)
+        self.assertIn("probes", row)
+
+    def _write_shard(self, directory: Path, shard_id: int, shard_count: int, candidates: list[int], **overrides) -> Path:
+        start, stop = shard_slice(len(candidates), shard_id, shard_count)
+        payload = {
+            "task": "task_a",
+            "verify_label": None,
+            "shard_id": shard_id,
+            "num_shards": shard_count,
+            "candidate_start": start,
+            "candidate_end": stop,
+            "gpu": "0",
+            "probe_repeats": 1,
+            "probe_success_rule": "single",
+            "results": [
+                {"seed": candidates[index], "episode_idx": 0, "passed": index % 2 == 0,
+                 "error_type": None, "error_message": None}
+                for index in range(start, stop)
+            ],
+        }
+        payload.update(overrides)
+        path = directory / f"shard_{shard_id:02d}_of_{shard_count:02d}.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return path
+
+    def test_shard_merge_requires_exact_coverage(self) -> None:
+        candidates = list(range(10, 14))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shards = [
+                self._write_shard(root, 0, 2, candidates),
+                self._write_shard(root, 1, 2, candidates),
+            ]
+            merged = merge_probe_results(shards, candidate_seeds=candidates, task="task_a")
+            self.assertEqual([int(row["seed"]) for row in merged], candidates)
+            shards.append(self._write_shard(root, 0, 2, candidates))
+            with self.assertRaisesRegex(ValueError, "duplicate"):
+                merge_probe_results(shards, candidate_seeds=candidates, task="task_a")
+            self._write_shard(root, 2, 3, candidates)
+            with self.assertRaisesRegex(ValueError, "disagree"):
+                merge_probe_results(
+                    [root / f for f in sorted(p.name for p in root.glob("shard_*.json"))],
+                    candidate_seeds=candidates,
+                    task="task_a",
+                )
+
+    def test_shard_merge_rejects_stale_shard_and_seed_mismatch(self) -> None:
+        candidates = list(range(10, 14))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stale = self._write_shard(root, 0, 1, candidates)
+            fresh = self._write_shard(root, 0, 1, candidates, num_shards=2, candidate_start=0, candidate_end=3)
+            with self.assertRaisesRegex(ValueError, "expected"):
+                merge_probe_results([stale, fresh], candidate_seeds=candidates, task="task_a")
+            wrong_rows = [{"seed": 99, "episode_idx": 0, "passed": True, "error_type": None, "error_message": None}]
+            wrong_rows.extend(
+                {"seed": seed, "episode_idx": 0, "passed": True, "error_type": None, "error_message": None}
+                for seed in candidates[1:]
+            )
+            wrong = self._write_shard(root, 0, 1, candidates, results=wrong_rows)
+            with self.assertRaisesRegex(ValueError, "seed order mismatch"):
+                merge_probe_results([wrong], candidate_seeds=candidates, task="task_a")
+
+    def test_batch_summary_prefers_derived_v2_evidence(self) -> None:
+        candidates = [10, 11]
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=candidates,
+            probe_results=[
+                {"seed": 10, "passed": True},
+                {"seed": 11, "passed": True},
+            ],
+            required_count=2,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "task_a_feasibility.json").write_text(json.dumps({"passed": True}), encoding="utf-8")
+            (root / "task_a_feasibility_v2.json").write_text(json.dumps(evidence), encoding="utf-8")
+            summary = build_batch_summary(root, ["task_a"])
+            self.assertTrue(summary["tasks"]["task_a"]["passed"])
+            self.assertTrue(
+                summary["tasks"]["task_a"]["evidence_path"].endswith("task_a_feasibility_v2.json")
+            )
+            self.assertTrue(summary["tasks"]["task_a"]["evidence_sha256"])
+
+    def test_batch_summary_rejects_evidence_missing_task_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "task_a_feasibility.json").write_text(json.dumps({"passed": True}), encoding="utf-8")
+            summary = build_batch_summary(root, ["task_a"])
+            self.assertFalse(summary["tasks"]["task_a"]["passed"])
+            self.assertTrue(
+                any("task_status" in error for error in summary["tasks"]["task_a"]["invalid_evidence"])
+            )
+
+    def _write_frozen_manifest(self, directory: Path) -> Path:
+        manifest = {
+            "schema_version": 1,
+            "task": "task_a",
+            "status": "frozen",
+            "cohorts": {"expert_demo": [10, 11]},
+            "partitions": {"rollout_train": [10, 11, 12, 13]},
+            "feasibility": {
+                "criterion": "expert_script_simulator_solvability_only",
+                "learning_policy_performance_consulted": False,
+                "evidence_path": str(directory / "task_a_feasibility.json"),
+                "evidence_sha256": None,
+                "passed": True,
+            },
+        }
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11, 12, 13],
+            probe_results=[
+                {"seed": 10, "passed": True},
+                {"seed": 11, "passed": True},
+                {"seed": 12, "passed": False},
+                {"seed": 13, "passed": False},
+            ],
+            required_count=2,
+        )
+        evidence_path = directory / "task_a_feasibility.json"
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+        manifest["feasibility"]["evidence_sha256"] = file_sha256(evidence_path)
+        manifest_path = directory / "task_a.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        sidecar = directory / "task_a.json.sha256"
+        sidecar.write_text(f"{file_sha256(manifest_path)}  task_a.json\n", encoding="utf-8")
+        return manifest_path
+
+    def test_frozen_gate_accepts_frozen_manifest_with_valid_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = self._write_frozen_manifest(Path(tmp))
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            check_manifest_frozen(manifest, manifest_path)
+
+    def test_frozen_gate_rejects_unfrozen_or_invalid_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = self._write_frozen_manifest(Path(tmp))
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["status"] = "candidate_unvalidated"
+            with self.assertRaises(SystemExit):
+                check_manifest_frozen(manifest, manifest_path)
+            manifest["status"] = "frozen"
+            manifest["feasibility"]["passed"] = False
+            with self.assertRaises(SystemExit):
+                check_manifest_frozen(manifest, manifest_path)
+            manifest["feasibility"]["passed"] = True
+            manifest["feasibility"]["evidence_sha256"] = "0" * 64
+            with self.assertRaisesRegex(SystemExit, "SHA256"):
+                check_manifest_frozen(manifest, manifest_path)
 
     def test_derive_task_status_marks_expert_assertions_separately(self) -> None:
         results = [

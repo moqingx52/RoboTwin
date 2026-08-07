@@ -1,0 +1,48 @@
+{
+  "amendment_revision": "brace.multitask.v1.1",
+  "schema_version": 1,
+  "status": "proposed",
+  "date": "2026-08-08",
+  "applies_to": {
+    "protocol_revision": "brace.multitask.v1",
+    "protocol_sha256": "fcc55c880eebf98394abe1c70a9095107dc58dcd674a5a2906c12ef7377cf621"
+  },
+  "reason": [
+    "lift_pot: the original 100-seed rollout_train pool is insufficient to form the",
+    "preregistered 50-demo expert_demo cohort (first scan 34/100 solvable; deterministic",
+    "reverify 32/100 with 5 expert_assertion_failed rows; union 35/100, far below 50).",
+    "Per BRACE rules, seeds may not be silently replaced and tasks may not be dropped.",
+    "This amendment preregisters a uniform backup pool for every task: original pool",
+    "first in manifest order, then the supplement ascending, expert-script solvability",
+    "only. The original feasibility failure evidence is preserved and bound below;",
+    "selection never consults learned-policy outcomes."
+  ],
+  "original_evidence": [
+    {
+      "task": "lift_pot",
+      "run": "seed_feasibility_pilot_20260807",
+      "evidence_path": "experiments/brace/archive/seed_feasibility_pilot_20260807/lift_pot_feasibility.json",
+      "evidence_sha256": "4f63c32c5f481a6ff0aecf4af9c3c1f9015bcf547cabc92b1ebefa57dd5f4078",
+      "solvable_count": 34,
+      "candidate_count": 100
+    },
+    {
+      "task": "lift_pot",
+      "run": "seed_feasibility_pilot_20260807",
+      "evidence_path": "experiments/brace/archive/seed_feasibility_pilot_20260807/lift_pot_reverify_feasibility.json",
+      "evidence_sha256": "96eff01468678b3541933a190c06adfb7a54a7a810079515f74d28364fbbc53b",
+      "solvable_count": 32,
+      "candidate_count": 100
+    }
+  ],
+  "supplement": {
+    "partition_name": "expert_demo_supplement",
+    "task_base_offset": 700,
+    "count": 200,
+    "uniform_for_all_tasks": true,
+    "selection_rule": "original_pool_first_then_supplement_ascending",
+    "trigger": "supplement is used only when the original rollout_train pool yields fewer than expert_demo_count solvable seeds; the rule is uniform for all tasks.",
+    "criterion": "expert_script_simulator_solvability_only",
+    "learned_policy_performance_consulted": false
+  }
+}

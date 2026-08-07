@@ -63,6 +63,79 @@ count_demo_hdf5() {
   find "${data_dir}" -maxdepth 1 -type f -name 'episode*.hdf5' | wc -l | tr -d ' '
 }
 
+manifest_sha256() {
+  python -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$1"
+}
+
+expected_cohort_seeds() {
+  local task=$1
+  python - "$1" <<'PY'
+import json, sys
+from pathlib import Path
+manifest = json.loads(Path(f"experiments/brace/seeds/multitask_v1/{sys.argv[1]}.json").read_text(encoding="utf-8"))
+seeds = manifest.get("cohorts", {}).get("expert_demo", [])
+print(" ".join(str(int(s)) for s in seeds))
+PY
+}
+
+# cohort_provenance.json (written by prepare_multitask_demo_seeds.py) must match
+# the current manifest, evidence SHA and task config; otherwise the existing
+# demo dir belongs to an older cohort and must not be reused or skipped.
+cohort_matches_manifest() {
+  local task=$1
+  local prov="data/${task}/demo_clean/cohort_provenance.json"
+  local manifest="experiments/brace/seeds/multitask_v1/${task}.json"
+  if [[ ! -f "${prov}" || ! -f "${manifest}" ]]; then
+    return 1
+  fi
+  local prov_manifest_sha prov_evidence_sha prov_config_sha
+  prov_manifest_sha="$(python -c "import json;print(json.load(open('${prov}'))['manifest_sha256'])")"
+  prov_evidence_sha="$(python -c "import json;print(json.load(open('${prov}'))['evidence_sha256'] or '')")"
+  prov_config_sha="$(python -c "import json;print(json.load(open('${prov}'))['task_config_sha256'])")"
+  [[ "${prov_manifest_sha}" == "$(manifest_sha256 "${manifest}")" ]] || return 1
+  [[ "${prov_evidence_sha}" == "$(python -c "import json;m=json.load(open('${manifest}'));print((m.get('feasibility',{}) or {}).get('evidence_sha256') or '')")" ]] || return 1
+  [[ "${prov_config_sha}" == "$(manifest_sha256 task_config/demo_clean.yml)" ]] || return 1
+  local expected actual
+  expected="$(expected_cohort_seeds "${task}")"
+  actual="$(cat "data/${task}/demo_clean/seed.txt")"
+  [[ "${expected}" == "${actual}" ]] || return 1
+  return 0
+}
+
+# Any pre-existing demo dir whose seed list / provenance does not match the
+# current cohort is quarantined to a timestamped legacy directory so a resumed
+# run can never mix old episodes with the new seed mapping.
+quarantine_mismatched_demo_dir() {
+  local task=$1
+  local demo_dir="data/${task}/demo_clean"
+  if [[ ! -d "${demo_dir}" ]]; then
+    return 0
+  fi
+  local expected
+  expected="$(expected_cohort_seeds "${task}" 2>/dev/null || true)"
+  if [[ -z "${expected}" ]]; then
+    echo "WARN ${task}: no expert_demo cohort in manifest; legacy data dir kept in place" | tee -a "${manifest_log}"
+    return 0
+  fi
+  local mismatched=0
+  if [[ -f "${demo_dir}/seed.txt" ]]; then
+    if [[ "$(cat "${demo_dir}/seed.txt")" != "${expected}" ]]; then
+      mismatched=1
+    fi
+  elif [[ -d "${demo_dir}/data" || -d "${demo_dir}/_traj_data" ]]; then
+    mismatched=1
+  fi
+  if [[ -f "${demo_dir}/cohort_provenance.json" ]] && ! cohort_matches_manifest "${task}"; then
+    mismatched=1
+  fi
+  if (( mismatched == 1 )); then
+    local legacy="data/${task}/demo_clean_legacy_$(date -u +%Y%m%dT%H%M%SZ)"
+    echo "QUARANTINE ${task}: mismatched legacy demo dir -> ${legacy}" | tee -a "${manifest_log}"
+    mkdir -p "data/${task}"
+    mv "${demo_dir}" "${legacy}"
+  fi
+}
+
 remove_empty_demo_zarr() {
   local task=$1
   local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
@@ -89,11 +162,7 @@ collect_one() {
     echo "=== ${task} gpu=${gpu} ==="
     local ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
     local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
-    if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
-      echo "skip collect/process/train: existing ${ckpt} and ${zarr}"
-      exit 0
-    fi
-    remove_empty_demo_zarr "${task}"
+    quarantine_mismatched_demo_dir "${task}"
     python experiments/brace/prepare_multitask_demo_seeds.py "${task}" --count "${required_episodes}"
     export CUDA_VISIBLE_DEVICES="${gpu}"
     if ! bash collect_data.sh "${task}" demo_clean "${gpu}"; then
@@ -125,8 +194,13 @@ for task in "${tasks[@]}"; do
   ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
   zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
   if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
-    echo "SKIP ${task}: checkpoint and zarr already exist" | tee -a "${manifest_log}"
-    completed=$((completed + 1))
+    if cohort_matches_manifest "${task}"; then
+      echo "SKIP ${task}: checkpoint and zarr exist with matching cohort provenance" | tee -a "${manifest_log}"
+      completed=$((completed + 1))
+    else
+      echo "PROVENANCE_MISMATCH ${task}: existing checkpoint/zarr lacks matching cohort provenance; rebuilding" | tee -a "${manifest_log}"
+      pending_tasks+=("${task}")
+    fi
   else
     pending_tasks+=("${task}")
   fi
