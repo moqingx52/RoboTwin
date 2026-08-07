@@ -134,6 +134,8 @@ Stages:
   confirmatory-preservation-report  Aggregate H1 gates from P1d eval artifacts.
   multitask-validate  Validate the frozen 12-task design (method freeze optional).
   multitask-generate-seeds  Generate deterministic disjoint candidate seed manifests.
+  multitask-scan-feasibility  Scan rollout_train solvability; select expert_demo cohort.
+  multitask-line-b-assets  Collect/process/train 50-demo assets from frozen expert_demo.
   multitask-preflight  Audit 50-demo DP, seed, replay, and method-freeze readiness.
   multitask-run  Run/resume a frozen explicit multitask job manifest.
   multitask-report  Aggregate the complete held-out artifact matrix.
@@ -314,6 +316,16 @@ case "${stage}" in
   multitask-generate-seeds)
     exec python experiments/brace/multitask_protocol.py generate-seeds \
       --protocol "${multitask_protocol}" "$@"
+    ;;
+
+  multitask-scan-feasibility)
+    export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+    exec bash experiments/brace/run_multitask_feasibility_scan.sh "$@"
+    ;;
+
+  multitask-line-b-assets)
+    export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+    exec bash experiments/brace/run_multitask_line_b_assets.sh "$@"
     ;;
 
   multitask-preflight)

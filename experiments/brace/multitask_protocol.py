@@ -216,12 +216,23 @@ def build_seed_manifest(protocol: dict[str, Any], task_manifest: dict[str, Any],
             "evidence_sha256": None,
             "passed": False,
         },
-        "partitions": partitions,
+        "expert_demo_selection": {
+            "source_partition": "rollout_train",
+            "rule": "first_n_solvable_in_manifest_order",
+            "required_count": int(task_manifest.get("expert_demonstrations_per_task", 50)),
+            "evidence_path": None,
+            "evidence_sha256": None,
+        },
+        "partitions": {
+            **partitions,
+            "expert_demo": [],
+        },
         "policy_seed_offsets": cfg["policy_seed_offsets"],
         "notes": [
             "Candidate env seeds are deterministic and disjoint.",
+            "rollout_train retains the full 100-seed candidate pool; expert_demo is selected later.",
             "Freeze only from expert-script/simulator solvability evidence; learned-policy outcomes must not be consulted.",
-            "Set status=frozen only after recording passed feasibility evidence and its SHA256."
+            "Set status=frozen only after recording passed feasibility evidence and its SHA256.",
         ]
     }
 

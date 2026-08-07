@@ -25,6 +25,16 @@ from experiments.brace.multitask_protocol import (
     validate_multitask_protocol,
 )
 from experiments.brace.multitask_scheduler import Scheduler, validate_job_manifest
+from experiments.brace.seed_feasibility import (
+    TASK_STATUS_EXPERT_EXCEPTION,
+    TASK_STATUS_INSUFFICIENT,
+    TASK_STATUS_PASSED,
+    apply_provisional_expert_demo_to_manifest,
+    build_feasibility_evidence,
+    derive_task_status,
+    select_expert_demo_seeds,
+    validate_feasibility_evidence,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -261,6 +271,71 @@ class MultitaskProtocolTest(unittest.TestCase):
                 self.assertEqual(scheduler.run(), 1)
             self.assertEqual(state["jobs"]["independent"]["status"], "completed")
             self.assertEqual(state["status"], "failed")
+
+    def test_expert_demo_selection_keeps_rollout_train_order(self) -> None:
+        candidates = [10, 11, 12, 13, 14]
+        results = [
+            {"seed": 10, "passed": False},
+            {"seed": 11, "passed": True},
+            {"seed": 12, "passed": False},
+            {"seed": 13, "passed": True},
+            {"seed": 14, "passed": True},
+        ]
+        selected = select_expert_demo_seeds(candidates, results, required_count=2)
+        self.assertEqual(selected, [11, 13])
+
+    def test_expert_demo_evidence_applies_subset_without_reordering_rollout_train(self) -> None:
+        manifest = {
+            "partitions": {
+                "rollout_train": [10, 11, 12, 13],
+                "anchor_candidate": [100],
+            },
+            "feasibility": {"passed": False},
+        }
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11, 12, 13],
+            probe_results=[
+                {"seed": 10, "passed": False},
+                {"seed": 11, "passed": True},
+                {"seed": 12, "passed": False},
+                {"seed": 13, "passed": True},
+            ],
+            required_count=2,
+        )
+        self.assertEqual(validate_feasibility_evidence(evidence), [])
+        updated = apply_provisional_expert_demo_to_manifest(manifest, evidence)
+        self.assertEqual(updated["partitions"]["rollout_train"], [10, 11, 12, 13])
+        self.assertEqual(updated["partitions"]["expert_demo"], [11, 13])
+        self.assertEqual(updated["status"], "candidate_unvalidated")
+        self.assertTrue(updated["expert_demo_selection"]["provisional"])
+        self.assertEqual(
+            updated["expert_demo_selection"]["rule"],
+            "first_n_solvable_in_manifest_order",
+        )
+
+    def test_derive_task_status_marks_expert_assertions_separately(self) -> None:
+        results = [
+            {"seed": 1, "passed": False, "error_type": "expert_assertion_failed"},
+            {"seed": 2, "passed": False, "error_type": "pre_motion_validation_failed"},
+        ]
+        self.assertEqual(
+            derive_task_status(results, candidate_count=2, required_count=50),
+            TASK_STATUS_EXPERT_EXCEPTION,
+        )
+        results = [
+            {"seed": 1, "passed": False, "error_type": "pre_motion_validation_failed"},
+            {"seed": 2, "passed": False, "error_type": "simulator_unstable"},
+        ]
+        self.assertEqual(
+            derive_task_status(results, candidate_count=2, required_count=50),
+            TASK_STATUS_INSUFFICIENT,
+        )
+        results = [{"seed": i, "passed": True} for i in range(50)]
+        self.assertEqual(
+            derive_task_status(results, candidate_count=50, required_count=50),
+            TASK_STATUS_PASSED,
+        )
 
 
 if __name__ == "__main__":

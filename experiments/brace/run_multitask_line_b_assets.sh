@@ -11,6 +11,7 @@ export PYTHONPATH="${repo_root}:${repo_root}/policy/DP${PYTHONPATH:+:${PYTHONPAT
 
 read -r -a gpu_ids <<< "${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
 read -r -a tasks <<< "${BRACE_HELDOUT_TASKS:-beat_block_hammer click_alarmclock handover_mic lift_pot move_can_pot open_laptop place_burger_fries put_object_cabinet shake_bottle stack_bowls_three}"
+required_episodes=${BRACE_EXPERT_DEMO_COUNT:-50}
 
 if ((${#gpu_ids[@]} == 0)); then
   echo "BRACE_GPU_IDS must contain at least one GPU" >&2
@@ -35,12 +36,12 @@ patch_demo_clean_for_multitask() {
   if [[ ! -f task_config/demo_clean.yml.bak_line_b ]]; then
     cp task_config/demo_clean.yml task_config/demo_clean.yml.bak_line_b
   fi
-  python - <<'PY'
+  python - <<PY
 from pathlib import Path
 import yaml
 path = Path("task_config/demo_clean.yml")
 data = yaml.safe_load(path.read_text(encoding="utf-8"))
-data["episode_num"] = 50
+data["episode_num"] = ${required_episodes}
 data["use_seed"] = True
 path.write_text(yaml.dump(data, sort_keys=False), encoding="utf-8")
 PY
@@ -52,6 +53,31 @@ restore_demo_clean() {
   fi
 }
 
+count_demo_hdf5() {
+  local task=$1
+  local data_dir="data/${task}/demo_clean/data"
+  if [[ ! -d "${data_dir}" ]]; then
+    echo 0
+    return 0
+  fi
+  find "${data_dir}" -maxdepth 1 -type f -name 'episode*.hdf5' | wc -l | tr -d ' '
+}
+
+remove_empty_demo_zarr() {
+  local task=$1
+  local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
+  if [[ -d "${zarr}" ]] && ! python - <<PY
+import sys
+import zarr
+root = zarr.open("${zarr}", mode="r")
+sys.exit(0 if "episode_ends" in root["meta"] else 1)
+PY
+  then
+    rm -rf "${zarr}"
+    echo "removed invalid zarr ${zarr}"
+  fi
+}
+
 trap restore_demo_clean EXIT
 patch_demo_clean_for_multitask
 
@@ -59,18 +85,35 @@ collect_one() {
   local task=$1 gpu=$2
   local log="${log_root}/${run_stamp}_${task}.log"
   {
+    set -euo pipefail
     echo "=== ${task} gpu=${gpu} ==="
-    local ckpt="policy/DP/checkpoints/${task}-demo_clean-50-0/600.ckpt"
-    local zarr="policy/DP/data/${task}-demo_clean-50.zarr"
+    local ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
+    local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
     if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
       echo "skip collect/process/train: existing ${ckpt} and ${zarr}"
-      return 0
+      exit 0
     fi
-    python experiments/brace/prepare_multitask_demo_seeds.py "${task}" --count 50
+    remove_empty_demo_zarr "${task}"
+    python experiments/brace/prepare_multitask_demo_seeds.py "${task}" --count "${required_episodes}"
     export CUDA_VISIBLE_DEVICES="${gpu}"
-    bash collect_data.sh "${task}" demo_clean "${gpu}"
-    (cd policy/DP && bash process_data.sh "${task}" demo_clean 50)
-    (cd policy/DP && bash train.sh "${task}" demo_clean 50 0 14 "${gpu}")
+    if ! bash collect_data.sh "${task}" demo_clean "${gpu}"; then
+      echo "collect failed for ${task}" >&2
+      exit 1
+    fi
+    local hdf5_count
+    hdf5_count="$(count_demo_hdf5 "${task}")"
+    if (( hdf5_count < required_episodes )); then
+      echo "expected ${required_episodes} demo HDF5 for ${task}, found ${hdf5_count}" >&2
+      exit 1
+    fi
+    if ! (cd policy/DP && bash process_data.sh "${task}" demo_clean "${required_episodes}"); then
+      echo "process_data failed for ${task}" >&2
+      exit 1
+    fi
+    if ! (cd policy/DP && bash train.sh "${task}" demo_clean "${required_episodes}" 0 14 "${gpu}"); then
+      echo "train failed for ${task}" >&2
+      exit 1
+    fi
     echo "=== ${task} complete ==="
   } >>"${log}" 2>&1
 }
@@ -79,8 +122,8 @@ failed=0
 completed=0
 pending_tasks=()
 for task in "${tasks[@]}"; do
-  ckpt="policy/DP/checkpoints/${task}-demo_clean-50-0/600.ckpt"
-  zarr="policy/DP/data/${task}-demo_clean-50.zarr"
+  ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
+  zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
   if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
     echo "SKIP ${task}: checkpoint and zarr already exist" | tee -a "${manifest_log}"
     completed=$((completed + 1))
@@ -91,8 +134,6 @@ done
 
 echo "schedule pending=${#pending_tasks[@]} gpus=${gpu_ids[*]} one_task_per_gpu=true" | tee -a "${manifest_log}"
 
-# Run in GPU-sized waves.  A task keeps its GPU through collection, processing,
-# and exclusive DP training; no second task is placed on that GPU until it exits.
 for ((offset = 0; offset < ${#pending_tasks[@]}; offset += ${#gpu_ids[@]})); do
   pids=()
   names=()
