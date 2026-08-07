@@ -14,6 +14,7 @@
 | 日期 | 阶段 | 任务 | Gate | 文档 / 归档 |
 |------|------|------|------|-------------|
 | 2026-08-06 | Confirmatory v1.4.2 | P1d preservation eval + report | **H1 failed**（adaptation ✓ / preservation ✗） | `archive/confirmatory_preservation_p1d_v142_20260806/` |
+| 2026-08-07 | Multitask preregistration v1 | 12-task panel + RoboTwin 50-demo protocol | design frozen; BRACE-v2 method pending | [`brace_multitask_preregistration_v1.md`](brace_multitask_preregistration_v1.md) |
 | 2026-08-05 | Confirmatory v1.4.2 | P1c preservation training | **complete**（10/10 jobs, step 2470） | `archive/confirmatory_preservation_p1c_v142_20260805/` |
 | 2026-08-04 | Confirmatory v1.4.2 | P1b preservation cohort | **complete**（meets_min_untouched） | `archive/confirmatory_preservation_cohort_v142_20260804/` |
 | 2026-08-04 | Confirmatory v1.4.2 | P1a base census | complete（900 ep, offset 3000） | `archive/confirmatory_base_census_v142_20260804/` |
@@ -118,12 +119,12 @@
 | 维度 | 结果 |
 |------|------|
 | Orchestrator | 11/11 eval jobs complete |
-| Adaptation（C1 vs C0, id_heldout） | **passed**（5/5 seeds, p=0.031） |
+| Adaptation（C1 vs C0, id_heldout） | **非劣性通过**（5/5 seeds 高于 −5 pp margin，p=0.031；点估计 −1.0 pp，95% bootstrap CI [−3.87, +1.8] pp） |
 | Preservation（untouched n=60） | **failed**（51 forgetting events; 1/5 relative wins） |
 | Base fresh forgetting | 11.7%（7/60） |
 | **H1 合取** | **failed** |
 
-**解读：** C1（A1 dual anchor）在 ID 适应上显著优于 C0（SFT-only），但未能通过 preservation gate；fine-tune 后遗忘事件过多，且 anchor 相对 SFT 无明显防忘优势。按 protocol，`block_factorial` 与 `block_dump_transfer` 仍生效。
+**解读：** C1（A1 dual anchor）在 ID 适应上通过了相对 C0（SFT-only）的预注册非劣性 gate，但没有显示出统计显著的优越性：C1−C0 点估计为 −1.0 pp，区间跨 0。C1 未能通过 preservation gate；fine-tune 后遗忘事件过多，且 anchor 相对 SFT 无明显防忘优势。按 protocol，`block_factorial` 与 `block_dump_transfer` 仍生效。
 
 ---
 

@@ -30,6 +30,7 @@ screen_protocol=${BRACE_SCREEN_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.2.
 confirmatory_protocol=${BRACE_CONFIRMATORY_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.4.2.confirmatory_preservation.json}
 confirmatory_seeds_file=${BRACE_CONFIRMATORY_SEEDS_FILE:-${brace_dir}/seeds/place_container_plate_confirmatory_v1.4.2_seeds.json}
 confirmatory_jobs=${BRACE_CONFIRMATORY_JOBS:-${brace_dir}/confirmatory_preservation_jobs.place_container_plate.v3.json}
+multitask_protocol=${BRACE_MULTITASK_PROTOCOL_PATH:-${brace_dir}/multitask_protocol.v1.json}
 
 # shellcheck source=experiments/brace/run_paths.sh
 source "${repo_root}/experiments/brace/run_paths.sh"
@@ -131,6 +132,11 @@ Stages:
   confirmatory-preservation   P1c: frozen A1 vs SFT-only (5 training seeds, 10 jobs).
   confirmatory-preservation-eval  P1d: fresh paired eval at offset 4000.
   confirmatory-preservation-report  Aggregate H1 gates from P1d eval artifacts.
+  multitask-validate  Validate the frozen 12-task design (method freeze optional).
+  multitask-generate-seeds  Generate deterministic disjoint candidate seed manifests.
+  multitask-preflight  Audit 50-demo DP, seed, replay, and method-freeze readiness.
+  multitask-run  Run/resume a frozen explicit multitask job manifest.
+  multitask-report  Aggregate the complete held-out artifact matrix.
   branch   Collect matched-continuation branches (requires passed replay audit v2).
   screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
@@ -152,6 +158,7 @@ Environment (v2 audit / branch):
   BRACE_HARD_PROBE_SHARDS  Shard count for base ID probe (default: 8).
   BRACE_FORCE_HARD_SEEDS   Set to 1 to regenerate existing hard_eval_seeds files.
   BRACE_TASKS              Space-separated task subset (default: both protocol tasks).
+  BRACE_MULTITASK_PROTOCOL_PATH  Multitask protocol path.
 
 Immutable outputs (default since v2.3+):
   Each stage writes under experiments/brace/runs/<UTC>_<stage>_<tasks>/...
@@ -296,6 +303,50 @@ run_hard_probe_sharded() {
 }
 
 case "${stage}" in
+  multitask-validate)
+    validation_args=(validate --protocol "${multitask_protocol}")
+    if [[ "${BRACE_REQUIRE_METHOD_FREEZE:-0}" == "1" ]]; then
+      validation_args+=(--require-method-freeze)
+    fi
+    exec python experiments/brace/multitask_protocol.py "${validation_args[@]}" "$@"
+    ;;
+
+  multitask-generate-seeds)
+    exec python experiments/brace/multitask_protocol.py generate-seeds \
+      --protocol "${multitask_protocol}" "$@"
+    ;;
+
+  multitask-preflight)
+    preflight_args=(--protocol "${multitask_protocol}")
+    if [[ "${BRACE_REQUIRE_METHOD_FREEZE:-1}" == "1" ]]; then
+      preflight_args+=(--require-method-freeze)
+    fi
+    exec python experiments/brace/multitask_preflight.py "${preflight_args[@]}" "$@"
+    ;;
+
+  multitask-run)
+    if [[ -z "${BRACE_MULTITASK_JOBS:-}" || -z "${BRACE_MULTITASK_RUN_DIR:-}" ]]; then
+      echo "Set BRACE_MULTITASK_JOBS and BRACE_MULTITASK_RUN_DIR." >&2
+      exit 2
+    fi
+    exec python experiments/brace/multitask_scheduler.py \
+      --protocol "${multitask_protocol}" \
+      --jobs "${BRACE_MULTITASK_JOBS}" \
+      --output-dir "${BRACE_MULTITASK_RUN_DIR}" \
+      --gpus "${gpu_ids[@]}" "$@"
+    ;;
+
+  multitask-report)
+    if [[ -z "${BRACE_MULTITASK_ARTIFACT_INDEX:-}" || -z "${BRACE_MULTITASK_REPORT_OUTPUT:-}" ]]; then
+      echo "Set BRACE_MULTITASK_ARTIFACT_INDEX and BRACE_MULTITASK_REPORT_OUTPUT." >&2
+      exit 2
+    fi
+    exec python experiments/brace/aggregate_multitask.py \
+      --protocol "${multitask_protocol}" \
+      --artifact-index "${BRACE_MULTITASK_ARTIFACT_INDEX}" \
+      --output "${BRACE_MULTITASK_REPORT_OUTPUT}" "$@"
+    ;;
+
   help|-h|--help)
     usage
     ;;

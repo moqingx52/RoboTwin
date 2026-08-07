@@ -107,3 +107,6 @@ experiments/brace/sync/.cache/
 
 # Private experiment reports and paper drafts (never track)
 docs/
+!docs/
+docs/*
+!docs/brace_multitask_preregistration_v1.md
