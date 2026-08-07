@@ -12,6 +12,19 @@ export PYTHONPATH="${repo_root}:${repo_root}/policy/DP${PYTHONPATH:+:${PYTHONPAT
 read -r -a gpu_ids <<< "${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
 read -r -a tasks <<< "${BRACE_HELDOUT_TASKS:-beat_block_hammer click_alarmclock handover_mic lift_pot move_can_pot open_laptop place_burger_fries put_object_cabinet shake_bottle stack_bowls_three}"
 
+if ((${#gpu_ids[@]} == 0)); then
+  echo "BRACE_GPU_IDS must contain at least one GPU" >&2
+  exit 2
+fi
+declare -A seen_gpu_ids=()
+for gpu in "${gpu_ids[@]}"; do
+  if [[ -n "${seen_gpu_ids[${gpu}]+present}" ]]; then
+    echo "BRACE_GPU_IDS contains duplicate GPU ${gpu}" >&2
+    exit 2
+  fi
+  seen_gpu_ids["${gpu}"]=1
+done
+
 log_root="${BRACE_LINE_B_LOG_DIR:-experiments/brace/logs/line_b_assets}"
 mkdir -p "${log_root}"
 run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -47,13 +60,13 @@ collect_one() {
   local log="${log_root}/${run_stamp}_${task}.log"
   {
     echo "=== ${task} gpu=${gpu} ==="
-    python experiments/brace/prepare_multitask_demo_seeds.py "${task}" --count 50
     local ckpt="policy/DP/checkpoints/${task}-demo_clean-50-0/600.ckpt"
     local zarr="policy/DP/data/${task}-demo_clean-50.zarr"
     if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
       echo "skip collect/process/train: existing ${ckpt} and ${zarr}"
       return 0
     fi
+    python experiments/brace/prepare_multitask_demo_seeds.py "${task}" --count 50
     export CUDA_VISIBLE_DEVICES="${gpu}"
     bash collect_data.sh "${task}" demo_clean "${gpu}"
     (cd policy/DP && bash process_data.sh "${task}" demo_clean 50)
@@ -62,25 +75,52 @@ collect_one() {
   } >>"${log}" 2>&1
 }
 
-pids=()
-names=()
-for idx in "${!tasks[@]}"; do
-  task="${tasks[idx]}"
-  gpu="${gpu_ids[$((idx % ${#gpu_ids[@]}))]}"
-  collect_one "${task}" "${gpu}" &
-  pids+=("$!")
-  names+=("${task}")
-done
-
 failed=0
-for idx in "${!pids[@]}"; do
-  if ! wait "${pids[idx]}"; then
-    echo "FAILED ${names[idx]}" | tee -a "${manifest_log}"
-    failed=$((failed + 1))
+completed=0
+pending_tasks=()
+for task in "${tasks[@]}"; do
+  ckpt="policy/DP/checkpoints/${task}-demo_clean-50-0/600.ckpt"
+  zarr="policy/DP/data/${task}-demo_clean-50.zarr"
+  if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
+    echo "SKIP ${task}: checkpoint and zarr already exist" | tee -a "${manifest_log}"
+    completed=$((completed + 1))
   else
-    echo "OK ${names[idx]}" | tee -a "${manifest_log}"
+    pending_tasks+=("${task}")
   fi
 done
 
-echo "line_b_assets done failed=${failed}/${#tasks[@]}" | tee -a "${manifest_log}"
-exit "${failed}"
+echo "schedule pending=${#pending_tasks[@]} gpus=${gpu_ids[*]} one_task_per_gpu=true" | tee -a "${manifest_log}"
+
+# Run in GPU-sized waves.  A task keeps its GPU through collection, processing,
+# and exclusive DP training; no second task is placed on that GPU until it exits.
+for ((offset = 0; offset < ${#pending_tasks[@]}; offset += ${#gpu_ids[@]})); do
+  pids=()
+  names=()
+  for gpu_idx in "${!gpu_ids[@]}"; do
+    task_idx=$((offset + gpu_idx))
+    if ((task_idx >= ${#pending_tasks[@]})); then
+      break
+    fi
+    task="${pending_tasks[task_idx]}"
+    gpu="${gpu_ids[gpu_idx]}"
+    echo "LAUNCH ${task} gpu=${gpu}" | tee -a "${manifest_log}"
+    collect_one "${task}" "${gpu}" &
+    pids+=("$!")
+    names+=("${task}")
+  done
+
+  for idx in "${!pids[@]}"; do
+    if ! wait "${pids[idx]}"; then
+      echo "FAILED ${names[idx]}" | tee -a "${manifest_log}"
+      failed=$((failed + 1))
+    else
+      echo "OK ${names[idx]}" | tee -a "${manifest_log}"
+      completed=$((completed + 1))
+    fi
+  done
+done
+
+echo "line_b_assets done completed=${completed}/${#tasks[@]} failed=${failed}/${#tasks[@]}" | tee -a "${manifest_log}"
+if ((failed > 0)); then
+  exit 1
+fi

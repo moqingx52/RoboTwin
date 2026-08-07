@@ -179,6 +179,46 @@ def run(TASK_ENV, args):
             seed_list = file.read().split()
             seed_list = [int(i) for i in seed_list]
 
+        if len(seed_list) < args["episode_num"]:
+            raise RuntimeError(
+                f"Saved seed list has {len(seed_list)} entries, "
+                f"but episode_num={args['episode_num']}"
+            )
+
+        # A saved seed list fixes which scenes to use; it does not imply that
+        # the corresponding pre-motion trajectories already exist.  Generate
+        # only missing trajectories so fixed-seed collection can start from a
+        # fresh data directory and can also resume safely.
+        print("\033[93m" + "[Prepare Missing Pre Motion Data]" + "\033[0m")
+        args["need_plan"] = True
+        for episode_idx, seed in enumerate(seed_list[: args["episode_num"]]):
+            traj_path = os.path.join(
+                args["save_path"], "_traj_data", f"episode{episode_idx}.pkl"
+            )
+            data_path = os.path.join(
+                args["save_path"], "data", f"episode{episode_idx}.hdf5"
+            )
+            if os.path.exists(traj_path) or os.path.exists(data_path):
+                continue
+
+            try:
+                TASK_ENV.setup_demo(now_ep_num=episode_idx, seed=seed, **args)
+                TASK_ENV.play_once()
+                if not (TASK_ENV.plan_success and TASK_ENV.check_success()):
+                    raise RuntimeError(
+                        f"Saved seed {seed} failed pre-motion validation "
+                        f"for episode {episode_idx}"
+                    )
+                TASK_ENV.save_traj_data(episode_idx)
+                print(
+                    f"prepared pre-motion episode {episode_idx} "
+                    f"(seed = {seed})"
+                )
+            finally:
+                TASK_ENV.close_env()
+                if args["render_freq"]:
+                    TASK_ENV.viewer.close()
+
     # =========== Collect Data ===========
 
     if args["collect_data"]:
