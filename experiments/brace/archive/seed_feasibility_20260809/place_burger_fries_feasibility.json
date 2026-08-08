@@ -1,0 +1,2593 @@
+{
+  "candidate_count": 100,
+  "candidate_partition": "rollout_train",
+  "criterion": "expert_script_simulator_solvability_only",
+  "determinism": {
+    "probe_repeats": 2,
+    "probe_success_rule": "all"
+  },
+  "expert_demo_count": 50,
+  "expert_demo_seeds": [
+    180000,
+    180001,
+    180002,
+    180003,
+    180004,
+    180005,
+    180006,
+    180007,
+    180008,
+    180009,
+    180010,
+    180011,
+    180012,
+    180013,
+    180014,
+    180015,
+    180016,
+    180017,
+    180018,
+    180019,
+    180020,
+    180021,
+    180022,
+    180023,
+    180024,
+    180025,
+    180026,
+    180027,
+    180028,
+    180029,
+    180030,
+    180031,
+    180032,
+    180033,
+    180034,
+    180035,
+    180036,
+    180037,
+    180038,
+    180039,
+    180040,
+    180041,
+    180042,
+    180043,
+    180044,
+    180045,
+    180046,
+    180047,
+    180048,
+    180049
+  ],
+  "expert_exception_count": 0,
+  "gpus": [
+    "2"
+  ],
+  "learning_policy_performance_consulted": false,
+  "passed": true,
+  "provenance": {
+    "code": {
+      "code_commit": "4a499eb54298e63e95b8f31ec4388dabf1741fe1",
+      "code_dirty": true
+    },
+    "software": {
+      "python": "3.10.20",
+      "torch": "2.1.0+cu121"
+    },
+    "task": "place_burger_fries",
+    "task_config": "demo_clean",
+    "task_config_sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0",
+    "task_manifest_sha256": "66b2cd9a98d2463e6a64302c301ca2da053829dc62e8f8b2a5b9a98bb3058732"
+  },
+  "results": [
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180000
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180000
+        }
+      ],
+      "seed": 180000
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180001
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180001
+        }
+      ],
+      "seed": 180001
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180002
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180002
+        }
+      ],
+      "seed": 180002
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180003
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180003
+        }
+      ],
+      "seed": 180003
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180004
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180004
+        }
+      ],
+      "seed": 180004
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180005
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180005
+        }
+      ],
+      "seed": 180005
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180006
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180006
+        }
+      ],
+      "seed": 180006
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180007
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180007
+        }
+      ],
+      "seed": 180007
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180008
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180008
+        }
+      ],
+      "seed": 180008
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180009
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180009
+        }
+      ],
+      "seed": 180009
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180010
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180010
+        }
+      ],
+      "seed": 180010
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180011
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180011
+        }
+      ],
+      "seed": 180011
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180012
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180012
+        }
+      ],
+      "seed": 180012
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180013
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180013
+        }
+      ],
+      "seed": 180013
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180014
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180014
+        }
+      ],
+      "seed": 180014
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180015
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180015
+        }
+      ],
+      "seed": 180015
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180016
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180016
+        }
+      ],
+      "seed": 180016
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180017
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180017
+        }
+      ],
+      "seed": 180017
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180018
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180018
+        }
+      ],
+      "seed": 180018
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180019
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180019
+        }
+      ],
+      "seed": 180019
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180020
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180020
+        }
+      ],
+      "seed": 180020
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180021
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180021
+        }
+      ],
+      "seed": 180021
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180022
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180022
+        }
+      ],
+      "seed": 180022
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180023
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180023
+        }
+      ],
+      "seed": 180023
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180024
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180024
+        }
+      ],
+      "seed": 180024
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180025
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180025
+        }
+      ],
+      "seed": 180025
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180026
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180026
+        }
+      ],
+      "seed": 180026
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180027
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180027
+        }
+      ],
+      "seed": 180027
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180028
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180028
+        }
+      ],
+      "seed": 180028
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180029
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180029
+        }
+      ],
+      "seed": 180029
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180030
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180030
+        }
+      ],
+      "seed": 180030
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180031
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180031
+        }
+      ],
+      "seed": 180031
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180032
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180032
+        }
+      ],
+      "seed": 180032
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180033
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180033
+        }
+      ],
+      "seed": 180033
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180034
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180034
+        }
+      ],
+      "seed": 180034
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180035
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180035
+        }
+      ],
+      "seed": 180035
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180036
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180036
+        }
+      ],
+      "seed": 180036
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180037
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180037
+        }
+      ],
+      "seed": 180037
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180038
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180038
+        }
+      ],
+      "seed": 180038
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180039
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180039
+        }
+      ],
+      "seed": 180039
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180040
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180040
+        }
+      ],
+      "seed": 180040
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180041
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180041
+        }
+      ],
+      "seed": 180041
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180042
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180042
+        }
+      ],
+      "seed": 180042
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180043
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180043
+        }
+      ],
+      "seed": 180043
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180044
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180044
+        }
+      ],
+      "seed": 180044
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180045
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180045
+        }
+      ],
+      "seed": 180045
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180046
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180046
+        }
+      ],
+      "seed": 180046
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180047
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180047
+        }
+      ],
+      "seed": 180047
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180048
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180048
+        }
+      ],
+      "seed": 180048
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180049
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180049
+        }
+      ],
+      "seed": 180049
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180050
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180050
+        }
+      ],
+      "seed": 180050
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180051
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180051
+        }
+      ],
+      "seed": 180051
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180052
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180052
+        }
+      ],
+      "seed": 180052
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180053
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180053
+        }
+      ],
+      "seed": 180053
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180054
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180054
+        }
+      ],
+      "seed": 180054
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180055
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180055
+        }
+      ],
+      "seed": 180055
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180056
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180056
+        }
+      ],
+      "seed": 180056
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180057
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180057
+        }
+      ],
+      "seed": 180057
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180058
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180058
+        }
+      ],
+      "seed": 180058
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180059
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180059
+        }
+      ],
+      "seed": 180059
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180060
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180060
+        }
+      ],
+      "seed": 180060
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180061
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180061
+        }
+      ],
+      "seed": 180061
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180062
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180062
+        }
+      ],
+      "seed": 180062
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180063
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180063
+        }
+      ],
+      "seed": 180063
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180064
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180064
+        }
+      ],
+      "seed": 180064
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180065
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180065
+        }
+      ],
+      "seed": 180065
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180066
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180066
+        }
+      ],
+      "seed": 180066
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180067
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180067
+        }
+      ],
+      "seed": 180067
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180068
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180068
+        }
+      ],
+      "seed": 180068
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180069
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180069
+        }
+      ],
+      "seed": 180069
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180070
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180070
+        }
+      ],
+      "seed": 180070
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180071
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180071
+        }
+      ],
+      "seed": 180071
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180072
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180072
+        }
+      ],
+      "seed": 180072
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 180073 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 180073 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 180073
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180073
+        }
+      ],
+      "seed": 180073
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180074
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180074
+        }
+      ],
+      "seed": 180074
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180075
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180075
+        }
+      ],
+      "seed": 180075
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180076
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180076
+        }
+      ],
+      "seed": 180076
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180077
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180077
+        }
+      ],
+      "seed": 180077
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180078
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180078
+        }
+      ],
+      "seed": 180078
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180079
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180079
+        }
+      ],
+      "seed": 180079
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180080
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180080
+        }
+      ],
+      "seed": 180080
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180081
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180081
+        }
+      ],
+      "seed": 180081
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180082
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180082
+        }
+      ],
+      "seed": 180082
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180083
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180083
+        }
+      ],
+      "seed": 180083
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180084
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180084
+        }
+      ],
+      "seed": 180084
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180085
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180085
+        }
+      ],
+      "seed": 180085
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180086
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180086
+        }
+      ],
+      "seed": 180086
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180087
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180087
+        }
+      ],
+      "seed": 180087
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180088
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180088
+        }
+      ],
+      "seed": 180088
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180089
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180089
+        }
+      ],
+      "seed": 180089
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180090
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180090
+        }
+      ],
+      "seed": 180090
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180091
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180091
+        }
+      ],
+      "seed": 180091
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180092
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180092
+        }
+      ],
+      "seed": 180092
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180093
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180093
+        }
+      ],
+      "seed": 180093
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180094
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180094
+        }
+      ],
+      "seed": 180094
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180095
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180095
+        }
+      ],
+      "seed": 180095
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180096
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180096
+        }
+      ],
+      "seed": 180096
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180097
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180097
+        }
+      ],
+      "seed": 180097
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180098
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180098
+        }
+      ],
+      "seed": 180098
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180099
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 180099
+        }
+      ],
+      "seed": 180099
+    }
+  ],
+  "schema_version": 2,
+  "seed_not_solvable_count": 1,
+  "selection_rule": "first_n_solvable_in_manifest_order",
+  "shard_count": 1,
+  "solvable_count_in_candidates": 99,
+  "stage": "seed_feasibility_scan",
+  "task": "place_burger_fries",
+  "task_config": "demo_clean",
+  "task_status": "passed"
+}

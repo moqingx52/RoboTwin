@@ -1,0 +1,133 @@
+{
+  "all_passed": false,
+  "evidence_schema_version": 2,
+  "passed_count": 7,
+  "run_dir": "experiments/brace/archive/seed_feasibility_20260809",
+  "schema_version": 2,
+  "stage": "seed_feasibility_batch",
+  "task_count": 8,
+  "tasks": {
+    "beat_block_hammer": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/beat_block_hammer_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "77f6049df763da2a1848e62c3c95e4ea1210453c4a6da6a7c48204b2a9d8d05b",
+      "expert_exception_count": 0,
+      "gpus": [
+        "0"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 34,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 66,
+      "supplement_used": false,
+      "task_status": "passed"
+    },
+    "click_alarmclock": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/click_alarmclock_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "56f12dcbce0e9fb5ab03434d216a4b6d2b441ac9287d3a9470bee1fc268f1f2f",
+      "expert_exception_count": 2,
+      "gpus": [
+        "5"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 11,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 87,
+      "supplement_used": false,
+      "task_status": "passed"
+    },
+    "handover_mic": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/handover_mic_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "2cbc2ca1da33f74891e0b26f9b59cf2a860ff9c10df8ad1ef5f010cce5cdc67b",
+      "expert_exception_count": 0,
+      "gpus": [
+        "1"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 26,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 74,
+      "supplement_used": false,
+      "task_status": "passed"
+    },
+    "move_can_pot": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/move_can_pot_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "df1d8edf09dd3f2461c4164310b84393be87298b4f4655c03a8751bee7660d9c",
+      "expert_exception_count": 0,
+      "gpus": [
+        "6"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 11,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 89,
+      "supplement_used": false,
+      "task_status": "passed"
+    },
+    "place_burger_fries": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/place_burger_fries_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "049595df2113148f2297c135c5f879999b42c4e239b40b7ab8b649d6ad070b73",
+      "expert_exception_count": 0,
+      "gpus": [
+        "2"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 1,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 99,
+      "supplement_used": false,
+      "task_status": "passed"
+    },
+    "put_object_cabinet": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/put_object_cabinet_supplemented_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "97f7bcbd7e9bbc8ed9a11ab2ea2ceba406320efe7a0b3976c32de77358248f37",
+      "expert_exception_count": 0,
+      "gpus": [
+        "7",
+        "5"
+      ],
+      "passed": false,
+      "seed_not_solvable_count": 275,
+      "shard_count": 2,
+      "solvable_count_in_candidates": 25,
+      "supplement_used": true,
+      "task_status": "insufficient_solvable"
+    },
+    "shake_bottle": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/shake_bottle_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "6633afb810f9eb2c3584b3ee4648f8a4c08e044880a5971668923f584449df3a",
+      "expert_exception_count": 0,
+      "gpus": [
+        "3"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 34,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 66,
+      "supplement_used": false,
+      "task_status": "passed"
+    },
+    "stack_bowls_three": {
+      "evidence_path": "experiments/brace/archive/seed_feasibility_20260809/stack_bowls_three_supplemented_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "9c46d3928abd1c68010cb89ef1f2fc3e27d95463420e73869661ce74c3a765a8",
+      "expert_exception_count": 0,
+      "gpus": [
+        "4"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 146,
+      "shard_count": 2,
+      "solvable_count_in_candidates": 154,
+      "supplement_used": true,
+      "task_status": "passed"
+    }
+  },
+  "unresolved_count": 1
+}

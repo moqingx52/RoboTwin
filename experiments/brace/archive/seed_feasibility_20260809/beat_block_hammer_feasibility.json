@@ -1,0 +1,2593 @@
+{
+  "candidate_count": 100,
+  "candidate_partition": "rollout_train",
+  "criterion": "expert_script_simulator_solvability_only",
+  "determinism": {
+    "probe_repeats": 2,
+    "probe_success_rule": "all"
+  },
+  "expert_demo_count": 50,
+  "expert_demo_seeds": [
+    120000,
+    120001,
+    120002,
+    120004,
+    120007,
+    120008,
+    120009,
+    120011,
+    120012,
+    120014,
+    120015,
+    120017,
+    120018,
+    120021,
+    120022,
+    120023,
+    120024,
+    120025,
+    120026,
+    120028,
+    120031,
+    120033,
+    120035,
+    120036,
+    120037,
+    120038,
+    120040,
+    120042,
+    120046,
+    120047,
+    120048,
+    120049,
+    120050,
+    120051,
+    120053,
+    120054,
+    120055,
+    120056,
+    120057,
+    120058,
+    120063,
+    120064,
+    120066,
+    120069,
+    120070,
+    120072,
+    120073,
+    120074,
+    120076,
+    120077
+  ],
+  "expert_exception_count": 0,
+  "gpus": [
+    "0"
+  ],
+  "learning_policy_performance_consulted": false,
+  "passed": true,
+  "provenance": {
+    "code": {
+      "code_commit": "4a499eb54298e63e95b8f31ec4388dabf1741fe1",
+      "code_dirty": true
+    },
+    "software": {
+      "python": "3.10.20",
+      "torch": "2.1.0+cu121"
+    },
+    "task": "beat_block_hammer",
+    "task_config": "demo_clean",
+    "task_config_sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0",
+    "task_manifest_sha256": "8251a3c68f7e6d837dc99d7f13a6b8b08f2ea51deb51439790928938fa4a74c4"
+  },
+  "results": [
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120000
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120000
+        }
+      ],
+      "seed": 120000
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120001
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120001
+        }
+      ],
+      "seed": 120001
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120002
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120002
+        }
+      ],
+      "seed": 120002
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120003 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120003 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120003
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120003 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120003
+        }
+      ],
+      "seed": 120003
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120004
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120004
+        }
+      ],
+      "seed": 120004
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120005 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120005 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120005
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120005 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120005
+        }
+      ],
+      "seed": 120005
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120006 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120006 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120006
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120006 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120006
+        }
+      ],
+      "seed": 120006
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120007
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120007
+        }
+      ],
+      "seed": 120007
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120008
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120008
+        }
+      ],
+      "seed": 120008
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120009
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120009
+        }
+      ],
+      "seed": 120009
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120010 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120010 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120010
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120010 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120010
+        }
+      ],
+      "seed": 120010
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120011
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120011
+        }
+      ],
+      "seed": 120011
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120012
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120012
+        }
+      ],
+      "seed": 120012
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120013 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120013 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120013
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120013
+        }
+      ],
+      "seed": 120013
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120014
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120014
+        }
+      ],
+      "seed": 120014
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120015
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120015
+        }
+      ],
+      "seed": 120015
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120016 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120016
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120016 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120016
+        }
+      ],
+      "seed": 120016
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120017
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120017
+        }
+      ],
+      "seed": 120017
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120018
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120018
+        }
+      ],
+      "seed": 120018
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120019 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120019 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120019
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120019 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120019
+        }
+      ],
+      "seed": 120019
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120020 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120020 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120020
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120020 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120020
+        }
+      ],
+      "seed": 120020
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120021
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120021
+        }
+      ],
+      "seed": 120021
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120022
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120022
+        }
+      ],
+      "seed": 120022
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120023
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120023
+        }
+      ],
+      "seed": 120023
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120024
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120024
+        }
+      ],
+      "seed": 120024
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120025
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120025
+        }
+      ],
+      "seed": 120025
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120026
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120026
+        }
+      ],
+      "seed": 120026
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120027 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120027 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120027
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120027 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120027
+        }
+      ],
+      "seed": 120027
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120028
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120028
+        }
+      ],
+      "seed": 120028
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120029 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120029 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120029
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120029
+        }
+      ],
+      "seed": 120029
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120030 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120030 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120030
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120030 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120030
+        }
+      ],
+      "seed": 120030
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120031
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120031
+        }
+      ],
+      "seed": 120031
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120032 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120032 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120032
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120032
+        }
+      ],
+      "seed": 120032
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120033
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120033
+        }
+      ],
+      "seed": 120033
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120034 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120034 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120034
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120034 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120034
+        }
+      ],
+      "seed": 120034
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120035
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120035
+        }
+      ],
+      "seed": 120035
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120036
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120036
+        }
+      ],
+      "seed": 120036
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120037
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120037
+        }
+      ],
+      "seed": 120037
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120038
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120038
+        }
+      ],
+      "seed": 120038
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120039 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120039 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120039
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120039
+        }
+      ],
+      "seed": 120039
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120040
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120040
+        }
+      ],
+      "seed": 120040
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120041 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120041 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120041
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120041
+        }
+      ],
+      "seed": 120041
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120042
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120042
+        }
+      ],
+      "seed": 120042
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120043 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120043 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120043
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120043 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120043
+        }
+      ],
+      "seed": 120043
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120044 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120044 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120044
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120044 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120044
+        }
+      ],
+      "seed": 120044
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120045 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120045
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120045 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120045
+        }
+      ],
+      "seed": 120045
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120046
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120046
+        }
+      ],
+      "seed": 120046
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120047
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120047
+        }
+      ],
+      "seed": 120047
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120048
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120048
+        }
+      ],
+      "seed": 120048
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120049
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120049
+        }
+      ],
+      "seed": 120049
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120050
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120050
+        }
+      ],
+      "seed": 120050
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120051
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120051
+        }
+      ],
+      "seed": 120051
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120052 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120052 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120052
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120052 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120052
+        }
+      ],
+      "seed": 120052
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120053
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120053
+        }
+      ],
+      "seed": 120053
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120054
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120054
+        }
+      ],
+      "seed": 120054
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120055
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120055
+        }
+      ],
+      "seed": 120055
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120056
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120056
+        }
+      ],
+      "seed": 120056
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120057
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120057
+        }
+      ],
+      "seed": 120057
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120058
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120058
+        }
+      ],
+      "seed": 120058
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120059 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120059 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120059
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120059 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120059
+        }
+      ],
+      "seed": 120059
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120060 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120060 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120060
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120060 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120060
+        }
+      ],
+      "seed": 120060
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120061 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120061 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120061
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120061
+        }
+      ],
+      "seed": 120061
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120062 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120062
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120062 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120062
+        }
+      ],
+      "seed": 120062
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120063
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120063
+        }
+      ],
+      "seed": 120063
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120064
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120064
+        }
+      ],
+      "seed": 120064
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120065 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120065 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120065
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120065
+        }
+      ],
+      "seed": 120065
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120066
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120066
+        }
+      ],
+      "seed": 120066
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120067 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120067
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120067 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120067
+        }
+      ],
+      "seed": 120067
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120068 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120068
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120068 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120068
+        }
+      ],
+      "seed": 120068
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120069
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120069
+        }
+      ],
+      "seed": 120069
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120070
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120070
+        }
+      ],
+      "seed": 120070
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120071 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120071
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120071 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120071
+        }
+      ],
+      "seed": 120071
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120072
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120072
+        }
+      ],
+      "seed": 120072
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120073
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120073
+        }
+      ],
+      "seed": 120073
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120074
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120074
+        }
+      ],
+      "seed": 120074
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120075 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120075 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120075
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120075
+        }
+      ],
+      "seed": 120075
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120076
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120076
+        }
+      ],
+      "seed": 120076
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120077
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120077
+        }
+      ],
+      "seed": 120077
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120078
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120078
+        }
+      ],
+      "seed": 120078
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120079 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120079 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120079
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120079
+        }
+      ],
+      "seed": 120079
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120080 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120080 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120080
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120080
+        }
+      ],
+      "seed": 120080
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120081
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120081
+        }
+      ],
+      "seed": 120081
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120082
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120082
+        }
+      ],
+      "seed": 120082
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120083
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120083
+        }
+      ],
+      "seed": 120083
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120084
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120084
+        }
+      ],
+      "seed": 120084
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120085
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120085
+        }
+      ],
+      "seed": 120085
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120086 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120086
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120086 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120086
+        }
+      ],
+      "seed": 120086
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120087
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120087
+        }
+      ],
+      "seed": 120087
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120088
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120088
+        }
+      ],
+      "seed": 120088
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120089
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120089
+        }
+      ],
+      "seed": 120089
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120090
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120090
+        }
+      ],
+      "seed": 120090
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120091 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120091
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120091 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120091
+        }
+      ],
+      "seed": 120091
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120092
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120092
+        }
+      ],
+      "seed": 120092
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120093 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120093 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120093
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120093 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120093
+        }
+      ],
+      "seed": 120093
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120094
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120094
+        }
+      ],
+      "seed": 120094
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120095
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120095
+        }
+      ],
+      "seed": 120095
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120096
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120096
+        }
+      ],
+      "seed": 120096
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 120097 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 1,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120097
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 120097 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 120097
+        }
+      ],
+      "seed": 120097
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120098
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120098
+        }
+      ],
+      "seed": 120098
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120099
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 120099
+        }
+      ],
+      "seed": 120099
+    }
+  ],
+  "schema_version": 2,
+  "seed_not_solvable_count": 34,
+  "selection_rule": "first_n_solvable_in_manifest_order",
+  "shard_count": 1,
+  "solvable_count_in_candidates": 66,
+  "stage": "seed_feasibility_scan",
+  "task": "beat_block_hammer",
+  "task_config": "demo_clean",
+  "task_status": "passed"
+}

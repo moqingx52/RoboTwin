@@ -1,0 +1,2593 @@
+{
+  "candidate_count": 100,
+  "candidate_partition": "rollout_train",
+  "criterion": "expert_script_simulator_solvability_only",
+  "determinism": {
+    "probe_repeats": 2,
+    "probe_success_rule": "all"
+  },
+  "expert_demo_count": 50,
+  "expert_demo_seeds": [
+    130000,
+    130001,
+    130003,
+    130004,
+    130005,
+    130007,
+    130008,
+    130009,
+    130010,
+    130011,
+    130012,
+    130013,
+    130014,
+    130015,
+    130016,
+    130017,
+    130019,
+    130020,
+    130021,
+    130022,
+    130023,
+    130025,
+    130026,
+    130027,
+    130029,
+    130030,
+    130031,
+    130033,
+    130034,
+    130035,
+    130036,
+    130037,
+    130038,
+    130040,
+    130042,
+    130043,
+    130044,
+    130045,
+    130046,
+    130047,
+    130048,
+    130049,
+    130050,
+    130051,
+    130052,
+    130054,
+    130055,
+    130057,
+    130058,
+    130059
+  ],
+  "expert_exception_count": 2,
+  "gpus": [
+    "5"
+  ],
+  "learning_policy_performance_consulted": false,
+  "passed": true,
+  "provenance": {
+    "code": {
+      "code_commit": "4a499eb54298e63e95b8f31ec4388dabf1741fe1",
+      "code_dirty": true
+    },
+    "software": {
+      "python": "3.10.20",
+      "torch": "2.1.0+cu121"
+    },
+    "task": "click_alarmclock",
+    "task_config": "demo_clean",
+    "task_config_sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0",
+    "task_manifest_sha256": "9da7ceed880a840e2d1382a9478982ab3a221db05a1f4295e69e456c53fb9c36"
+  },
+  "results": [
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130000
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130000
+        }
+      ],
+      "seed": 130000
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130001
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130001
+        }
+      ],
+      "seed": 130001
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130002 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130002 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130002
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130002 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130002
+        }
+      ],
+      "seed": 130002
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130003
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130003
+        }
+      ],
+      "seed": 130003
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130004
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130004
+        }
+      ],
+      "seed": 130004
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130005
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130005
+        }
+      ],
+      "seed": 130005
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130006 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130006 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130006
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130006 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130006
+        }
+      ],
+      "seed": 130006
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130007
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130007
+        }
+      ],
+      "seed": 130007
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130008
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130008
+        }
+      ],
+      "seed": 130008
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130009
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130009
+        }
+      ],
+      "seed": 130009
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130010
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130010
+        }
+      ],
+      "seed": 130010
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130011
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130011
+        }
+      ],
+      "seed": 130011
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130012
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130012
+        }
+      ],
+      "seed": 130012
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130013
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130013
+        }
+      ],
+      "seed": 130013
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130014
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130014
+        }
+      ],
+      "seed": 130014
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130015
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130015
+        }
+      ],
+      "seed": 130015
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130016
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130016
+        }
+      ],
+      "seed": 130016
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130017
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130017
+        }
+      ],
+      "seed": 130017
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130018 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130018 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130018
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130018 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130018
+        }
+      ],
+      "seed": 130018
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130019
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130019
+        }
+      ],
+      "seed": 130019
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130020
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130020
+        }
+      ],
+      "seed": 130020
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130021
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130021
+        }
+      ],
+      "seed": 130021
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130022
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130022
+        }
+      ],
+      "seed": 130022
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130023
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130023
+        }
+      ],
+      "seed": 130023
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "'NoneType' object is not subscriptable",
+      "error_type": "expert_implementation_error",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "'NoneType' object is not subscriptable",
+          "error_type": "expert_implementation_error",
+          "passed": false,
+          "seed": 130024
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "'NoneType' object is not subscriptable",
+          "error_type": "expert_implementation_error",
+          "passed": false,
+          "seed": 130024
+        }
+      ],
+      "seed": 130024
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130025
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130025
+        }
+      ],
+      "seed": 130025
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130026
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130026
+        }
+      ],
+      "seed": 130026
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130027
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130027
+        }
+      ],
+      "seed": 130027
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "'NoneType' object is not subscriptable",
+      "error_type": "expert_implementation_error",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "'NoneType' object is not subscriptable",
+          "error_type": "expert_implementation_error",
+          "passed": false,
+          "seed": 130028
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "'NoneType' object is not subscriptable",
+          "error_type": "expert_implementation_error",
+          "passed": false,
+          "seed": 130028
+        }
+      ],
+      "seed": 130028
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130029
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130029
+        }
+      ],
+      "seed": 130029
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130030
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130030
+        }
+      ],
+      "seed": 130030
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130031
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130031
+        }
+      ],
+      "seed": 130031
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130032 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130032 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130032
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130032 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130032
+        }
+      ],
+      "seed": 130032
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130033
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130033
+        }
+      ],
+      "seed": 130033
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130034
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130034
+        }
+      ],
+      "seed": 130034
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130035
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130035
+        }
+      ],
+      "seed": 130035
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130036
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130036
+        }
+      ],
+      "seed": 130036
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130037
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130037
+        }
+      ],
+      "seed": 130037
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130038
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130038
+        }
+      ],
+      "seed": 130038
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130039 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130039 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130039
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130039 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130039
+        }
+      ],
+      "seed": 130039
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130040
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130040
+        }
+      ],
+      "seed": 130040
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130041 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130041 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130041
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130041 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130041
+        }
+      ],
+      "seed": 130041
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130042
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130042
+        }
+      ],
+      "seed": 130042
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130043
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130043
+        }
+      ],
+      "seed": 130043
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130044
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130044
+        }
+      ],
+      "seed": 130044
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130045
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130045
+        }
+      ],
+      "seed": 130045
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130046
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130046
+        }
+      ],
+      "seed": 130046
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130047
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130047
+        }
+      ],
+      "seed": 130047
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130048
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130048
+        }
+      ],
+      "seed": 130048
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130049
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130049
+        }
+      ],
+      "seed": 130049
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130050
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130050
+        }
+      ],
+      "seed": 130050
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130051
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130051
+        }
+      ],
+      "seed": 130051
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130052
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130052
+        }
+      ],
+      "seed": 130052
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130053 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130053 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130053
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130053 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130053
+        }
+      ],
+      "seed": 130053
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130054
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130054
+        }
+      ],
+      "seed": 130054
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130055
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130055
+        }
+      ],
+      "seed": 130055
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130056 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130056 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130056
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130056 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130056
+        }
+      ],
+      "seed": 130056
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130057
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130057
+        }
+      ],
+      "seed": 130057
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130058
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130058
+        }
+      ],
+      "seed": 130058
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130059
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130059
+        }
+      ],
+      "seed": 130059
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130060
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130060
+        }
+      ],
+      "seed": 130060
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130061
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130061
+        }
+      ],
+      "seed": 130061
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130062
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130062
+        }
+      ],
+      "seed": 130062
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130063
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130063
+        }
+      ],
+      "seed": 130063
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130064
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130064
+        }
+      ],
+      "seed": 130064
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130065
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130065
+        }
+      ],
+      "seed": 130065
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130066
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130066
+        }
+      ],
+      "seed": 130066
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130067
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130067
+        }
+      ],
+      "seed": 130067
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130068
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130068
+        }
+      ],
+      "seed": 130068
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130069
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130069
+        }
+      ],
+      "seed": 130069
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130070
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130070
+        }
+      ],
+      "seed": 130070
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130071
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130071
+        }
+      ],
+      "seed": 130071
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130072
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130072
+        }
+      ],
+      "seed": 130072
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130073
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130073
+        }
+      ],
+      "seed": 130073
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130074 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130074 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130074
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130074 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130074
+        }
+      ],
+      "seed": 130074
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130075
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130075
+        }
+      ],
+      "seed": 130075
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130076
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130076
+        }
+      ],
+      "seed": 130076
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130077
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130077
+        }
+      ],
+      "seed": 130077
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130078
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130078
+        }
+      ],
+      "seed": 130078
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130079
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130079
+        }
+      ],
+      "seed": 130079
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130080
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130080
+        }
+      ],
+      "seed": 130080
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130081
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130081
+        }
+      ],
+      "seed": 130081
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130082
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130082
+        }
+      ],
+      "seed": 130082
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130083
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130083
+        }
+      ],
+      "seed": 130083
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130084
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130084
+        }
+      ],
+      "seed": 130084
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130085
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130085
+        }
+      ],
+      "seed": 130085
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130086
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130086
+        }
+      ],
+      "seed": 130086
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130087
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130087
+        }
+      ],
+      "seed": 130087
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130088
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130088
+        }
+      ],
+      "seed": 130088
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130089 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130089 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130089
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130089 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130089
+        }
+      ],
+      "seed": 130089
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130090
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130090
+        }
+      ],
+      "seed": 130090
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130091
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130091
+        }
+      ],
+      "seed": 130091
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130092
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130092
+        }
+      ],
+      "seed": 130092
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130093
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130093
+        }
+      ],
+      "seed": 130093
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130094
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130094
+        }
+      ],
+      "seed": 130094
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130095
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130095
+        }
+      ],
+      "seed": 130095
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130096
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130096
+        }
+      ],
+      "seed": 130096
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130097
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130097
+        }
+      ],
+      "seed": 130097
+    },
+    {
+      "episode_idx": 0,
+      "error_message": null,
+      "error_type": null,
+      "passed": true,
+      "probe_passed_count": 2,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130098
+        },
+        {
+          "episode_idx": 0,
+          "error_message": null,
+          "error_type": null,
+          "passed": true,
+          "seed": 130098
+        }
+      ],
+      "seed": 130098
+    },
+    {
+      "episode_idx": 0,
+      "error_message": "Saved seed 130099 failed pre-motion validation for episode 0",
+      "error_type": "pre_motion_validation_failed",
+      "passed": false,
+      "probe_passed_count": 0,
+      "probe_repeats": 2,
+      "probes": [
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130099 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130099
+        },
+        {
+          "episode_idx": 0,
+          "error_message": "Saved seed 130099 failed pre-motion validation for episode 0",
+          "error_type": "pre_motion_validation_failed",
+          "passed": false,
+          "seed": 130099
+        }
+      ],
+      "seed": 130099
+    }
+  ],
+  "schema_version": 2,
+  "seed_not_solvable_count": 11,
+  "selection_rule": "first_n_solvable_in_manifest_order",
+  "shard_count": 1,
+  "solvable_count_in_candidates": 87,
+  "stage": "seed_feasibility_scan",
+  "task": "click_alarmclock",
+  "task_config": "demo_clean",
+  "task_status": "passed"
+}

@@ -1,45 +1,42 @@
 {
-  "all_passed": false,
+  "all_passed": true,
   "evidence_schema_version": 2,
-  "passed_count": 0,
+  "passed_count": 2,
   "run_dir": "experiments/brace/archive/seed_feasibility_reverify_20260808",
   "schema_version": 2,
   "stage": "seed_feasibility_batch",
   "task_count": 2,
   "tasks": {
     "lift_pot": {
-      "evidence_path": "experiments/brace/archive/seed_feasibility_reverify_20260808/lift_pot_supplemented_feasibility.json",
-      "evidence_sha256": "8d8e84bdffa66dd37d2f79fefcecf5daa96f762dbf2539729242259c39b52c30",
-      "invalid_evidence": [
-        "result row seed 150000 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150001 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150002 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150003 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150004 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150005 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150006 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150007 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150008 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150009 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150010 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150011 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150012 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150013 has probe_repeats=2 but determinism.probe_repeats=1",
-        "result row seed 150014 has probe_repeats=2 but determinism.probe_repeats=1",
-        "... and 285 more"
+      "evidence_path": "experiments/brace/archive/seed_feasibility_reverify_20260808/lift_pot_supplemented_feasibility_corrected.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "4a3004018333c717be8f70ea0d606c03148ac06c25d9f2d740d2d53f4de24724",
+      "expert_exception_count": 0,
+      "gpus": [
+        "4"
       ],
-      "passed": false,
-      "task_status": "pending"
+      "passed": true,
+      "seed_not_solvable_count": 202,
+      "shard_count": 4,
+      "solvable_count_in_candidates": 98,
+      "supplement_used": true,
+      "task_status": "passed"
     },
     "open_laptop": {
-      "evidence_path": "experiments/brace/archive/seed_feasibility_reverify_20260808/open_laptop_reverify_feasibility.json",
-      "evidence_sha256": "d7859b778f7ea92eb50c6f90775371d2a0dd5da8ef9ccdd426e9440972b479e6",
-      "invalid_evidence": [
-        "result row seed 170084 passed flag is inconsistent with majority/2 (probe_passed_count=1)"
+      "evidence_path": "experiments/brace/archive/seed_feasibility_reverify_20260808/open_laptop_reverify_feasibility_corrected.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "1b37a7b6205ff69e3237c76a0fb07e45759e89a0436c4f6f5fc30d4f718338e9",
+      "expert_exception_count": 0,
+      "gpus": [
+        "5"
       ],
-      "passed": false,
-      "task_status": "pending"
+      "passed": true,
+      "seed_not_solvable_count": 21,
+      "shard_count": 1,
+      "solvable_count_in_candidates": 79,
+      "supplement_used": false,
+      "task_status": "passed"
     }
   },
-  "unresolved_count": 2
+  "unresolved_count": 0
 }
