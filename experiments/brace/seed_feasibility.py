@@ -43,6 +43,8 @@ PARTITION_KEYS = ("rollout_train", "anchor_candidate", "census_candidate", "conf
 
 SEED_NOT_SOLVABLE_ERROR_TYPES = {
     "pre_motion_validation_failed",
+    "expert_plan_failed",
+    "expert_check_failed",
     "simulator_unstable",
 }
 
@@ -129,8 +131,13 @@ def build_evidence_provenance(
 def classify_probe_error(exc: BaseException) -> tuple[str, str]:
     message = str(exc).strip() or exc.__class__.__name__
     name = exc.__class__.__name__
-    if name == "RuntimeError" and "pre-motion validation" in message:
-        return "pre_motion_validation_failed", message
+    if name == "RuntimeError":
+        if "expert plan failed" in message:
+            return "expert_plan_failed", message
+        if "expert success check failed" in message:
+            return "expert_check_failed", message
+        if "pre-motion validation" in message:
+            return "pre_motion_validation_failed", message
     if name == "UnStableError":
         return "simulator_unstable", message
     if name == "AssertionError":
@@ -529,8 +536,10 @@ def probe_seed_solvability(task_env: Any, args: dict[str, Any], seed: int, episo
     try:
         task_env.setup_demo(now_ep_num=episode_idx, seed=seed, **args)
         task_env.play_once()
-        if not (task_env.plan_success and task_env.check_success()):
-            raise RuntimeError(f"Saved seed {seed} failed pre-motion validation for episode {episode_idx}")
+        if not task_env.plan_success:
+            raise RuntimeError(f"Saved seed {seed} expert plan failed for episode {episode_idx}")
+        if not task_env.check_success():
+            raise RuntimeError(f"Saved seed {seed} expert success check failed for episode {episode_idx}")
         row["passed"] = True
     except Exception as exc:
         error_type, message = classify_probe_error(exc)

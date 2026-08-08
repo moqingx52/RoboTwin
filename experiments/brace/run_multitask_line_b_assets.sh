@@ -1,5 +1,11 @@
 #!/bin/bash
 # Line B: build held-out multitask base assets (50-demo data → zarr → DP 600.ckpt).
+#
+# Scheduling:
+#   - Default task list excludes put_object_cabinet (protocol-feasibility failure).
+#   - Stages: collect | process | train | all (default all runs sequentially).
+#   - collect: up to BRACE_LINE_B_COLLECT_WORKERS_PER_GPU parallel simulators/GPU (default 3).
+#   - train: one DP job per GPU (exclusive; do not colocate with collection).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -10,8 +16,14 @@ conda activate RoboTwin
 export PYTHONPATH="${repo_root}:${repo_root}/policy/DP${PYTHONPATH:+:${PYTHONPATH}}"
 
 read -r -a gpu_ids <<< "${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
-read -r -a tasks <<< "${BRACE_HELDOUT_TASKS:-beat_block_hammer click_alarmclock handover_mic lift_pot move_can_pot open_laptop place_burger_fries put_object_cabinet shake_bottle stack_bowls_three}"
+# Nine frozen held-out tasks; put_object_cabinet blocked pending protocol decision.
+read -r -a tasks <<< "${BRACE_HELDOUT_TASKS:-beat_block_hammer click_alarmclock handover_mic lift_pot move_can_pot open_laptop place_burger_fries shake_bottle stack_bowls_three}"
 required_episodes=${BRACE_EXPERT_DEMO_COUNT:-50}
+line_b_stage=${BRACE_LINE_B_STAGE:-all}
+collect_workers_per_gpu=${BRACE_LINE_B_COLLECT_WORKERS_PER_GPU:-3}
+train_workers_per_gpu=${BRACE_LINE_B_TRAIN_WORKERS_PER_GPU:-1}
+run_dir="${BRACE_LINE_B_RUN_DIR:-experiments/brace/runs/line_b_assets_$(date -u +%Y%m%dT%H%M%SZ)}"
+mkdir -p "${run_dir}"
 
 if ((${#gpu_ids[@]} == 0)); then
   echo "BRACE_GPU_IDS must contain at least one GPU" >&2
@@ -28,9 +40,23 @@ done
 
 log_root="${BRACE_LINE_B_LOG_DIR:-experiments/brace/logs/line_b_assets}"
 mkdir -p "${log_root}"
-run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+run_stamp="$(basename "${run_dir}")"
 manifest_log="${log_root}/${run_stamp}_manifest.log"
-echo "line_b_assets start ${run_stamp}" | tee "${manifest_log}"
+echo "line_b_assets start ${run_stamp} stage=${line_b_stage}" | tee "${manifest_log}"
+
+python experiments/brace/write_run_meta.py \
+  --run-dir "${run_dir}" \
+  --stage "line_b_assets_${line_b_stage}" \
+  --run-id "${run_stamp}" \
+  --tasks "${tasks[@]}" \
+  --extra \
+    "gpu_ids=${gpu_ids[*]}" \
+    "collect_workers_per_gpu=${collect_workers_per_gpu}" \
+    "train_workers_per_gpu=${train_workers_per_gpu}" \
+    "line_b_stage=${line_b_stage}" \
+    "scheduling_note=collect_uses_${collect_workers_per_gpu}_sim_workers_per_gpu;train_exclusive_${train_workers_per_gpu}_per_gpu" \
+    "partial_line_b=true" \
+    "formal_preflight_requires_10_of_10=false_until_put_object_cabinet_resolved"
 
 patch_demo_clean_for_multitask() {
   if [[ ! -f task_config/demo_clean.yml.bak_line_b ]]; then
@@ -78,9 +104,6 @@ print(" ".join(str(int(s)) for s in seeds))
 PY
 }
 
-# cohort_provenance.json (written by prepare_multitask_demo_seeds.py) must match
-# the current manifest, evidence SHA and task config; otherwise the existing
-# demo dir belongs to an older cohort and must not be reused or skipped.
 cohort_matches_manifest() {
   local task=$1
   local prov="data/${task}/demo_clean/cohort_provenance.json"
@@ -102,9 +125,6 @@ cohort_matches_manifest() {
   return 0
 }
 
-# Any pre-existing demo dir whose seed list / provenance does not match the
-# current cohort is quarantined to a timestamped legacy directory so a resumed
-# run can never mix old episodes with the new seed mapping.
 quarantine_mismatched_demo_dir() {
   local task=$1
   local demo_dir="data/${task}/demo_clean"
@@ -114,7 +134,7 @@ quarantine_mismatched_demo_dir() {
   local expected
   expected="$(expected_cohort_seeds "${task}" 2>/dev/null || true)"
   if [[ -z "${expected}" ]]; then
-    echo "WARN ${task}: no expert_demo cohort in manifest; legacy data dir kept in place" | tee -a "${manifest_log}"
+    echo "WARN ${task}: no frozen expert_demo cohort in manifest; skip quarantine" | tee -a "${manifest_log}"
     return 0
   fi
   local mismatched=0
@@ -151,91 +171,197 @@ PY
   fi
 }
 
-trap restore_demo_clean EXIT
-patch_demo_clean_for_multitask
+task_assets_ready() {
+  local task=$1
+  local ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
+  local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
+  [[ -f "${ckpt}" && -d "${zarr}" ]] && cohort_matches_manifest "${task}"
+}
 
-collect_one() {
+collect_only() {
   local task=$1 gpu=$2
-  local log="${log_root}/${run_stamp}_${task}.log"
+  local log="${log_root}/${run_stamp}_${task}_collect.log"
   {
     set -euo pipefail
-    echo "=== ${task} gpu=${gpu} ==="
-    local ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
-    local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
+    echo "=== collect ${task} gpu=${gpu} ==="
     quarantine_mismatched_demo_dir "${task}"
     python experiments/brace/prepare_multitask_demo_seeds.py "${task}" --count "${required_episodes}"
     export CUDA_VISIBLE_DEVICES="${gpu}"
-    if ! bash collect_data.sh "${task}" demo_clean "${gpu}"; then
-      echo "collect failed for ${task}" >&2
-      exit 1
-    fi
+    bash collect_data.sh "${task}" demo_clean "${gpu}"
     local hdf5_count
     hdf5_count="$(count_demo_hdf5 "${task}")"
     if (( hdf5_count < required_episodes )); then
       echo "expected ${required_episodes} demo HDF5 for ${task}, found ${hdf5_count}" >&2
       exit 1
     fi
-    if ! (cd policy/DP && bash process_data.sh "${task}" demo_clean "${required_episodes}"); then
-      echo "process_data failed for ${task}" >&2
-      exit 1
-    fi
-    if ! (cd policy/DP && bash train.sh "${task}" demo_clean "${required_episodes}" 0 14 "${gpu}"); then
-      echo "train failed for ${task}" >&2
-      exit 1
-    fi
-    echo "=== ${task} complete ==="
+    echo "=== collect ${task} complete hdf5=${hdf5_count} ==="
   } >>"${log}" 2>&1
 }
 
+process_only() {
+  local task=$1
+  local log="${log_root}/${run_stamp}_${task}_process.log"
+  {
+    set -euo pipefail
+    echo "=== process ${task} ==="
+    local hdf5_count
+    hdf5_count="$(count_demo_hdf5 "${task}")"
+    if (( hdf5_count < required_episodes )); then
+      echo "expected ${required_episodes} demo HDF5 for ${task}, found ${hdf5_count}" >&2
+      exit 1
+    fi
+    remove_empty_demo_zarr "${task}"
+    (cd policy/DP && bash process_data.sh "${task}" demo_clean "${required_episodes}")
+    echo "=== process ${task} complete ==="
+  } >>"${log}" 2>&1
+}
+
+train_only() {
+  local task=$1 gpu=$2
+  local log="${log_root}/${run_stamp}_${task}_train.log"
+  {
+    set -euo pipefail
+    echo "=== train ${task} gpu=${gpu} ==="
+    export CUDA_VISIBLE_DEVICES="${gpu}"
+    (cd policy/DP && bash train.sh "${task}" demo_clean "${required_episodes}" 0 14 "${gpu}")
+    echo "=== train ${task} complete ==="
+  } >>"${log}" 2>&1
+}
+
+launch_packed_wave() {
+  local stage_fn=$1
+  shift
+  local -a queue=("$@")
+  local idx=0 total=${#queue[@]}
+  while (( idx < total )); do
+    local -a pids=() names=() gpus_used=()
+    for gpu in "${gpu_ids[@]}"; do
+      local slot=0
+      while (( slot < collect_workers_per_gpu && idx < total )); do
+        local task="${queue[idx]}"
+        if [[ "${stage_fn}" == "collect_only" ]]; then
+          echo "LAUNCH collect ${task} gpu=${gpu}" | tee -a "${manifest_log}"
+          collect_only "${task}" "${gpu}" &
+        elif [[ "${stage_fn}" == "train_only" ]]; then
+          echo "LAUNCH train ${task} gpu=${gpu}" | tee -a "${manifest_log}"
+          train_only "${task}" "${gpu}" &
+        else
+          echo "unknown stage_fn ${stage_fn}" >&2
+          return 1
+        fi
+        pids+=("$!")
+        names+=("${task}")
+        gpus_used+=("${gpu}")
+        idx=$((idx + 1))
+        slot=$((slot + 1))
+      done
+    done
+    local i
+    for i in "${!pids[@]}"; do
+      if ! wait "${pids[i]}"; then
+        echo "FAILED ${names[i]} (${stage_fn} gpu=${gpus_used[i]})" | tee -a "${manifest_log}"
+        return 1
+      fi
+      echo "OK ${names[i]} (${stage_fn})" | tee -a "${manifest_log}"
+    done
+  done
+  return 0
+}
+
+trap restore_demo_clean EXIT
+patch_demo_clean_for_multitask
+
 failed=0
 completed=0
-pending_tasks=()
+pending_collect=()
+pending_process=()
+pending_train=()
 for task in "${tasks[@]}"; do
-  ckpt="policy/DP/checkpoints/${task}-demo_clean-${required_episodes}-0/600.ckpt"
-  zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
-  if [[ -f "${ckpt}" && -d "${zarr}" ]]; then
-    if cohort_matches_manifest "${task}"; then
-      echo "SKIP ${task}: checkpoint and zarr exist with matching cohort provenance" | tee -a "${manifest_log}"
-      completed=$((completed + 1))
-    else
-      echo "PROVENANCE_MISMATCH ${task}: existing checkpoint/zarr lacks matching cohort provenance; rebuilding" | tee -a "${manifest_log}"
-      pending_tasks+=("${task}")
-    fi
-  else
-    pending_tasks+=("${task}")
+  if task_assets_ready "${task}"; then
+    echo "SKIP ${task}: checkpoint and zarr exist with matching cohort provenance" | tee -a "${manifest_log}"
+    completed=$((completed + 1))
+    continue
   fi
+  pending_collect+=("${task}")
+  pending_process+=("${task}")
+  pending_train+=("${task}")
 done
 
-echo "schedule pending=${#pending_tasks[@]} gpus=${gpu_ids[*]} one_task_per_gpu=true" | tee -a "${manifest_log}"
+echo "schedule stage=${line_b_stage} pending=${#pending_collect[@]} gpus=${gpu_ids[*]} collect_workers_per_gpu=${collect_workers_per_gpu}" | tee -a "${manifest_log}"
 
-for ((offset = 0; offset < ${#pending_tasks[@]}; offset += ${#gpu_ids[@]})); do
-  pids=()
-  names=()
-  for gpu_idx in "${!gpu_ids[@]}"; do
-    task_idx=$((offset + gpu_idx))
-    if ((task_idx >= ${#pending_tasks[@]})); then
-      break
+run_collect_stage() {
+  ((${#pending_collect[@]} == 0)) && return 0
+  launch_packed_wave collect_only "${pending_collect[@]}" || return 1
+}
+
+run_process_stage() {
+  local task
+  for task in "${pending_process[@]}"; do
+    echo "LAUNCH process ${task}" | tee -a "${manifest_log}"
+    if ! process_only "${task}"; then
+      echo "FAILED ${task} (process)" | tee -a "${manifest_log}"
+      return 1
     fi
-    task="${pending_tasks[task_idx]}"
-    gpu="${gpu_ids[gpu_idx]}"
-    echo "LAUNCH ${task} gpu=${gpu}" | tee -a "${manifest_log}"
-    collect_one "${task}" "${gpu}" &
-    pids+=("$!")
-    names+=("${task}")
+    echo "OK ${task} (process)" | tee -a "${manifest_log}"
   done
+}
 
-  for idx in "${!pids[@]}"; do
-    if ! wait "${pids[idx]}"; then
-      echo "FAILED ${names[idx]}" | tee -a "${manifest_log}"
-      failed=$((failed + 1))
-    else
-      echo "OK ${names[idx]}" | tee -a "${manifest_log}"
-      completed=$((completed + 1))
+run_train_stage() {
+  ((${#pending_train[@]} == 0)) && return 0
+  # DP training is exclusive: one trainer per GPU per wave.
+  local -a queue=("${pending_train[@]}")
+  local idx=0 total=${#queue[@]}
+  while (( idx < total )); do
+    local -a pids=() names=() assigned_gpus=()
+    for gpu in "${gpu_ids[@]}"; do
+      if (( idx >= total )); then
+        break
+      fi
+      local task="${queue[idx]}"
+      echo "LAUNCH train ${task} gpu=${gpu}" | tee -a "${manifest_log}"
+      train_only "${task}" "${gpu}" &
+      pids+=("$!")
+      names+=("${task}")
+      assigned_gpus+=("${gpu}")
+      idx=$((idx + 1))
+    done
+    local i
+    for i in "${!pids[@]}"; do
+      if ! wait "${pids[i]}"; then
+        echo "FAILED ${names[i]} (train gpu=${assigned_gpus[i]})" | tee -a "${manifest_log}"
+        return 1
+      fi
+      echo "OK ${names[i]} (train)" | tee -a "${manifest_log}"
+    done
+  done
+}
+
+case "${line_b_stage}" in
+  collect)
+    run_collect_stage || failed=$((failed + 1))
+    ;;
+  process)
+    run_process_stage || failed=$((failed + 1))
+    ;;
+  train)
+    run_train_stage || failed=$((failed + 1))
+    ;;
+  all)
+    run_collect_stage || failed=$((failed + 1))
+    if (( failed == 0 )); then
+      run_process_stage || failed=$((failed + 1))
     fi
-  done
-done
+    if (( failed == 0 )); then
+      run_train_stage || failed=$((failed + 1))
+    fi
+    ;;
+  *)
+    echo "unknown BRACE_LINE_B_STAGE=${line_b_stage} (use collect|process|train|all)" >&2
+    exit 2
+    ;;
+esac
 
-echo "line_b_assets done completed=${completed}/${#tasks[@]} failed=${failed}/${#tasks[@]}" | tee -a "${manifest_log}"
+echo "line_b_assets done stage=${line_b_stage} completed=${completed}/${#tasks[@]} failed=${failed}" | tee -a "${manifest_log}"
 if ((failed > 0)); then
   exit 1
 fi

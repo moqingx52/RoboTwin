@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "task": "put_object_cabinet",
+  "status": "protocol_feasibility_failure",
+  "date": "2026-08-09",
+  "criterion": {
+    "probe_repeats": 2,
+    "probe_success_rule": "all",
+    "expert_demo_count": 50
+  },
+  "evidence": {
+    "primary_path": "experiments/brace/archive/seed_feasibility_20260809/put_object_cabinet_feasibility.json",
+    "supplemented_path": "experiments/brace/archive/seed_feasibility_20260809/put_object_cabinet_supplemented_feasibility.json",
+    "supplemented_sha256": "97f7bcbd7e9bbc8ed9a11ab2ea2ceba406320efe7a0b3976c32de77358248f37"
+  },
+  "outcome": {
+    "combined_candidate_count": 300,
+    "stable_solvable_2_of_2": 25,
+    "flaky_1_of_2": 26,
+    "stable_fail_0_of_2": 249,
+    "original_pool_solvable": 7,
+    "supplement_pool_solvable": 18,
+    "supplement_pool_size": 200,
+    "supplement_success_rate": 0.09,
+    "expert_demo_cohort_size": 25,
+    "manifest_status": "candidate_unvalidated"
+  },
+  "decision": [
+    "Do not expand the seed pool via further amendment; expected yield is too low to reach 50 without cherry-picking.",
+    "Run expert diagnostic (diagnose_put_object_cabinet.py) to separate plan vs check failures before any code fix.",
+    "If expert or success predicate is repaired, regenerate full-pool evidence under a new explicit amendment; do not splice prior probe rows.",
+    "Task remains on the held-out panel until a formal protocol decision is recorded."
+  ],
+  "investigation_priority": [
+    "Split plan_success vs check_success in probe rows (seed_feasibility.py).",
+    "put_object_cabinet lifts object dz=0.15 then check_success requires dz < 0.12 relative to origin_z (envs/put_object_cabinet.py).",
+    "Random object model/id and arm selection may interact with placement success."
+  ]
+}

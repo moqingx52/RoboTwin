@@ -509,6 +509,16 @@ class MultitaskProtocolTest(unittest.TestCase):
         self.assertEqual(updated["cohorts"]["expert_demo"], [10, 11, 12, 13, 100])
         self.assertTrue(updated["expert_demo_selection"]["supplement_used"])
 
+    def test_classify_probe_error_splits_plan_and_check(self) -> None:
+        from experiments.brace.seed_feasibility import classify_probe_error
+
+        plan_exc = RuntimeError("Saved seed 1 expert plan failed for episode 0")
+        check_exc = RuntimeError("Saved seed 1 expert success check failed for episode 0")
+        legacy_exc = RuntimeError("Saved seed 1 failed pre-motion validation for episode 0")
+        self.assertEqual(classify_probe_error(plan_exc)[0], "expert_plan_failed")
+        self.assertEqual(classify_probe_error(check_exc)[0], "expert_check_failed")
+        self.assertEqual(classify_probe_error(legacy_exc)[0], "pre_motion_validation_failed")
+
     def test_probe_passed_strict_majority_never_degrades_to_any(self) -> None:
         from experiments.brace.seed_feasibility import probe_passed
         self.assertFalse(probe_passed(1, 2, "majority"))
