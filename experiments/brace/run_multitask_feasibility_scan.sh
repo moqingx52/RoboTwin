@@ -10,7 +10,11 @@ conda activate RoboTwin
 export PYTHONPATH="${repo_root}${PYTHONPATH:+:${PYTHONPATH}}"
 
 read -r -a scan_gpu_ids <<< "${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
-read -r -a tasks <<< "${BRACE_FEASIBILITY_TASKS:-beat_block_hammer handover_mic lift_pot open_laptop place_burger_fries shake_bottle stack_bowls_three}"
+if [[ -z "${BRACE_FEASIBILITY_TASKS+x}" ]]; then
+  read -r -a tasks <<< "beat_block_hammer handover_mic lift_pot open_laptop place_burger_fries shake_bottle stack_bowls_three"
+else
+  read -r -a tasks <<< "${BRACE_FEASIBILITY_TASKS}"
+fi
 read -r -a summary_tasks <<< "${BRACE_FEASIBILITY_SUMMARY_TASKS:-${tasks[*]}}"
 verify_task="${BRACE_FEASIBILITY_VERIFY_TASK:-}"
 verify_gpu="${BRACE_FEASIBILITY_VERIFY_GPU:-}"
@@ -71,6 +75,38 @@ scan_one_task() {
   fi
 
   mkdir -p "${shard_dir}"
+
+  if (( shards == 1 )); then
+    local -a single_args=(
+      --task "${task}"
+      --shard-id 0
+      --num-shards 1
+      --gpu-id "${gpu}"
+      --probe-repeats "${probe_repeats}"
+      --probe-success-rule "${probe_success_rule}"
+      --output "${output}"
+    )
+    if [[ -n "${verify_label}" ]]; then
+      single_args+=(--verify-label "${verify_label}")
+    fi
+    if [[ -n "${candidate_partition}" ]]; then
+      single_args+=(--candidate-partition "${candidate_partition}")
+    elif [[ "${BRACE_FEASIBILITY_PROVISIONAL_MANIFEST:-1}" == "1" ]]; then
+      single_args+=(--provisional-manifest-update)
+    fi
+    (
+      export CUDA_VISIBLE_DEVICES="${gpu}"
+      python experiments/brace/scan_seed_feasibility.py "${single_args[@]}"
+    )
+    local single_status=$?
+    if (( single_status != 0 )); then
+      echo "TASK_SCAN_FAILURE ${task} verify_label=${verify_label:-none} partition=${candidate_partition:-default}" >&2
+      return 1
+    fi
+    echo "TASK_DONE ${task} verify_label=${verify_label:-none} partition=${candidate_partition:-default} output=${output}"
+    return 0
+  fi
+
   local -a shard_pids=()
   local shard=0
   for ((shard=0; shard<shards; shard++)); do
@@ -81,6 +117,8 @@ scan_one_task() {
         --shard-id "${shard}"
         --num-shards "${shards}"
         --gpu-id "${gpu}"
+        --probe-repeats "${probe_repeats}"
+        --probe-success-rule "${probe_success_rule}"
         --output "${shard_dir}/shard_$(printf '%02d' "${shard}")_of_$(printf '%02d' "${shards}").json"
       )
       if [[ -n "${verify_label}" ]]; then
@@ -120,6 +158,8 @@ scan_one_task() {
     --merge-inputs "${merge_inputs[@]}"
     --output "${output}"
     --gpu-id "${gpu}"
+    --probe-repeats "${probe_repeats}"
+    --probe-success-rule "${probe_success_rule}"
   )
   if [[ -n "${verify_label}" ]]; then
     merge_args+=(--verify-label "${verify_label}")
@@ -194,7 +234,7 @@ launch_wave() {
 
 for ((offset = 0; offset < ${#pending_tasks[@]}; offset += ${#scan_gpu_ids[@]})); do
   wave=("${pending_tasks[@]:offset:${#scan_gpu_ids[@]}}")
-  launch_wave wave
+  launch_wave "${wave[@]}"
 done
 
 # Supplement scan (brace.multitask.v1.1): only for tasks whose original pool

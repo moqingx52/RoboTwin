@@ -1,0 +1,27 @@
+{
+  "all_passed": true,
+  "evidence_schema_version": 2,
+  "passed_count": 1,
+  "run_dir": "experiments/brace/runs/seed_feasibility_20260808T001800Z",
+  "schema_version": 2,
+  "stage": "seed_feasibility_batch",
+  "task_count": 1,
+  "tasks": {
+    "lift_pot": {
+      "evidence_path": "experiments/brace/runs/seed_feasibility_20260808T001800Z/lift_pot_supplemented_feasibility.json",
+      "evidence_schema_version": 2,
+      "evidence_sha256": "8d8e84bdffa66dd37d2f79fefcecf5daa96f762dbf2539729242259c39b52c30",
+      "expert_exception_count": 0,
+      "gpus": [
+        "4"
+      ],
+      "passed": true,
+      "seed_not_solvable_count": 180,
+      "shard_count": 4,
+      "solvable_count_in_candidates": 120,
+      "supplement_used": true,
+      "task_status": "passed"
+    }
+  },
+  "unresolved_count": 0
+}
