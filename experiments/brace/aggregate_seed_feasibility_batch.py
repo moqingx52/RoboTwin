@@ -35,13 +35,18 @@ def build_batch_summary(run_dir: Path, tasks: list[str], *, require_task_status:
     task_rows: dict[str, dict] = {}
     unresolved = 0
     for task in tasks:
-        # Preference: supplemented evidence > derived v2 > plain v1/v2 run output.
-        evidence_path = run_dir / f"{task}_supplemented_feasibility.json"
-        if not evidence_path.is_file():
-            evidence_path = run_dir / f"{task}_feasibility_v2.json"
-        if not evidence_path.is_file():
-            evidence_path = run_dir / f"{task}_feasibility.json"
-        if not evidence_path.is_file():
+        # Preference: corrected > supplemented > derived v2 > reverify > plain.
+        candidates = [
+            f"{task}_supplemented_feasibility_corrected.json",
+            f"{task}_supplemented_feasibility.json",
+            f"{task}_feasibility_corrected.json",
+            f"{task}_reverify_feasibility_corrected.json",
+            f"{task}_feasibility_v2.json",
+            f"{task}_reverify_feasibility.json",
+            f"{task}_feasibility.json",
+        ]
+        evidence_path = next((run_dir / name for name in candidates if (run_dir / name).is_file()), None)
+        if evidence_path is None:
             task_rows[task] = {
                 "task_status": TASK_STATUS_PENDING,
                 "passed": False,
@@ -61,7 +66,9 @@ def build_batch_summary(run_dir: Path, tasks: list[str], *, require_task_status:
                 "passed": False,
                 "evidence_path": _repo_relative(evidence_path),
                 "evidence_sha256": file_sha256(evidence_path),
-                "invalid_evidence": validation_errors,
+                "invalid_evidence": validation_errors[:15] + (
+                    ["... and %d more" % (len(validation_errors) - 15)] if len(validation_errors) > 15 else []
+                ),
             }
             unresolved += 1
             continue

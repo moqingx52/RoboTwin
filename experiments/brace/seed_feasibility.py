@@ -296,6 +296,36 @@ def validate_feasibility_evidence(evidence: dict[str, Any]) -> list[str]:
         errors.append("determinism.probe_repeats must be an integer")
     if determinism.get("probe_success_rule") not in PROBE_SUCCESS_RULES:
         errors.append(f"determinism.probe_success_rule must be one of {sorted(PROBE_SUCCESS_RULES)}")
+    repeats = determinism.get("probe_repeats")
+    rule = determinism.get("probe_success_rule")
+    if isinstance(results, list):
+        for row in results:
+            row_repeats = row.get("probe_repeats")
+            if row_repeats is not None:
+                if row_repeats != repeats:
+                    errors.append(
+                        f"result row seed {row.get('seed')} has probe_repeats={row_repeats} "
+                        f"but determinism.probe_repeats={repeats}"
+                    )
+                passed_count = row.get("probe_passed_count")
+                if isinstance(passed_count, int):
+                    if not 0 <= passed_count <= row_repeats:
+                        errors.append(
+                            f"result row seed {row.get('seed')} probe_passed_count={passed_count} "
+                            f"out of range for probe_repeats={row_repeats}"
+                        )
+                    elif rule in PROBE_SUCCESS_RULES and row.get("passed") is not None:
+                        expected = probe_passed(passed_count, row_repeats, rule)
+                        if expected is not row["passed"]:
+                            errors.append(
+                                f"result row seed {row.get('seed')} passed flag is inconsistent "
+                                f"with {rule}/{row_repeats} (probe_passed_count={passed_count})"
+                            )
+            elif repeats is not None and repeats > 1:
+                errors.append(
+                    f"result row seed {row.get('seed')} lacks probe_repeats under "
+                    f"determinism probe_repeats={repeats}"
+                )
     provenance = evidence.get("provenance", {})
     for key in ("code", "software", "task_config", "task_config_sha256"):
         if provenance.get(key) is None:
@@ -320,6 +350,14 @@ def validate_feasibility_evidence(evidence: dict[str, Any]) -> list[str]:
                 errors.append("supplement.used requires non-empty supplement_seeds_used")
             if supplement.get("used") is False and used_seeds:
                 errors.append("supplement not used must have empty supplement_seeds_used")
+            expected_determinism = {"probe_repeats": repeats, "probe_success_rule": rule}
+            for key in ("determinism", "original_determinism"):
+                recorded = supplement.get(key)
+                if recorded is not None and recorded != expected_determinism:
+                    errors.append(
+                        f"supplement.{key} {recorded} must match top-level determinism "
+                        f"{expected_determinism}"
+                    )
     return errors
 
 
@@ -507,6 +545,23 @@ def probe_seed_solvability(task_env: Any, args: dict[str, Any], seed: int, episo
     return row
 
 
+def probe_passed(passed_count: int, probe_repeats: int, success_rule: str) -> bool:
+    """Decide whether a repeated probe counts as passed under a fixed rule.
+
+    majority is strict: passed_count must exceed half the probes, so majority/2
+    is equivalent to all/2 and never degenerates into any/N.
+    """
+    if probe_repeats < 1:
+        raise ValueError("probe_repeats must be positive")
+    if success_rule == PROBE_SUCCESS_RULE_SINGLE:
+        return passed_count >= 1
+    if success_rule == PROBE_SUCCESS_RULE_MAJORITY:
+        return passed_count * 2 > probe_repeats
+    if success_rule == PROBE_SUCCESS_RULE_ALL:
+        return passed_count >= probe_repeats
+    raise ValueError(f"unsupported probe success rule: {success_rule}")
+
+
 def probe_repeat_outcome(
     task_env: Any,
     args: dict[str, Any],
@@ -526,19 +581,13 @@ def probe_repeat_outcome(
     row = {
         "seed": int(seed),
         "episode_idx": int(episode_idx),
-        "passed": False,
+        "passed": probe_passed(passed_count, len(probes), success_rule),
         "error_type": None,
         "error_message": None,
         "probe_repeats": len(probes),
         "probe_passed_count": passed_count,
         "probes": probes,
     }
-    if success_rule == PROBE_SUCCESS_RULE_SINGLE:
-        row["passed"] = passed_count > 0
-    elif success_rule == PROBE_SUCCESS_RULE_MAJORITY:
-        row["passed"] = passed_count >= (len(probes) + 1) // 2
-    else:
-        row["passed"] = passed_count == len(probes)
     if not row["passed"]:
         failed = [probe for probe in probes if not probe["passed"]]
         row["error_type"] = failed[0].get("error_type") if failed else None

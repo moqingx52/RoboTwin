@@ -166,6 +166,17 @@ def load_supplement_original(original_evidence_path: Path, task: str, base_candi
     return original
 
 
+def shard_determinism(paths: list[Path]) -> tuple[int, str]:
+    """Return the uniform probe determinism recorded in the shard payloads."""
+    recorded: set[tuple[int, str]] = set()
+    for path in paths:
+        payload = read_json(path)
+        recorded.add((int(payload.get("probe_repeats", 1)), str(payload.get("probe_success_rule", "single"))))
+    if len(recorded) != 1:
+        raise ValueError(f"shard files disagree on probe determinism: {sorted(recorded)}")
+    return recorded.pop()
+
+
 def build_supplement_block(
     original: dict,
     original_path: Path,
@@ -174,6 +185,8 @@ def build_supplement_block(
     combined_selected: list[int],
     *,
     supplement_shard_count: int,
+    probe_repeats: int,
+    probe_success_rule: str,
 ) -> dict:
     base_seeds = {int(row["seed"]) for row in original["results"]}
     used = [int(seed) for seed in combined_selected if int(seed) not in base_seeds]
@@ -192,6 +205,11 @@ def build_supplement_block(
         "selection_rule": SUPPLEMENT_SELECTION_RULE,
         "supplement_solvable": supplement_solvable,
         "supplement_shard_count": supplement_shard_count,
+        "determinism": {"probe_repeats": int(probe_repeats), "probe_success_rule": probe_success_rule},
+        "original_determinism": {
+            "probe_repeats": int(original.get("determinism", {}).get("probe_repeats", 1)),
+            "probe_success_rule": original.get("determinism", {}).get("probe_success_rule", "single"),
+        },
         "used": bool(used),
         "supplement_seeds_used": used,
     }
@@ -213,6 +231,11 @@ def main() -> int:
     parser.add_argument("--gpu-id", default="")
     parser.add_argument("--probe-repeats", type=int, default=1)
     parser.add_argument("--probe-success-rule", default=PROBE_SUCCESS_RULE_SINGLE)
+    parser.add_argument(
+        "--write-shard",
+        action="store_true",
+        help="force shard-payload output even for a single shard (used by supplement scans)",
+    )
     parser.add_argument(
         "--original-evidence",
         type=Path,
@@ -249,8 +272,15 @@ def main() -> int:
         scan_candidates = [int(seed) for seed in supplement_candidates]
 
     if args.merge_inputs:
+        shard_paths = [Path(path) for path in args.merge_inputs]
+        recorded_repeats, recorded_rule = shard_determinism(shard_paths)
+        if (recorded_repeats, recorded_rule) != (args.probe_repeats, args.probe_success_rule):
+            raise SystemExit(
+                f"shard probe determinism ({recorded_repeats}/{recorded_rule}) does not match "
+                f"--probe-repeats/--probe-success-rule ({args.probe_repeats}/{args.probe_success_rule})"
+            )
         probe_results = merge_probe_results(
-            [Path(path) for path in args.merge_inputs],
+            shard_paths,
             candidate_seeds=scan_candidates,
             task=args.task,
         )
@@ -265,7 +295,7 @@ def main() -> int:
             probe_repeats=args.probe_repeats,
             probe_success_rule=args.probe_success_rule,
         )
-        if args.num_shards > 1:
+        if args.num_shards > 1 or args.write_shard:
             label = args.verify_label or args.task
             shard_output = args.output or (
                 BRACE_DIR / "runs" / f"seed_feasibility_{label}_shard{args.shard_id:02d}.json"
@@ -308,6 +338,15 @@ def main() -> int:
     )
     supplement_block = None
     if original_evidence is not None:
+        original_determinism = original_evidence.get("determinism", {})
+        if (
+            original_determinism.get("probe_repeats") != args.probe_repeats
+            or original_determinism.get("probe_success_rule") != args.probe_success_rule
+        ):
+            raise SystemExit(
+                f"--original-evidence determinism {original_determinism} does not match "
+                f"--probe-repeats/--probe-success-rule ({args.probe_repeats}/{args.probe_success_rule})"
+            )
         supplement_candidates = manifest.get("partitions", {}).get("expert_demo_supplement", [])
         if len(probe_results) != len(supplement_candidates):
             raise SystemExit(
@@ -344,6 +383,8 @@ def main() -> int:
             probe_results,
             evidence["expert_demo_seeds"],
             supplement_shard_count=shard_count,
+            probe_repeats=args.probe_repeats,
+            probe_success_rule=args.probe_success_rule,
         )
         evidence["supplement"] = supplement_block
     if args.verify_label:

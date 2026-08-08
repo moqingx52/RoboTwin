@@ -77,6 +77,7 @@ scan_one_task() {
   mkdir -p "${shard_dir}"
 
   if (( shards == 1 )); then
+    local single_output="${output}"
     local -a single_args=(
       --task "${task}"
       --shard-id 0
@@ -84,8 +85,14 @@ scan_one_task() {
       --gpu-id "${gpu}"
       --probe-repeats "${probe_repeats}"
       --probe-success-rule "${probe_success_rule}"
-      --output "${output}"
     )
+    if [[ -n "${candidate_partition}" ]]; then
+      # Supplement scans must land as a shard payload so the combine step can
+      # consume them uniformly, even with a single shard.
+      single_args+=(--write-shard)
+      single_output="${shard_dir}/shard_00_of_01.json"
+    fi
+    single_args+=(--output "${single_output}")
     if [[ -n "${verify_label}" ]]; then
       single_args+=(--verify-label "${verify_label}")
     fi
@@ -103,7 +110,7 @@ scan_one_task() {
       echo "TASK_SCAN_FAILURE ${task} verify_label=${verify_label:-none} partition=${candidate_partition:-default}" >&2
       return 1
     fi
-    echo "TASK_DONE ${task} verify_label=${verify_label:-none} partition=${candidate_partition:-default} output=${output}"
+    echo "TASK_DONE ${task} verify_label=${verify_label:-none} partition=${candidate_partition:-default} output=${single_output}"
     return 0
   fi
 
@@ -265,6 +272,8 @@ combine_supplement() {
     --merge-inputs "${shard_inputs[@]}"
     --output "${run_dir}/${task}_supplemented_feasibility.json"
     --gpu-id "${gpu}"
+    --probe-repeats "${probe_repeats}"
+    --probe-success-rule "${probe_success_rule}"
   )
   if [[ "${BRACE_FEASIBILITY_PROVISIONAL_MANIFEST:-1}" == "1" ]]; then
     combine_args+=(--provisional-manifest-update)

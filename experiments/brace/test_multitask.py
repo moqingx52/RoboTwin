@@ -330,10 +330,10 @@ class MultitaskProtocolTest(unittest.TestCase):
             task="task_a",
             candidate_seeds=[10, 11, 12, 13],
             probe_results=[
-                {"seed": 10, "passed": False},
-                {"seed": 11, "passed": True},
-                {"seed": 12, "passed": False},
-                {"seed": 13, "passed": True},
+                {"seed": 10, "passed": True, "probe_repeats": 3, "probe_passed_count": 2},
+                {"seed": 11, "passed": True, "probe_repeats": 3, "probe_passed_count": 3},
+                {"seed": 12, "passed": False, "probe_repeats": 3, "probe_passed_count": 1},
+                {"seed": 13, "passed": True, "probe_repeats": 3, "probe_passed_count": 2},
             ],
             required_count=2,
             gpus=["3"],
@@ -509,6 +509,157 @@ class MultitaskProtocolTest(unittest.TestCase):
         self.assertEqual(updated["cohorts"]["expert_demo"], [10, 11, 12, 13, 100])
         self.assertTrue(updated["expert_demo_selection"]["supplement_used"])
 
+    def test_probe_passed_strict_majority_never_degrades_to_any(self) -> None:
+        from experiments.brace.seed_feasibility import probe_passed
+        self.assertFalse(probe_passed(1, 2, "majority"))
+        self.assertTrue(probe_passed(2, 2, "majority"))
+        self.assertFalse(probe_passed(1, 3, "majority"))
+        self.assertTrue(probe_passed(2, 3, "majority"))
+        self.assertFalse(probe_passed(1, 2, "all"))
+        self.assertTrue(probe_passed(2, 2, "all"))
+
+    def test_validator_rejects_combine_determinism_drift(self) -> None:
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11],
+            probe_results=[
+                {"seed": 10, "passed": True, "probe_repeats": 2, "probe_passed_count": 2},
+                {"seed": 11, "passed": True, "probe_repeats": 2, "probe_passed_count": 2},
+            ],
+            required_count=2,
+        )
+        evidence["determinism"] = {"probe_repeats": 1, "probe_success_rule": "single"}
+        errors = validate_feasibility_evidence(evidence)
+        self.assertTrue(any("probe_repeats=2" in error and "determinism.probe_repeats=1" in error for error in errors))
+
+    def test_validator_rejects_any_as_majority_passed_flag(self) -> None:
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11],
+            probe_results=[
+                {"seed": 10, "passed": True, "probe_repeats": 2, "probe_passed_count": 1},
+                {"seed": 11, "passed": True, "probe_repeats": 2, "probe_passed_count": 2},
+            ],
+            required_count=2,
+        )
+        evidence["determinism"] = {"probe_repeats": 2, "probe_success_rule": "majority"}
+        errors = validate_feasibility_evidence(evidence)
+        self.assertTrue(any("passed flag is inconsistent" in error for error in errors))
+
+    def test_derive_corrected_recomputes_from_saved_probes(self) -> None:
+        from experiments.brace.derive_corrected_feasibility import build_corrected_evidence
+        candidates = [10, 11, 12, 13]
+        rows = [
+            {"seed": seed, "episode_idx": 0,
+             "probe_repeats": 2,
+             "probe_passed_count": passed,
+             "probes": [
+                 {"seed": seed, "passed": True if idx < passed else False,
+                  "error_type": None, "error_message": None}
+                 for idx in range(2)
+             ]}
+            for seed, passed in zip(candidates, (2, 1, 0, 2))
+        ]
+        source = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=candidates,
+            probe_results=[{**row, "passed": row["probe_passed_count"] >= 1} for row in rows],
+            required_count=2,
+        )
+        source["determinism"] = {"probe_repeats": 2, "probe_success_rule": "majority"}
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "task_a_feasibility.json"
+            src.write_text(json.dumps(source), encoding="utf-8")
+            corrected = build_corrected_evidence(
+                source, src, probe_repeats=2, probe_success_rule="all", required_count=2
+            )
+            source_sha = file_sha256(src)
+        self.assertEqual(corrected["solvable_count_in_candidates"], 2)
+        self.assertEqual(corrected["expert_demo_seeds"], [10, 13])
+        self.assertEqual(corrected["determinism"], {"probe_repeats": 2, "probe_success_rule": "all"})
+        self.assertEqual(validate_feasibility_evidence(corrected), [])
+        self.assertEqual(
+            corrected["provenance"]["source_evidence"]["sha256"],
+            source_sha,
+        )
+        self.assertIn("derivation", corrected)
+
+    def test_derive_corrected_refuses_rows_without_probe_data(self) -> None:
+        from experiments.brace.derive_corrected_feasibility import build_corrected_evidence
+        source = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=[10, 11],
+            probe_results=[
+                {"seed": 10, "passed": True},
+                {"seed": 11, "passed": False},
+            ],
+            required_count=2,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "task_a_feasibility.json"
+            src.write_text(json.dumps(source), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot recompute offline"):
+                build_corrected_evidence(
+                    source, src, probe_repeats=2, probe_success_rule="all", required_count=2
+                )
+
+    def test_freeze_writes_frozen_manifest_with_valid_sidecar(self) -> None:
+        from experiments.brace.freeze_multitask_manifest import freeze_manifest
+        candidates = list(range(10, 14))
+        evidence = build_feasibility_evidence(
+            task="task_a",
+            candidate_seeds=candidates,
+            probe_results=[
+                {"seed": 10, "passed": True, "probe_repeats": 2, "probe_passed_count": 2},
+                {"seed": 11, "passed": True, "probe_repeats": 2, "probe_passed_count": 2},
+                {"seed": 12, "passed": False, "probe_repeats": 2, "probe_passed_count": 0},
+                {"seed": 13, "passed": False, "probe_repeats": 2, "probe_passed_count": 0},
+            ],
+            required_count=2,
+        )
+        evidence["determinism"] = {"probe_repeats": 2, "probe_success_rule": "all"}
+        manifest = {
+            "schema_version": 1,
+            "task": "task_a",
+            "status": "candidate_unvalidated",
+            "cohorts": {"expert_demo": []},
+            "partitions": {"rollout_train": candidates},
+            "feasibility": {"passed": False},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ev_path = root / "task_a_feasibility_corrected.json"
+            ev_path.write_text(json.dumps(evidence), encoding="utf-8")
+            manifest_path = root / "task_a.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            result = freeze_manifest(
+                "task_a",
+                ev_path,
+                manifest_path,
+                required_repeats=2,
+                required_rule="all",
+                required_count=2,
+            )
+            frozen = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(frozen["status"], "frozen")
+            self.assertTrue(frozen["feasibility"]["passed"])
+            self.assertEqual(frozen["cohorts"]["expert_demo"], [10, 11])
+            sidecar = Path(str(manifest_path) + ".sha256")
+            self.assertEqual(
+                sidecar.read_text().split()[0],
+                file_sha256(manifest_path),
+            )
+            self.assertEqual(result["evidence_sha256"], file_sha256(ev_path))
+            tampered = json.loads(json.dumps(evidence))
+            tampered["determinism"] = {"probe_repeats": 1, "probe_success_rule": "single"}
+            bad_path = root / "bad.json"
+            bad_path.write_text(json.dumps(tampered), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "determinism"):
+                freeze_manifest(
+                    "task_a", bad_path, manifest_path,
+                    required_repeats=2, required_rule="all", required_count=2,
+                )
+
     def test_batch_summary_prefers_supplemented_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -526,6 +677,25 @@ class MultitaskProtocolTest(unittest.TestCase):
             summary = build_batch_summary(root, ["task_a"])
             self.assertTrue(
                 summary["tasks"]["task_a"]["evidence_path"].endswith("task_a_supplemented_feasibility.json")
+            )
+
+    def test_batch_summary_prefers_corrected_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "task_a_supplemented_feasibility.json").write_text(json.dumps({"passed": True}), encoding="utf-8")
+            evidence = build_feasibility_evidence(
+                task="task_a",
+                candidate_seeds=[10, 11],
+                probe_results=[
+                    {"seed": 10, "passed": True},
+                    {"seed": 11, "passed": True},
+                ],
+                required_count=2,
+            )
+            (root / "task_a_supplemented_feasibility_corrected.json").write_text(json.dumps(evidence), encoding="utf-8")
+            summary = build_batch_summary(root, ["task_a"])
+            self.assertTrue(
+                summary["tasks"]["task_a"]["evidence_path"].endswith("task_a_supplemented_feasibility_corrected.json")
             )
 
     def test_probe_repeat_outcome_majority_rule(self) -> None:
