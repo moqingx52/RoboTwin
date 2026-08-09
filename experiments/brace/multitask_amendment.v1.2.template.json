@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "amendment_revision": "brace.multitask.v1.2",
+  "status": "draft_not_frozen",
+  "date": "FILL_BEFORE_FREEZE",
+  "applies_to": {
+    "protocol_revision": "brace.multitask.v1",
+    "protocol_sha256": "FILL_BEFORE_FREEZE"
+  },
+  "evidence": {
+    "isolated_parity_report": "FILL_REPO_RELATIVE_PATH",
+    "isolated_parity_sha256": "FILL_BEFORE_FREEZE",
+    "packed_parity_report": "FILL_REPO_RELATIVE_PATH",
+    "packed_parity_sha256": "FILL_BEFORE_FREEZE"
+  },
+  "operational_collection_retry": {
+    "scope": "frozen_expert_demo_saved_seed_premotion_materialization",
+    "eligible_tasks": [
+      "beat_block_hammer",
+      "click_alarmclock",
+      "lift_pot",
+      "move_can_pot",
+      "open_laptop",
+      "place_burger_fries",
+      "shake_bottle",
+      "stack_bowls_three"
+    ],
+    "max_attempts_per_episode": 5,
+    "seed_substitution": false,
+    "episode_index_rule": "frozen_cohort_index",
+    "acceptance_rule": "plan_success_and_check_success_and_trajectory_saved",
+    "log_all_attempts": true,
+    "exhaustion_rule": "fail_task_without_replacing_or_dropping_seed",
+    "existing_first_attempt_successes": "eligible_if_original_collect_log_and_cohort_provenance_are_preserved"
+  },
+  "notes": [
+    "Freeze this amendment before setting BRACE_PREMOTION_MAX_ATTEMPTS above 1.",
+    "handover_mic is not eligible for retry-based recovery until its expert/check instability is repaired and rescanned."
+  ]
+}

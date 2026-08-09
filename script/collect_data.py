@@ -14,6 +14,9 @@ import traceback
 import os
 import time
 from argparse import ArgumentParser
+from pathlib import Path
+
+from experiments.brace.premotion_retry import materialize_saved_seed_trajectory, resolve_max_attempts
 
 current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
@@ -191,6 +194,13 @@ def run(TASK_ENV, args):
         # fresh data directory and can also resume safely.
         print("\033[93m" + "[Prepare Missing Pre Motion Data]" + "\033[0m")
         args["need_plan"] = True
+        premotion_max_attempts, retry_amendment_path = resolve_max_attempts(
+            cwd=Path.cwd(), task_name=args["task_name"]
+        )
+        print(
+            f"Pre-motion max attempts per fixed seed: {premotion_max_attempts} "
+            f"(amendment={retry_amendment_path})"
+        )
         for episode_idx, seed in enumerate(seed_list[: args["episode_num"]]):
             traj_path = os.path.join(
                 args["save_path"], "_traj_data", f"episode{episode_idx}.pkl"
@@ -201,23 +211,18 @@ def run(TASK_ENV, args):
             if os.path.exists(traj_path) or os.path.exists(data_path):
                 continue
 
-            try:
-                TASK_ENV.setup_demo(now_ep_num=episode_idx, seed=seed, **args)
-                TASK_ENV.play_once()
-                if not (TASK_ENV.plan_success and TASK_ENV.check_success()):
-                    raise RuntimeError(
-                        f"Saved seed {seed} failed pre-motion validation "
-                        f"for episode {episode_idx}"
-                    )
-                TASK_ENV.save_traj_data(episode_idx)
-                print(
-                    f"prepared pre-motion episode {episode_idx} "
-                    f"(seed = {seed})"
-                )
-            finally:
-                TASK_ENV.close_env()
-                if args["render_freq"]:
-                    TASK_ENV.viewer.close()
+            result = materialize_saved_seed_trajectory(
+                TASK_ENV,
+                args,
+                seed=seed,
+                episode_idx=episode_idx,
+                max_attempts=premotion_max_attempts,
+                amendment_path=retry_amendment_path,
+            )
+            print(
+                f"prepared pre-motion episode {episode_idx} (seed = {seed}, "
+                f"attempt = {result['attempt']}/{premotion_max_attempts})"
+            )
 
     # =========== Collect Data ===========
 

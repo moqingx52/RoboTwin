@@ -22,6 +22,28 @@ required_episodes=${BRACE_EXPERT_DEMO_COUNT:-50}
 line_b_stage=${BRACE_LINE_B_STAGE:-all}
 collect_workers_per_gpu=${BRACE_LINE_B_COLLECT_WORKERS_PER_GPU:-3}
 train_workers_per_gpu=${BRACE_LINE_B_TRAIN_WORKERS_PER_GPU:-1}
+premotion_max_attempts=${BRACE_PREMOTION_MAX_ATTEMPTS:-1}
+premotion_retry_amendment=${BRACE_PREMOTION_RETRY_AMENDMENT:-}
+export BRACE_PREMOTION_MAX_ATTEMPTS="${premotion_max_attempts}"
+if [[ -n "${premotion_retry_amendment}" ]]; then
+  export BRACE_PREMOTION_RETRY_AMENDMENT="${premotion_retry_amendment}"
+fi
+premotion_retry_amendment_sha256=""
+if [[ "${premotion_max_attempts}" != "1" ]]; then
+  for task in "${tasks[@]}"; do
+    python - "${task}" <<'PY'
+import sys
+from pathlib import Path
+from experiments.brace.premotion_retry import resolve_max_attempts
+
+attempts, amendment = resolve_max_attempts(cwd=Path.cwd(), task_name=sys.argv[1])
+print(f"validated bounded pre-motion retry task={sys.argv[1]} attempts={attempts} amendment={amendment}")
+PY
+  done
+fi
+if [[ -n "${premotion_retry_amendment}" && -f "${premotion_retry_amendment}" ]]; then
+  premotion_retry_amendment_sha256="$(python -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "${premotion_retry_amendment}")"
+fi
 run_dir="${BRACE_LINE_B_RUN_DIR:-experiments/brace/runs/line_b_assets_$(date -u +%Y%m%dT%H%M%SZ)}"
 mkdir -p "${run_dir}"
 
@@ -53,6 +75,9 @@ python experiments/brace/write_run_meta.py \
     "gpu_ids=${gpu_ids[*]}" \
     "collect_workers_per_gpu=${collect_workers_per_gpu}" \
     "train_workers_per_gpu=${train_workers_per_gpu}" \
+    "premotion_max_attempts=${premotion_max_attempts}" \
+    "premotion_retry_amendment=${premotion_retry_amendment}" \
+    "premotion_retry_amendment_sha256=${premotion_retry_amendment_sha256}" \
     "line_b_stage=${line_b_stage}" \
     "scheduling_note=collect_uses_${collect_workers_per_gpu}_sim_workers_per_gpu;train_exclusive_${train_workers_per_gpu}_per_gpu" \
     "partial_line_b=true" \

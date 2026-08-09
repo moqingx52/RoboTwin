@@ -24,6 +24,7 @@ from experiments.brace.diagnose_line_b_collect_parity import (
     parse_failure_specs,
     summarize as summarize_collect_parity,
 )
+from experiments.brace.diagnose_handover_mic import resolve_seed_cases as resolve_handover_seed_cases
 from experiments.brace.multitask_protocol import (
     SUPPLEMENT_PARTITION_NAME,
     build_seed_manifest,
@@ -34,6 +35,11 @@ from experiments.brace.multitask_protocol import (
 )
 from experiments.brace.multitask_scheduler import Scheduler, validate_job_manifest
 from experiments.brace.prepare_multitask_demo_seeds import check_manifest_frozen
+from experiments.brace.premotion_retry import (
+    materialize_saved_seed_trajectory,
+    resolve_max_attempts,
+    validate_retry_amendment,
+)
 from experiments.brace.scan_seed_feasibility import merge_probe_results, shard_slice
 from experiments.brace.seed_feasibility import (
     PROBE_SUCCESS_RULE_MAJORITY,
@@ -92,6 +98,80 @@ class MultitaskProtocolTest(unittest.TestCase):
         self.assertEqual(summary["task_a"]["reported_failure"]["passed"], 1)
         self.assertEqual(summary["task_a"]["reported_failure"]["plan_failed"], 1)
         self.assertEqual(summary["task_a"]["nearby_control"]["check_failed"], 1)
+
+    def test_handover_diagnostic_uses_real_cohort_indices(self) -> None:
+        manifest = {"cohorts": {"expert_demo": [140000, 140004, 140018]}}
+        self.assertEqual(
+            resolve_handover_seed_cases(manifest, [140004, 140018]),
+            [{"seed": 140004, "episode_idx": 1}, {"seed": 140018, "episode_idx": 2}],
+        )
+        with self.assertRaisesRegex(ValueError, "not in"):
+            resolve_handover_seed_cases(manifest, [140005])
+
+    def test_bounded_premotion_retry_logs_fail_then_success(self) -> None:
+        class FakeEnv:
+            def __init__(self) -> None:
+                self.attempt = 0
+                self.plan_success = False
+
+            def setup_demo(self, **_kwargs) -> None:
+                self.attempt += 1
+
+            def play_once(self) -> None:
+                self.plan_success = self.attempt >= 2
+
+            def check_success(self) -> bool:
+                return True
+
+            def save_traj_data(self, episode_idx: int) -> None:
+                path = Path(self.save_path) / "_traj_data"
+                path.mkdir(parents=True, exist_ok=True)
+                (path / f"episode{episode_idx}.pkl").write_bytes(b"trajectory")
+
+            def close_env(self) -> None:
+                return None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = FakeEnv()
+            env.save_path = tmp
+            args = {"save_path": tmp, "task_name": "task_a", "task_config": "demo_clean", "render_freq": 0}
+            result = materialize_saved_seed_trajectory(
+                env,
+                args,
+                seed=10,
+                episode_idx=3,
+                max_attempts=2,
+                amendment_path="amendment.json",
+            )
+            rows = [json.loads(line) for line in (Path(tmp) / "premotion_attempts.jsonl").read_text().splitlines()]
+            self.assertEqual(result["attempt"], 2)
+            self.assertEqual([row["passed"] for row in rows], [False, True])
+            self.assertEqual(rows[0]["error_type"], "expert_plan_failed")
+
+    def test_retry_above_one_requires_matching_frozen_amendment(self) -> None:
+        payload = {
+            "status": "frozen",
+            "operational_collection_retry": {
+                "eligible_tasks": ["task_a"],
+                "max_attempts_per_episode": 5,
+                "seed_substitution": False,
+                "episode_index_rule": "frozen_cohort_index",
+                "acceptance_rule": "plan_success_and_check_success_and_trajectory_saved",
+                "log_all_attempts": True,
+            },
+        }
+        self.assertEqual(validate_retry_amendment(payload, max_attempts=5), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "amendment.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            env = {
+                "BRACE_PREMOTION_MAX_ATTEMPTS": "5",
+                "BRACE_PREMOTION_RETRY_AMENDMENT": str(path),
+            }
+            with mock.patch("experiments.brace.premotion_retry.validate_amendment_bindings", return_value=[]):
+                self.assertEqual(resolve_max_attempts(env, task_name="task_a")[0], 5)
+                with self.assertRaisesRegex(RuntimeError, "not eligible"):
+                    resolve_max_attempts(env, task_name="task_b")
 
     def test_design_assets_have_valid_sha256_sidecars(self) -> None:
         from experiments.brace.multitask_protocol import sha256_sidecar_valid
