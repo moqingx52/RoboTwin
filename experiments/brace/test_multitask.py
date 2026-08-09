@@ -19,6 +19,11 @@ from experiments.brace.aggregate_multitask import (
     validate_eval_payload,
 )
 from experiments.brace.aggregate_seed_feasibility_batch import build_batch_summary
+from experiments.brace.diagnose_line_b_collect_parity import (
+    nearby_control_indices,
+    parse_failure_specs,
+    summarize as summarize_collect_parity,
+)
 from experiments.brace.multitask_protocol import (
     SUPPLEMENT_PARTITION_NAME,
     build_seed_manifest,
@@ -70,6 +75,23 @@ class MultitaskProtocolTest(unittest.TestCase):
         self.assertTrue(result["passed"], result["errors"])
         self.assertEqual(len(result["development_tasks"]), 2)
         self.assertEqual(len(result["heldout_tasks"]), 10)
+
+    def test_collect_parity_failure_specs_and_nearby_controls(self) -> None:
+        parsed = parse_failure_specs(["task_a=12", "task_a=15", "task_b=21", "task_a=12"])
+        self.assertEqual(parsed, {"task_a": [12, 15], "task_b": [21]})
+        self.assertEqual(nearby_control_indices(list(range(10)), [4, 6], count=4), [3, 5, 7, 2])
+
+    def test_collect_parity_summary_splits_failure_modes(self) -> None:
+        rows = [
+            {"task": "task_a", "role": "reported_failure", "passed": True, "error_type": None},
+            {"task": "task_a", "role": "reported_failure", "passed": False, "error_type": "expert_plan_failed"},
+            {"task": "task_a", "role": "nearby_control", "passed": False, "error_type": "expert_check_failed"},
+        ]
+        summary = summarize_collect_parity(rows)
+        self.assertEqual(summary["task_a"]["reported_failure"]["attempts"], 2)
+        self.assertEqual(summary["task_a"]["reported_failure"]["passed"], 1)
+        self.assertEqual(summary["task_a"]["reported_failure"]["plan_failed"], 1)
+        self.assertEqual(summary["task_a"]["nearby_control"]["check_failed"], 1)
 
     def test_design_assets_have_valid_sha256_sidecars(self) -> None:
         from experiments.brace.multitask_protocol import sha256_sidecar_valid
