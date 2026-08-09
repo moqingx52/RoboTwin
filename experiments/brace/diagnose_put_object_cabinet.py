@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -181,11 +182,50 @@ def run_phased_play(args: dict[str, Any], seed: int, episode_idx: int) -> dict[s
                 viewer.close()
 
 
+def default_run_output_path() -> Path:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_dir = BRACE_DIR / "runs" / f"put_object_cabinet_diagnostic_{stamp}"
+    run_dir.mkdir(parents=True, exist_ok=False)
+    return run_dir / "diagnostic.json"
+
+
+def run_phased_play_repeated(
+    args: dict[str, Any],
+    seed: int,
+    episode_idx: int,
+    *,
+    diagnostic_repeats: int,
+) -> dict[str, Any]:
+    runs = [run_phased_play(args, seed, episode_idx) for _ in range(diagnostic_repeats)]
+    passed_count = sum(1 for run in runs if run.get("plan_success") and run.get("check_success"))
+    summary = {
+        "seed": int(seed),
+        "diagnostic_repeats": diagnostic_repeats,
+        "passed_count": passed_count,
+        "runs": runs,
+    }
+    if runs:
+        last = runs[-1]
+        summary.update(
+            {
+                "plan_success": last.get("plan_success"),
+                "check_success": last.get("check_success"),
+                "error_type": last.get("error_type"),
+                "failed_phase": last.get("failed_phase"),
+                "object_model": last.get("object_model"),
+                "object_model_id": last.get("object_model_id"),
+                "arm_tag": last.get("arm_tag"),
+            }
+        )
+    return summary
+
+
 def build_diagnostic_report(
     evidence: dict[str, Any],
     evidence_path: Path,
     *,
     tier_limits: dict[str, int],
+    diagnostic_repeats: int,
     episode_idx: int = 0,
 ) -> dict[str, Any]:
     _task_env, args = load_task_probe_args("put_object_cabinet", evidence.get("task_config", "demo_clean"))
@@ -199,12 +239,15 @@ def build_diagnostic_report(
         limit = tier_limits.get(tier, len(seeds))
         samples[tier] = []
         for seed in seeds[:limit]:
-            samples[tier].append(run_phased_play(args, seed, episode_idx))
+            samples[tier].append(
+                run_phased_play_repeated(args, seed, episode_idx, diagnostic_repeats=diagnostic_repeats)
+            )
 
     return {
         "schema_version": 1,
         "task": "put_object_cabinet",
         "stage": "expert_diagnostic",
+        "diagnostic_repeats": diagnostic_repeats,
         "source_evidence": {
             "path": str(evidence_path.resolve().relative_to(REPO_ROOT.resolve()))
             if evidence_path.resolve().is_relative_to(REPO_ROOT.resolve())
@@ -229,16 +272,29 @@ def main() -> int:
         type=Path,
         default=BRACE_DIR / "archive" / "seed_feasibility_20260809" / "put_object_cabinet_supplemented_feasibility.json",
     )
-    parser.add_argument("--output", type=Path)
+    parser.add_argument("--output", type=Path, help="default: experiments/brace/runs/put_object_cabinet_diagnostic_<UTC>/diagnostic.json")
+    parser.add_argument("--diagnostic-repeats", type=int, default=3)
     parser.add_argument("--stable-pass-limit", type=int, default=5)
     parser.add_argument("--flaky-limit", type=int, default=10)
     parser.add_argument("--stable-fail-limit", type=int, default=10)
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite an existing --output file (default refuses)",
+    )
     args = parser.parse_args()
+
+    if args.diagnostic_repeats < 1:
+        raise SystemExit("--diagnostic-repeats must be positive")
 
     evidence_path = args.evidence.resolve()
     evidence = read_json(evidence_path)
     if evidence.get("task") != "put_object_cabinet":
         raise SystemExit(f"expected put_object_cabinet evidence, got {evidence.get('task')}")
+
+    output = args.output.resolve() if args.output else default_run_output_path()
+    if output.exists() and not args.force:
+        raise SystemExit(f"refusing to overwrite existing output: {output} (pass --force to override)")
 
     report = build_diagnostic_report(
         evidence,
@@ -248,10 +304,25 @@ def main() -> int:
             "flaky": args.flaky_limit,
             "stable_fail": args.stable_fail_limit,
         },
+        diagnostic_repeats=args.diagnostic_repeats,
     )
-    output = args.output or evidence_path.with_name("put_object_cabinet_expert_diagnostic.json")
+    output.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(output, report)
-    print(json.dumps({"output": str(output), "tier_counts": report["tier_counts"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "output": str(output.relative_to(REPO_ROOT.resolve()))
+                if output.is_relative_to(REPO_ROOT.resolve())
+                else str(output),
+                "run_dir": str(output.parent.relative_to(REPO_ROOT.resolve()))
+                if output.parent.is_relative_to(REPO_ROOT.resolve())
+                else str(output.parent),
+                "tier_counts": report["tier_counts"],
+                "diagnostic_repeats": args.diagnostic_repeats,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

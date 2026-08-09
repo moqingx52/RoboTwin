@@ -257,19 +257,52 @@ launch_packed_wave() {
       done
     done
     local i
+    local wave_failed=0
     for i in "${!pids[@]}"; do
       if ! wait "${pids[i]}"; then
         echo "FAILED ${names[i]} (${stage_fn} gpu=${gpus_used[i]})" | tee -a "${manifest_log}"
-        return 1
+        wave_failed=$((wave_failed + 1))
+      else
+        echo "OK ${names[i]} (${stage_fn})" | tee -a "${manifest_log}"
       fi
-      echo "OK ${names[i]} (${stage_fn})" | tee -a "${manifest_log}"
     done
+    return "${wave_failed}"
   done
   return 0
 }
 
 trap restore_demo_clean EXIT
 patch_demo_clean_for_multitask
+
+task_collect_ready() {
+  local task=$1
+  local hdf5_count
+  hdf5_count="$(count_demo_hdf5 "${task}")"
+  (( hdf5_count >= required_episodes )) && cohort_matches_manifest "${task}"
+}
+
+needs_collect() {
+  local task=$1
+  local hdf5_count
+  hdf5_count="$(count_demo_hdf5 "${task}")"
+  if (( hdf5_count < required_episodes )); then
+    return 0
+  fi
+  if ! cohort_matches_manifest "${task}"; then
+    return 0
+  fi
+  return 1
+}
+
+task_process_ready() {
+  local task=$1
+  local zarr="policy/DP/data/${task}-demo_clean-${required_episodes}.zarr"
+  [[ -d "${zarr}" ]] && python - <<PY
+import sys, zarr
+root = zarr.open("${zarr}", mode="r")
+sys.exit(0 if "episode_ends" in root["meta"] else 1)
+PY
+}
 
 failed=0
 completed=0
@@ -282,16 +315,24 @@ for task in "${tasks[@]}"; do
     completed=$((completed + 1))
     continue
   fi
-  pending_collect+=("${task}")
-  pending_process+=("${task}")
-  pending_train+=("${task}")
+  if needs_collect "${task}"; then
+    pending_collect+=("${task}")
+  fi
+  if task_collect_ready "${task}" && ! task_process_ready "${task}"; then
+    pending_process+=("${task}")
+  fi
+  if task_process_ready "${task}"; then
+    pending_train+=("${task}")
+  fi
 done
 
 echo "schedule stage=${line_b_stage} pending=${#pending_collect[@]} gpus=${gpu_ids[*]} collect_workers_per_gpu=${collect_workers_per_gpu}" | tee -a "${manifest_log}"
 
 run_collect_stage() {
   ((${#pending_collect[@]} == 0)) && return 0
-  launch_packed_wave collect_only "${pending_collect[@]}" || return 1
+  local wave_failed=0
+  launch_packed_wave collect_only "${pending_collect[@]}" || wave_failed=$?
+  return "${wave_failed}"
 }
 
 run_process_stage() {
@@ -338,7 +379,7 @@ run_train_stage() {
 
 case "${line_b_stage}" in
   collect)
-    run_collect_stage || failed=$((failed + 1))
+    run_collect_stage || failed=$((failed + $?))
     ;;
   process)
     run_process_stage || failed=$((failed + 1))
@@ -347,8 +388,9 @@ case "${line_b_stage}" in
     run_train_stage || failed=$((failed + 1))
     ;;
   all)
-    run_collect_stage || failed=$((failed + 1))
-    if (( failed == 0 )); then
+    run_collect_stage && collect_rc=0 || collect_rc=$?
+    failed=$((failed + collect_rc))
+    if (( collect_rc == 0 )); then
       run_process_stage || failed=$((failed + 1))
     fi
     if (( failed == 0 )); then

@@ -11,7 +11,8 @@
   "evidence": {
     "primary_path": "experiments/brace/archive/seed_feasibility_20260809/put_object_cabinet_feasibility.json",
     "supplemented_path": "experiments/brace/archive/seed_feasibility_20260809/put_object_cabinet_supplemented_feasibility.json",
-    "supplemented_sha256": "97f7bcbd7e9bbc8ed9a11ab2ea2ceba406320efe7a0b3976c32de77358248f37"
+    "supplemented_sha256": "97f7bcbd7e9bbc8ed9a11ab2ea2ceba406320efe7a0b3976c32de77358248f37",
+    "primary_sha256": "449a6feead1ad2f626ee768df7adb896f1842299784a203172f19e617b7af1c2"
   },
   "outcome": {
     "combined_candidate_count": 300,
