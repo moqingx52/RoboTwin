@@ -13,10 +13,16 @@ import json
 import traceback
 import os
 import time
+import hashlib
 from argparse import ArgumentParser
 from pathlib import Path
 
-from experiments.brace.premotion_retry import materialize_saved_seed_trajectory, resolve_max_attempts
+from experiments.brace.premotion_retry import (
+    append_jsonl,
+    materialize_saved_seed_trajectory,
+    resolve_max_attempts,
+    utc_now,
+)
 
 current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
@@ -39,6 +45,63 @@ def get_embodiment_config(robot_file):
     return embodiment_args
 
 
+def reject_success_first_materialization(args, seed_list, episode_idx, seed, error):
+    """Remove one replay-failed accepted seed and compact pending trajectories."""
+    save_path = Path(args["save_path"])
+    append_jsonl(
+        save_path / "expert_acquisition_attempts.jsonl",
+        {
+            "schema_version": 2,
+            "stage": "base_expert_hdf5_materialization",
+            "created_at": utc_now(),
+            "task": args["task_name"],
+            "task_config": args["task_config"],
+            "seed": int(seed),
+            "candidate_seed_start": int(args.get("candidate_seed_start", 0)),
+            "candidate_seed_stop": (
+                int(args.get("candidate_seed_start", 0)) + int(args["candidate_seed_limit"])
+                if args.get("candidate_seed_limit") is not None else None
+            ),
+            "target_successes": int(args["episode_num"]),
+            "accepted_episode_idx": int(episode_idx),
+            "passed": False,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "git_commit": os.environ.get("BRACE_GIT_COMMIT"),
+            "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+            "pid": os.getpid(),
+        },
+    )
+    for path in (
+        save_path / "data" / f"episode{episode_idx}.hdf5",
+        save_path / "_traj_data" / f"episode{episode_idx}.pkl",
+    ):
+        if path.exists():
+            path.unlink()
+
+    old_count = len(seed_list)
+    seed_list.pop(episode_idx)
+    trajectory_dir = save_path / "_traj_data"
+    for old_idx in range(episode_idx + 1, old_count):
+        old_path = trajectory_dir / f"episode{old_idx}.pkl"
+        if old_path.exists():
+            old_path.replace(trajectory_dir / f"episode{old_idx - 1}.pkl")
+    (save_path / "seed.txt").write_text(
+        "".join(f"{value} " for value in seed_list), encoding="utf-8"
+    )
+
+    info_path = save_path / "scene_info.json"
+    if info_path.is_file():
+        info = json.loads(info_path.read_text(encoding="utf-8"))
+        info.pop(f"episode_{episode_idx}", None)
+        shifted = {}
+        for key, value in info.items():
+            if key.startswith("episode_") and key[8:].isdigit() and int(key[8:]) > episode_idx:
+                key = f"episode_{int(key[8:]) - 1}"
+            shifted[key] = value
+        info_path.write_text(json.dumps(shifted, ensure_ascii=False, indent=4), encoding="utf-8")
+
+
 def main(task_name=None, task_config=None):
 
     task = class_decorator(task_name)
@@ -46,6 +109,19 @@ def main(task_name=None, task_config=None):
 
     with open(config_path, "r", encoding="utf-8") as f:
         args = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    # BRACE multitask v2 uses RoboTwin's native success-first collection, but
+    # makes its target and bounded candidate stream explicit and resumable.
+    # These overrides are intentionally opt-in so ordinary RoboTwin collection
+    # and the frozen multitask-v1 saved-seed path are unchanged.
+    if os.environ.get("BRACE_SUCCESS_FIRST", "0") == "1":
+        args["episode_num"] = int(os.environ.get("BRACE_EXPERT_TARGET_SUCCESSES", "200"))
+        args["use_seed"] = False
+        args["success_first"] = True
+        args["candidate_seed_start"] = int(os.environ["BRACE_CANDIDATE_SEED_START"])
+        args["candidate_seed_limit"] = int(os.environ.get("BRACE_CANDIDATE_SEED_LIMIT", "5000"))
+        if args["episode_num"] < 1 or args["candidate_seed_limit"] < args["episode_num"]:
+            raise RuntimeError("invalid BRACE success-first target/candidate limit")
 
     args['task_name'] = task_name
 
@@ -118,27 +194,79 @@ def run(TASK_ENV, args):
         print("\033[93m" + "[Start Seed and Pre Motion Data Collection]" + "\033[0m")
         args["need_plan"] = True
 
+        attempt_log = Path(args["save_path"]) / "expert_acquisition_attempts.jsonl"
+        candidate_start = int(args.get("candidate_seed_start", 0))
+        candidate_limit = args.get("candidate_seed_limit")
+        candidate_stop = candidate_start + int(candidate_limit) if candidate_limit is not None else None
+        epid = candidate_start
+
         if os.path.exists(os.path.join(args["save_path"], "seed.txt")):
             with open(os.path.join(args["save_path"], "seed.txt"), "r") as file:
                 seed_list = file.read().split()
                 if len(seed_list) != 0:
                     seed_list = [int(i) for i in seed_list]
                     suc_num = len(seed_list)
-                    epid = max(seed_list) + 1
+                    epid = max(epid, max(seed_list) + 1)
             print(f"Exist seed file, Start from: {epid} / {suc_num}")
 
+        # A failed candidate is absent from seed.txt. Recover the last attempted
+        # seed from the append-only log so resume never silently retries or
+        # changes the preregistered candidate order.
+        if attempt_log.is_file():
+            for line in attempt_log.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    epid = max(epid, int(json.loads(line)["seed"]) + 1)
+
         while suc_num < args["episode_num"]:
+            if candidate_stop is not None and epid >= candidate_stop:
+                raise RuntimeError(
+                    f"expert_acquisition_infeasible: collected {suc_num}/{args['episode_num']} "
+                    f"successes after candidate seeds [{candidate_start},{candidate_stop})"
+                )
+            attempt_row = {
+                "schema_version": 2,
+                "stage": "base_expert_success_first",
+                "created_at": utc_now(),
+                "task": args["task_name"],
+                "task_config": args["task_config"],
+                "seed": epid,
+                "candidate_seed_start": candidate_start,
+                "candidate_seed_stop": candidate_stop,
+                "target_successes": int(args["episode_num"]),
+                "accepted_episode_idx": None,
+                "plan_success": False,
+                "check_success": False,
+                "trajectory_saved": False,
+                "passed": False,
+                "error_type": None,
+                "error_message": None,
+                "git_commit": os.environ.get("BRACE_GIT_COMMIT"),
+                "task_config_sha256": hashlib.sha256(
+                    Path(f"task_config/{args['task_config']}.yml").read_bytes()
+                ).hexdigest(),
+                "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+                "pid": os.getpid(),
+            }
             try:
                 TASK_ENV.setup_demo(now_ep_num=suc_num, seed=epid, **args)
                 TASK_ENV.play_once()
+                attempt_row["plan_success"] = bool(TASK_ENV.plan_success)
+                if attempt_row["plan_success"]:
+                    attempt_row["check_success"] = bool(TASK_ENV.check_success())
 
-                if TASK_ENV.plan_success and TASK_ENV.check_success():
+                if attempt_row["plan_success"] and attempt_row["check_success"]:
                     print(f"simulate data episode {suc_num} success! (seed = {epid})")
                     seed_list.append(epid)
                     TASK_ENV.save_traj_data(suc_num)
+                    attempt_row["accepted_episode_idx"] = suc_num
+                    attempt_row["trajectory_saved"] = True
+                    attempt_row["passed"] = True
                     suc_num += 1
                 else:
                     print(f"simulate data episode {suc_num} fail! (seed = {epid})")
+                    attempt_row["error_type"] = (
+                        "expert_plan_failed" if not attempt_row["plan_success"] else "expert_check_failed"
+                    )
                     fail_num += 1
 
                 TASK_ENV.close_env()
@@ -151,6 +279,8 @@ def run(TASK_ENV, args):
                 print("Error: ", e)
                 print(" -------------")
                 fail_num += 1
+                attempt_row["error_type"] = type(e).__name__
+                attempt_row["error_message"] = str(e)
                 TASK_ENV.close_env()
 
                 if args["render_freq"]:
@@ -163,12 +293,16 @@ def run(TASK_ENV, args):
                 print("Error: ", e)
                 print(" -------------")
                 fail_num += 1
+                attempt_row["error_type"] = type(e).__name__
+                attempt_row["error_message"] = str(e)
                 TASK_ENV.close_env()
 
                 if args["render_freq"]:
                     TASK_ENV.viewer.close()
                 time.sleep(1)
 
+            if args.get("success_first"):
+                append_jsonl(attempt_log, attempt_row)
             epid += 1
 
             with open(os.path.join(args["save_path"], "seed.txt"), "w") as file:
@@ -246,33 +380,56 @@ def run(TASK_ENV, args):
 
         for episode_idx in range(st_idx, args["episode_num"]):
             print(f"\033[34mTask name: {args['task_name']}\033[0m")
+            try:
+                TASK_ENV.setup_demo(now_ep_num=episode_idx, seed=seed_list[episode_idx], **args)
 
-            TASK_ENV.setup_demo(now_ep_num=episode_idx, seed=seed_list[episode_idx], **args)
+                traj_data = TASK_ENV.load_tran_data(episode_idx)
+                args["left_joint_path"] = traj_data["left_joint_path"]
+                args["right_joint_path"] = traj_data["right_joint_path"]
+                TASK_ENV.set_path_lst(args)
 
-            traj_data = TASK_ENV.load_tran_data(episode_idx)
-            args["left_joint_path"] = traj_data["left_joint_path"]
-            args["right_joint_path"] = traj_data["right_joint_path"]
-            TASK_ENV.set_path_lst(args)
+                info_file_path = os.path.join(args["save_path"], "scene_info.json")
 
-            info_file_path = os.path.join(args["save_path"], "scene_info.json")
+                if not os.path.exists(info_file_path):
+                    with open(info_file_path, "w", encoding="utf-8") as file:
+                        json.dump({}, file, ensure_ascii=False)
 
-            if not os.path.exists(info_file_path):
+                with open(info_file_path, "r", encoding="utf-8") as file:
+                    info_db = json.load(file)
+
+                info = TASK_ENV.play_once()
+                info_db[f"episode_{episode_idx}"] = info
+
                 with open(info_file_path, "w", encoding="utf-8") as file:
-                    json.dump({}, file, ensure_ascii=False)
+                    json.dump(info_db, file, ensure_ascii=False, indent=4)
 
-            with open(info_file_path, "r", encoding="utf-8") as file:
-                info_db = json.load(file)
-
-            info = TASK_ENV.play_once()
-            info_db[f"episode_{episode_idx}"] = info
-
-            with open(info_file_path, "w", encoding="utf-8") as file:
-                json.dump(info_db, file, ensure_ascii=False, indent=4)
-
-            TASK_ENV.close_env(clear_cache=((episode_idx + 1) % clear_cache_freq == 0))
-            TASK_ENV.merge_pkl_to_hdf5_video()
-            TASK_ENV.remove_data_cache()
-            assert TASK_ENV.check_success(), "Collect Error"
+                TASK_ENV.close_env(clear_cache=((episode_idx + 1) % clear_cache_freq == 0))
+                TASK_ENV.merge_pkl_to_hdf5_video()
+                TASK_ENV.remove_data_cache()
+                assert TASK_ENV.check_success(), "Collect Error"
+            except Exception as exc:
+                if not args.get("success_first"):
+                    raise
+                try:
+                    TASK_ENV.close_env()
+                except Exception:
+                    pass
+                try:
+                    TASK_ENV.remove_data_cache()
+                except Exception:
+                    pass
+                failed_seed = seed_list[episode_idx]
+                print(
+                    f"materialization failed for episode {episode_idx}, seed={failed_seed}; "
+                    "recording failure and advancing candidate stream"
+                )
+                reject_success_first_materialization(
+                    args, seed_list, episode_idx, failed_seed, exc
+                )
+                # Resume through the same success-first entry. It will retain
+                # completed HDF5 episodes, add one later candidate, and restart
+                # materialization at this now-missing episode index.
+                return run(TASK_ENV, args)
 
         command = f"cd description && bash gen_episode_instructions.sh {args['task_name']} {args['task_config']} {args['language_num']}"
         os.system(command)

@@ -136,6 +136,7 @@ Stages:
   multitask-generate-seeds  Generate deterministic disjoint candidate seed manifests.
   multitask-scan-feasibility  Scan rollout_train solvability; select expert_demo cohort.
   multitask-line-b-assets  Collect/process/train 50-demo assets from frozen expert_demo.
+  multitask-base200-assets Collect/process/train v2 Base200 with native success-first seeds.
   multitask-preflight  Audit 50-demo DP, seed, replay, and method-freeze readiness.
   multitask-run  Run/resume a frozen explicit multitask job manifest.
   multitask-report  Aggregate the complete held-out artifact matrix.
@@ -161,6 +162,9 @@ Environment (v2 audit / branch):
   BRACE_FORCE_HARD_SEEDS   Set to 1 to regenerate existing hard_eval_seeds files.
   BRACE_TASKS              Space-separated task subset (default: both protocol tasks).
   BRACE_MULTITASK_PROTOCOL_PATH  Multitask protocol path.
+  BRACE_BASE200_STAGE       collect|process|train|all (default all).
+  BRACE_BASE200_TASKS       Optional v2 task subset; defaults to development + 10 held-out.
+  BRACE_FAIL_ON_TASK_ERROR  Set 1 for operator-facing nonzero exit; default 0 is task-local fail-open.
 
 Immutable outputs (default since v2.3+):
   Each stage writes under experiments/brace/runs/<UTC>_<stage>_<tasks>/...
@@ -326,6 +330,11 @@ case "${stage}" in
   multitask-line-b-assets)
     export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
     exec bash experiments/brace/run_multitask_line_b_assets.sh "$@"
+    ;;
+
+  multitask-base200-assets)
+    export BRACE_GPU_IDS="${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7}"
+    exec bash experiments/brace/run_multitask_base200_assets.sh "$@"
     ;;
 
   multitask-preflight)

@@ -82,6 +82,36 @@ class MultitaskProtocolTest(unittest.TestCase):
         self.assertEqual(len(result["development_tasks"]), 2)
         self.assertEqual(len(result["heldout_tasks"]), 10)
 
+    def test_v2_base_acquisition_is_success_first_base200_and_disjoint(self) -> None:
+        path = BRACE_DIR / "multitask_protocol.v2.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["protocol_revision"], "brace.multitask.v2")
+        self.assertEqual(payload["base_dataset"]["target_successful_trajectories"], 200)
+        self.assertEqual(
+            payload["base_dataset"]["selection_rule"],
+            "ascending_candidate_seed_success_first",
+        )
+        self.assertFalse(payload["base_dataset"]["expert_repeat_stability_gate"])
+        self.assertEqual(payload["failure_policy"]["scheduler"], "task_local_fail_open")
+        self.assertIn("put_object_cabinet", payload["heldout_tasks"])
+        self.assertTrue(file_sha256(path) in path.with_suffix(".json.sha256").read_text())
+
+        starts = list(payload["task_candidate_seed_start"].values())
+        limit = payload["base_dataset"]["candidate_seed_limit_per_task"]
+        self.assertEqual(len(starts), len(set(starts)))
+        for idx, first in enumerate(starts):
+            for second in starts[idx + 1 :]:
+                self.assertGreaterEqual(abs(first - second), limit)
+        # v1 uses sub-million task partitions. v2 acquisition must not reuse
+        # those feasibility/rollout/evaluation environments.
+        self.assertTrue(all(start >= 1_000_000 for start in starts))
+
+    def test_base200_launcher_defaults_to_nonblocking_task_failures(self) -> None:
+        launcher = (BRACE_DIR / "run_multitask_base200_assets.sh").read_text(encoding="utf-8")
+        self.assertIn("fail_on_task_error=${BRACE_FAIL_ON_TASK_ERROR:-0}", launcher)
+        self.assertIn("run_gpu_wave collect_task", launcher)
+        self.assertIn("run_gpu_wave train_task 1", launcher)
+
     def test_collect_parity_failure_specs_and_nearby_controls(self) -> None:
         parsed = parse_failure_specs(["task_a=12", "task_a=15", "task_b=21", "task_a=12"])
         self.assertEqual(parsed, {"task_a": [12, 15], "task_b": [21]})
