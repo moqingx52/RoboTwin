@@ -1,0 +1,45 @@
+{
+  "amendment_revision": "brace.multitask.v1.2",
+  "applies_to": {
+    "prior_amendment": "experiments/brace/multitask_amendment.v1.1.json",
+    "prior_amendment_sha256": "e72c904ed959945ec5da0c4096694e0a40d38e54f03d3b4f5922fc4b2541bc43",
+    "protocol_revision": "brace.multitask.v1",
+    "protocol_sha256": "fcc55c880eebf98394abe1c70a9095107dc58dcd674a5a2906c12ef7377cf621"
+  },
+  "date": "2026-08-09",
+  "decision": [
+    "GPU packing was not the primary failure cause because packed outcomes were not systematically worse than isolated outcomes.",
+    "Bounded retry applies to the same frozen seed and real cohort episode index; it never substitutes a seed.",
+    "handover_mic is excluded pending expert/check repair and a fresh feasibility scan.",
+    "put_object_cabinet remains a protocol-feasibility failure and is not eligible."
+  ],
+  "evidence": {
+    "diagnostic_git_commit": "95f95c09576ef9fd561a5fe955f4bb710fb88dba",
+    "isolated_parity_report": "experiments/brace/archive/line_b_collect_parity_20260809/isolated_report.json",
+    "isolated_parity_sha256": "b072f327771cc8700ad6a879c4fbeaac12216cd1c714557791e6c6180d3b5c5f",
+    "packed_parity_report": "experiments/brace/archive/line_b_collect_parity_20260809/packed_report.json",
+    "packed_parity_sha256": "b5e2f55c16b556b8aec62633a80d8acb2282280e83ae3c3c4dffca9b72db0ad2"
+  },
+  "operational_collection_retry": {
+    "acceptance_rule": "plan_success_and_check_success_and_trajectory_saved",
+    "eligible_tasks": [
+      "beat_block_hammer",
+      "click_alarmclock",
+      "lift_pot",
+      "move_can_pot",
+      "open_laptop",
+      "place_burger_fries",
+      "shake_bottle",
+      "stack_bowls_three"
+    ],
+    "episode_index_rule": "frozen_cohort_index",
+    "exhaustion_rule": "fail_task_without_replacing_or_dropping_seed",
+    "existing_first_attempt_successes": "eligible_if_original_collect_log_and_cohort_provenance_are_preserved",
+    "log_all_attempts": true,
+    "max_attempts_per_episode": 5,
+    "scope": "frozen_expert_demo_saved_seed_premotion_materialization",
+    "seed_substitution": false
+  },
+  "schema_version": 1,
+  "status": "frozen"
+}
