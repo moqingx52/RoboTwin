@@ -3,6 +3,95 @@
 These instructions apply to the whole repository. Preserve experiment evidence
 and inspect active jobs before launching or stopping cloud workloads.
 
+## Paper north star: do not let infrastructure become the research question
+
+The BRACE paper studies whether a policy can improve from its own experience
+when useful self-generated chunks are branch/replay verified, while an anchor
+preserves capabilities the base policy already had. The primary comparisons are
+verified versus matched-random self-generated data, with and without the anchor.
+
+Expert demonstration collection is only bootstrap infrastructure for the base
+DP policy. Do not turn expert-seed determinism, repeated expert-script probing,
+or individual simulator flakes into the main project. A diagnostic may explain
+an artifact, but it must not block independent collection, training, Line A
+method development, or other tasks.
+
+Operational failure and scientific validity are different:
+
+- A failed task/job must not stop unrelated scheduler jobs. Continue other
+  tasks and record the failed task explicitly.
+- A failed gate must not be silently ignored in a paper claim. Report missing or
+  infeasible tasks and apply the frozen protocol's replacement, denominator, or
+  sensitivity rule.
+- Never delete a task, replace a seed, change a denominator, or tune a method
+  using held-out learned-policy outcomes without an explicit new protocol
+  revision.
+
+The current cloud handover/collection-path diagnostics are supporting evidence
+only. Regardless of whether they pass, archive their JSON and continue the main
+pipeline. Do not require further expert stability diagnostics unless a task
+cannot produce the target number of successful demonstrations within its fixed
+acquisition budget.
+
+## Base dataset policy for the paper
+
+Use **200 successful `demo_clean` expert trajectories per task** for the primary
+BRACE paper experiments. This matches the substrate used by the established
+BRACE development/confirmatory pipeline and the project's empirical finding
+that DP generally needs about 200 demonstrations for mean success above 50%.
+
+Keep **50 demonstrations** only as the RoboTwin official-alignment baseline or
+data-scale sensitivity. Do not make the 50-demo checkpoint the primary BRACE
+self-improvement substrate merely because it is the official example setting.
+All causal BRACE arms for a task must start from the same frozen Base200
+checkpoint and dataset.
+
+Collect expert data with the native success-first RoboTwin semantics:
+
+1. Traverse a preregistered, task-specific candidate seed sequence.
+2. Attempt each seed normally; on success, immediately save the seed and the
+   trajectory together.
+3. Log failures and continue to the next seed until 200 successful trajectories
+   are materialized or the fixed acquisition budget is exhausted.
+4. Freeze the materialized unit: seed + trajectory + task config + code commit +
+   attempt manifest. Do not freeze a seed first and later require the planner to
+   reproduce it.
+5. Never consult learned-policy performance when selecting expert trajectories.
+
+Repeated success of the same expert seed is not a paper gate. Bounded same-seed
+retry may be used only when frozen in an operational amendment, but ordinary
+success-first collection should be preferred. A task that exhausts its fixed
+budget is marked expert-acquisition-infeasible; it does not halt other tasks.
+
+The frozen 50-demo multitask v1 design and its partial checkpoints remain pilot
+evidence. Do not rewrite its files in place. The 200-demo primary experiment
+must use a new versioned protocol and artifact names (`multitask v2`,
+`*-demo_clean-200-*`).
+
+## Main critical path
+
+Prioritize work in this order:
+
+1. Freeze the BRACE-v2 intervention method on development task
+   `place_container_plate` (Line A); never tune it on held-out tasks.
+2. Materialize Base200 expert datasets and train Base200 DP checkpoints across
+   tasks; task jobs continue independently on failure.
+3. Collect Base200 policy rollouts with successes, failures, control traces, and
+   branch snapshots.
+4. Replay/branch verify candidate self-generated chunks and construct matched
+   random controls.
+5. Train U0/N1/B1/B2/B3 with matched optimizer steps and data budgets.
+6. Run frozen preservation/adaptation evaluation and paired task-level
+   inference.
+
+Before doing work outside this list, state which paper claim it unblocks. If it
+does not unblock a claim, a required artifact, safety, or reproducibility, defer
+it. In particular, do not start another broad seed-feasibility campaign, expert
+script repair program, or simulator determinism study merely to make all setup
+artifacts look perfect.
+
+The detailed execution plan is `docs/brace_paper_execution_plan_v2.md`.
+
 ## Cloud GPU scheduling
 
 The measured BRACE cloud environment is `/depot/rlinf/repos/RoboTwin` on the

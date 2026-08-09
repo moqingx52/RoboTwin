@@ -110,3 +110,4 @@ docs/
 !docs/
 docs/*
 !docs/brace_multitask_preregistration_v1.md
+!docs/brace_paper_execution_plan_v2.md
