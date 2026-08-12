@@ -35,6 +35,7 @@ def load_dp_model(ckpt_path, action_dim, normalizer_zarr_path=None):
 
 
 def evaluate_once(task_name, env_args, model, env_seed, policy_seed):
+    from envs.utils.create_actor import UnStableError
     from policy.DP.deploy_policy import encode_obs
 
     env = make_task_env(task_name)
@@ -45,7 +46,19 @@ def evaluate_once(task_name, env_args, model, env_seed, policy_seed):
             model.set_generator(gen)
 
         model.reset_obs()
-        env.setup_demo(now_ep_num=0, seed=env_seed, is_test=True, **env_args)
+        try:
+            env.setup_demo(now_ep_num=0, seed=env_seed, is_test=True, **env_args)
+        except UnStableError as exc:
+            # Operational missingness: not a policy failure. Record and continue;
+            # resume will skip this (split, seed, repeat) and must not swap seeds.
+            return {
+                "success": False,
+                "steps": 0,
+                "evaluated": False,
+                "operational_missingness": True,
+                "missingness_reason": "UnStableError",
+                "missingness_detail": str(exc),
+            }
         env.set_instruction("phase1 dp eval")
         success = False
         while env.take_action_cnt < env.step_lim:
@@ -62,7 +75,12 @@ def evaluate_once(task_name, env_args, model, env_seed, policy_seed):
                     break
             if success:
                 break
-        return {"success": bool(success), "steps": int(env.take_action_cnt)}
+        return {
+            "success": bool(success),
+            "steps": int(env.take_action_cnt),
+            "evaluated": True,
+            "operational_missingness": False,
+        }
     finally:
         try:
             env.close_env()
@@ -74,15 +92,28 @@ def summarize(rows, split_name):
     split_rows = [row for row in rows if row["split"] == split_name]
     if not split_rows:
         return {}
+    evaluated_rows = [row for row in split_rows if row.get("evaluated", True)]
+    missing_rows = [row for row in split_rows if not row.get("evaluated", True)]
     by_seed = {}
-    for row in split_rows:
+    for row in evaluated_rows:
         by_seed.setdefault(row["env_seed"], []).append(row["success"])
-    solved = sum(1 for vals in by_seed.values() if any(vals))
+    solved = sum(1 for vals in by_seed.values() if any(vals)) if by_seed else 0
     return {
         "episodes": len(split_rows),
-        "seeds": len(by_seed),
-        "mean_sr": sum(row["success"] for row in split_rows) / len(split_rows),
-        "solved_coverage": solved / len(by_seed),
+        "evaluated_episodes": len(evaluated_rows),
+        "operational_missing_episodes": len(missing_rows),
+        "seeds": len({row["env_seed"] for row in split_rows}),
+        "evaluated_seeds": len(by_seed),
+        # Denominator is evaluated episodes only; missingness is not policy failure.
+        "mean_sr": (
+            sum(row["success"] for row in evaluated_rows) / len(evaluated_rows)
+            if evaluated_rows
+            else None
+        ),
+        "solved_coverage": (solved / len(by_seed)) if by_seed else None,
+        "mean_sr_including_missing_as_failure": (
+            sum(bool(row.get("success")) for row in split_rows) / len(split_rows)
+        ),
     }
 
 
@@ -145,6 +176,11 @@ def output_path(output_dir, task_name, variant, shard_id, num_shards):
 
 
 def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_splits=None, *, census_candidate_split=False):
+    import hashlib
+    import subprocess
+
+    from common import TASKS
+
     split_names = []
     if census_candidate_split:
         split_names.append("census_candidate_id")
@@ -154,6 +190,15 @@ def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_spli
     if extra_splits:
         split_names.extend(str(name) for name in extra_splits)
     split_names = list(dict.fromkeys(split_names))
+    try:
+        git_commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(repo_path()), text=True).strip()
+        )
+    except Exception:
+        git_commit = None
+    tasks_tuple = tuple(TASKS)
+    tasks_sha = hashlib.sha256(",".join(tasks_tuple).encode("utf-8")).hexdigest()
+    missing_n = sum(1 for row in rows if not row.get("evaluated", True))
     return {
         "task_name": args.task_name,
         "task_config": args.task_config,
@@ -163,6 +208,13 @@ def build_summary(args, hard_seeds, hard_seed_source, rows, complete, extra_spli
         "hard_seeds": hard_seeds,
         "hard_seed_source": hard_seed_source,
         "rows": rows,
+        "provenance": {
+            "git_commit": git_commit,
+            "eval_task_whitelist": list(tasks_tuple),
+            "eval_task_whitelist_sha256": tasks_sha,
+            "unstable_error_policy": "record_operational_missingness_not_policy_failure",
+            "operational_missing_episodes": missing_n,
+        },
         "progress": {
             "complete": bool(complete),
             "completed_episodes": len(rows),
@@ -409,6 +461,8 @@ def main():
                     "policy_seed": args.policy_seed_offset + repeat,
                     "success": repeat % 2 == 0,
                     "steps": 0,
+                    "evaluated": True,
+                    "operational_missingness": False,
                 }
             )
             completed_keys.add(key)
@@ -442,7 +496,17 @@ def main():
                 out_path,
                 build_summary(args, hard_seeds, hard_seed_source, rows, complete=False, extra_splits=extra_splits, census_candidate_split=args.census_candidate_split),
             )
-            print(f"[{args.task_name}/{args.variant}] {split} seed={env_seed} repeat={repeat} success={row['success']}")
+            if row.get("evaluated", True):
+                print(
+                    f"[{args.task_name}/{args.variant}] {split} seed={env_seed} "
+                    f"repeat={repeat} success={row['success']}"
+                )
+            else:
+                print(
+                    f"[{args.task_name}/{args.variant}] {split} seed={env_seed} "
+                    f"repeat={repeat} evaluated=False "
+                    f"missingness={row.get('missingness_reason')}"
+                )
 
     complete = completed_keys == expected_keys
     summary = build_summary(args, hard_seeds, hard_seed_source, rows, complete=complete, extra_splits=extra_splits, census_candidate_split=args.census_candidate_split)

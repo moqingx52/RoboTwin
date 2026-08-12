@@ -1,0 +1,46 @@
+{
+  "artifacts": [
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/archive/branches_place_base200_v2/summary.json",
+      "sha256": "88568eda4fc910796c927564d26ae423474a53db4fe1f58406e14ea71147443d",
+      "size_bytes": 4642,
+      "source": "/workspace/RoboTwin/experiments/brace/runs/20260812T015107Z_branch_place_container_plate/branches_place_base200_v2/summary.json"
+    },
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/archive/branches_place_base200_v2/checks.jsonl",
+      "sha256": "45a63d75b43332505d39310d41691f18b288a658fae99b40784991136fba5d34",
+      "size_bytes": 43590,
+      "source": "/workspace/RoboTwin/experiments/brace/runs/20260812T015107Z_branch_place_container_plate/branches_place_base200_v2/checks.jsonl"
+    },
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/archive/branches_place_base200_v2/budgets.json",
+      "sha256": "ea4ff1f201815af42e248f9c6d322cc71176a62e0e27f57476ec4a65fd2b8055",
+      "size_bytes": 129,
+      "source": "/workspace/RoboTwin/experiments/brace/runs/20260812T015107Z_branch_place_container_plate/branches_place_base200_v2/budgets.json"
+    },
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/archive/branches_place_base200_v2/protocol.v2.3.json",
+      "sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+      "size_bytes": 2247,
+      "source": "/workspace/RoboTwin/experiments/brace/protocol.v2.3.json"
+    }
+  ],
+  "git_commit": "3d620034a6bb574cbe1475b742f2debd09440620",
+  "promoted_at": "2026-08-12T02:57:42Z",
+  "schema_version": 1,
+  "source_meta": {
+    "created_at": "2026-08-12T01:51:07Z",
+    "git_commit": "3d620034a6bb574cbe1475b742f2debd09440620",
+    "hostname": "bc1504c598b7",
+    "pid": 2297602,
+    "run_id": "20260812T015107Z",
+    "schema_version": 1,
+    "stage": "branch",
+    "subpath": "branches_place_base200_v2",
+    "tasks": [
+      "place_container_plate"
+    ]
+  },
+  "source_run_dir": "/workspace/RoboTwin/experiments/brace/runs/20260812T015107Z_branch_place_container_plate/branches_place_base200_v2",
+  "target": "archive/branches_place_base200_v2"
+}

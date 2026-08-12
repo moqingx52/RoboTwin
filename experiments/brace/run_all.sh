@@ -479,7 +479,14 @@ case "${stage}" in
         --gpus "${gpu_ids[@]}" \
         "$@"
       if [[ "${BRACE_AUTO_PROMOTE:-1}" == "1" ]]; then
-        audit_target=archive/replay_audit_v2_place_v2.3_gate
+        if [[ -n "${BRACE_AUDIT_PROMOTE_TARGET:-}" ]]; then
+          audit_target="${BRACE_AUDIT_PROMOTE_TARGET}"
+        elif [[ "${traced_rollout_dir}" == *"rollouts_traced_base200"* ]]; then
+          # Never overwrite the frozen place v2.3 pilot gate archive.
+          audit_target=archive/replay_audit_v2_place_base200_v2_gate
+        else
+          audit_target=archive/replay_audit_v2_place_v2.3_gate
+        fi
         if [[ "${task}" == "dump_bin_bigbin" ]]; then
           audit_target=archive/replay_audit_v2_dump_v2.3_gate
         fi

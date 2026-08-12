@@ -75,6 +75,7 @@ policy/DP/data_phase3/
 # BRACE runtime (large HDF5 / logs stay untracked)
 experiments/brace/rollouts_traced/
 experiments/brace/rollouts_traced_pilot/
+experiments/brace/rollouts_traced_base200_v2/
 experiments/brace/logs/
 experiments/brace/run_states/
 experiments/brace/inventory/

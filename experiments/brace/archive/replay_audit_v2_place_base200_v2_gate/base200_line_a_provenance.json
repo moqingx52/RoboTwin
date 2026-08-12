@@ -1,0 +1,17 @@
+{
+  "amendment": "experiments/brace/multitask_amendment.v2.1.json",
+  "amendment_sha256": "0e77cccdd102f580f8ed81d83b53f715052464768b3c9cfc5f4962695ccdfcbb",
+  "ckpt_path": "policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+  "ckpt_provenance_sha256": "adbdc8965adbcf0522bc402096fb03a33c7d3460e3b61bfccc44d7833070876c",
+  "ckpt_sha256": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
+  "passed": true,
+  "protocol": "experiments/brace/protocol.v2.3.json",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "replay_gate_passed": true,
+  "schema_version": 1,
+  "seeds_file_sha256": "e665d15302fc101cac4b255d238b88bfecb9563a66565f4a60bd3f44ddf0eb73",
+  "source_audit_summary_sha256": "5f0622e68ee160dd657ab67e03740e7cfd7ba18a4446483ba42ad6f8771ade2a",
+  "task": "place_container_plate",
+  "traced_corpus": "experiments/brace/rollouts_traced_base200_v2",
+  "traced_provenance_sha256": "48fd67b2f466dc4c8cb6fb14d0e0f66fee77db8d8da6a90af8ee9bd5911efa54"
+}

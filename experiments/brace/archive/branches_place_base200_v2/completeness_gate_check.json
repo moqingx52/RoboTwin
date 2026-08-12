@@ -1,0 +1,147 @@
+{
+  "accepted_breakdown": {
+    "accepted_points": 5,
+    "by_point_type": {
+      "first_persistent_divergence": 1,
+      "local_divergence_peak": 2,
+      "random_negative_control": 2
+    },
+    "note": "random_negative_control accepted points are branch-harness diagnostics that passed acceptance; N1 training controls must come from export matched-random, not from these control rows."
+  },
+  "branch_dir": "experiments/brace/runs/20260812T015107Z_branch_place_container_plate/branches_place_base200_v2",
+  "budgets": {
+    "accepted_chunks_denominator": 5,
+    "accepted_equals_budget_field": true,
+    "per_point_budget_ok": true,
+    "per_point_expected": {
+      "candidate": 3,
+      "control": 9
+    },
+    "protocol_continuation_m": 3,
+    "protocol_control_k": 3,
+    "recorded": {
+      "place_container_plate": {
+        "accepted_chunks": 5,
+        "environment_transitions": 26690,
+        "optimizer_examples": 0
+      }
+    },
+    "same_snapshot_restore_ok": true
+  },
+  "checked_at_utc": "2026-08-12T02:57:25Z",
+  "corpus": {
+    "rollout_dir_cli": "experiments/brace/rollouts_traced_base200_v2",
+    "task_dir_exists": true
+  },
+  "expected_protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "gate": {
+    "acceptance": {
+      "minimum_advantage_delta": 0.15,
+      "one_sided_alpha": 0.1
+    },
+    "complete": true,
+    "errors": [],
+    "harness_valid": true,
+    "matched_success_lift": 0.3827160493827161,
+    "passed": true,
+    "recovery_seed_fraction": 1.0
+  },
+  "jobs": {
+    "all_jobs_terminal": true,
+    "checks_rows": 108,
+    "duplicate_work_item_keys": 0,
+    "expected": 9,
+    "job_done_log_lines": 9,
+    "total_points": 9,
+    "unique_work_item_keys": 108
+  },
+  "kind": "branch_completeness_gate_check",
+  "ops_vs_science": {
+    "job_errors_in_summary": [],
+    "note": "no operational_failure field populated in checks; job_errors empty; scientific outcomes are success bool on candidate/control rows",
+    "operational_failure_rows": 0
+  },
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "schema_version": 1,
+  "seeds": {
+    "analyzed_zero_jobs": [
+      {
+        "env_seed": 100006,
+        "jobs": 0,
+        "note": "passed pairing into trace-analysis but emitted zero branch jobs"
+      }
+    ],
+    "eligible_count": 3,
+    "eligible_seeds": [
+      100003,
+      100007,
+      100009
+    ],
+    "pilot_accounted": [
+      100001,
+      100002,
+      100003,
+      100004,
+      100005,
+      100006,
+      100007,
+      100008,
+      100009,
+      100010
+    ],
+    "pilot_accounted_complete": true,
+    "pilot_seeds": [
+      100001,
+      100002,
+      100003,
+      100004,
+      100005,
+      100006,
+      100007,
+      100008,
+      100009,
+      100010
+    ],
+    "skipped_count": 6,
+    "skipped_seeds": [
+      {
+        "env_seed": 100001,
+        "failures": 8,
+        "reason": "no_success_failure_pair",
+        "successes": 0
+      },
+      {
+        "env_seed": 100002,
+        "failures": 8,
+        "reason": "no_success_failure_pair",
+        "successes": 0
+      },
+      {
+        "env_seed": 100004,
+        "failures": 0,
+        "reason": "no_success_failure_pair",
+        "successes": 8
+      },
+      {
+        "env_seed": 100005,
+        "failures": 0,
+        "reason": "no_success_failure_pair",
+        "successes": 8
+      },
+      {
+        "env_seed": 100008,
+        "failures": 0,
+        "reason": "no_success_failure_pair",
+        "successes": 8
+      },
+      {
+        "env_seed": 100010,
+        "failures": 0,
+        "reason": "no_success_failure_pair",
+        "successes": 8
+      }
+    ]
+  },
+  "verdict": "GO"
+}

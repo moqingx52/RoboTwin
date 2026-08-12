@@ -446,8 +446,13 @@ class RobotWorkspace(BaseWorkspace):
                 )
             anchor_cfg = OmegaConf.create(OmegaConf.to_container(cfg.task.dataset, resolve=True))
             anchor_cfg.zarr_path = anchor_zarr
-            anchor_dataset = hydra.utils.instantiate(anchor_cfg)
             anchor_loader_cfg = OmegaConf.select(cfg, "training.brace_anchor.dataloader", default=cfg.dataloader)
+            # Dataset buffers are sized to dataset.batch_size; keep it aligned with the
+            # anchor loader (typically 16), not the main SFT dataloader (128).
+            anchor_cfg.batch_size = int(
+                OmegaConf.select(anchor_loader_cfg, "batch_size", default=cfg.dataloader.batch_size)
+            )
+            anchor_dataset = hydra.utils.instantiate(anchor_cfg)
             anchor_dataloader = create_dataloader(
                 anchor_dataset,
                 preservation_stratified=True,

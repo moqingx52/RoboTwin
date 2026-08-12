@@ -22,15 +22,27 @@ def summarize(rows, split_name):
     split_rows = [row for row in rows if row["split"] == split_name]
     if not split_rows:
         return {}
+    evaluated_rows = [row for row in split_rows if row.get("evaluated", True)]
+    missing_rows = [row for row in split_rows if not row.get("evaluated", True)]
     by_seed = {}
-    for row in split_rows:
+    for row in evaluated_rows:
         by_seed.setdefault(row["env_seed"], []).append(row["success"])
-    solved = sum(1 for vals in by_seed.values() if any(vals))
+    solved = sum(1 for vals in by_seed.values() if any(vals)) if by_seed else 0
     return {
         "episodes": len(split_rows),
-        "seeds": len(by_seed),
-        "mean_sr": sum(row["success"] for row in split_rows) / len(split_rows),
-        "solved_coverage": solved / len(by_seed),
+        "evaluated_episodes": len(evaluated_rows),
+        "operational_missing_episodes": len(missing_rows),
+        "seeds": len({row["env_seed"] for row in split_rows}),
+        "evaluated_seeds": len(by_seed),
+        "mean_sr": (
+            sum(row["success"] for row in evaluated_rows) / len(evaluated_rows)
+            if evaluated_rows
+            else None
+        ),
+        "solved_coverage": (solved / len(by_seed)) if by_seed else None,
+        "mean_sr_including_missing_as_failure": (
+            sum(bool(row.get("success")) for row in split_rows) / len(split_rows)
+        ),
     }
 
 
@@ -120,6 +132,11 @@ def main():
         "rows": rows,
         "progress": _merged_progress(meta.get("progress", {}), len(rows), args.num_shards),
     }
+    if meta.get("provenance"):
+        summary["provenance"] = meta["provenance"]
+        missing_n = sum(1 for row in rows if not row.get("evaluated", True))
+        summary["provenance"] = dict(meta["provenance"])
+        summary["provenance"]["operational_missing_episodes"] = missing_n
     out_path = task_dir / f"{args.variant}.json"
     write_json_atomic(out_path, summary)
     print(f"Merged {len(shard_paths)} shards into {out_path}")

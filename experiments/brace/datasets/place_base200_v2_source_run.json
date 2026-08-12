@@ -1,0 +1,40 @@
+{
+  "artifacts": [
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/datasets/place_base200_v2_B1.jsonl",
+      "sha256": "b7ae303d3d8c8086e4ccb7287708b086abe21c174022c25903985740c6abb8aa",
+      "size_bytes": 4101,
+      "source": "/workspace/RoboTwin/experiments/brace/runs/20260812T030552Z_export_verified_chunks_place_container_plate/place_base200_v2_B1.jsonl"
+    },
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/datasets/place_base200_v2_N1.jsonl",
+      "sha256": "9331ba9592aa97c1b3f00a85a4809a7acc7c395a265beefde4ce0d2752bfc4b0",
+      "size_bytes": 3407,
+      "source": "/workspace/RoboTwin/experiments/brace/runs/20260812T030552Z_export_verified_chunks_place_container_plate/place_base200_v2_N1.jsonl"
+    },
+    {
+      "dest": "/workspace/RoboTwin/experiments/brace/datasets/place_base200_v2_summary.json",
+      "sha256": "f619b673364cf87e75f6b8699d25e8a5cde9933242aea7a684ee72dc23af03a5",
+      "size_bytes": 1336,
+      "source": "/workspace/RoboTwin/experiments/brace/runs/20260812T030552Z_export_verified_chunks_place_container_plate/place_base200_v2_summary.json"
+    }
+  ],
+  "git_commit": "3d620034a6bb574cbe1475b742f2debd09440620",
+  "promoted_at": "2026-08-12T03:11:15Z",
+  "schema_version": 1,
+  "source_meta": {
+    "created_at": "2026-08-12T03:05:52Z",
+    "git_commit": "3d620034a6bb574cbe1475b742f2debd09440620",
+    "hostname": "bc1504c598b7",
+    "pid": 2344797,
+    "run_id": "20260812T030552Z",
+    "schema_version": 1,
+    "stage": "export_verified_chunks",
+    "subpath": "export_place_base200_v2",
+    "tasks": [
+      "place_container_plate"
+    ]
+  },
+  "source_run_dir": "/workspace/RoboTwin/experiments/brace/runs/20260812T030552Z_export_verified_chunks_place_container_plate",
+  "target": "datasets/"
+}

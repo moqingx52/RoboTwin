@@ -1,0 +1,63 @@
+{
+  "accepted_points": 5,
+  "b1_chunks": 5,
+  "export_workers": 96,
+  "git_commit": "3d620034a6bb574cbe1475b742f2debd09440620",
+  "indexed_success_trajectories": 563,
+  "matching_audit": {
+    "b1_chunk_index_hist": {
+      "4": 1,
+      "8": 3,
+      "16": 1
+    },
+    "b1_max_allowed_per_seed": 2,
+    "b1_unique_env_seeds": [
+      100003,
+      100007,
+      100009
+    ],
+    "dropped": 0,
+    "dropped_rows": [],
+    "duplicate_count": 0,
+    "exact_pair_matches": 5,
+    "fallback_count": 0,
+    "matched": 5,
+    "max_chunk_share_per_seed": 0.25,
+    "n1_chunk_index_hist": {
+      "4": 1,
+      "8": 3,
+      "16": 1
+    },
+    "n1_max_allowed_per_seed": 2,
+    "n1_unique_env_seeds": [
+      100003,
+      100007,
+      100009
+    ],
+    "over_share_limit_b1": {},
+    "over_share_limit_n1": {},
+    "passed": true,
+    "per_seed_chunk_count_b1": {
+      "100003": 1,
+      "100007": 2,
+      "100009": 2
+    },
+    "per_seed_chunk_count_n1": {
+      "100003": 1,
+      "100007": 2,
+      "100009": 2
+    },
+    "share_cap_rule": "ceil_max_share_times_n",
+    "shared_env_seeds": [
+      100003,
+      100007,
+      100009
+    ],
+    "strict_matching": true
+  },
+  "n1_chunks": 5,
+  "protocol_revision": "export.v1.2",
+  "recomputed_accepted_points": 5,
+  "run_label": "place_base200_v2",
+  "task": "place_container_plate"
+}

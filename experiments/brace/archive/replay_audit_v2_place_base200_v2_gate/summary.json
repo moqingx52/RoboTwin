@@ -1,0 +1,111 @@
+{
+  "artifacts": {
+    "checks": "checks.jsonl",
+    "diagnostics": "diagnostics.jsonl",
+    "failures": "failures.jsonl"
+  },
+  "complete": true,
+  "control_trace_replay": {
+    "failed_checks": 2,
+    "pass_rate": 0.9666666666666667,
+    "passed": true,
+    "passed_checks": 58,
+    "required_pass_rate": 0.95,
+    "total_checks": 60
+  },
+  "expected_checks": 120,
+  "expected_replay_checks": 60,
+  "expected_restore_checks": 60,
+  "failed_checks": 2,
+  "git_commit": "3d620034a6bb574cbe1475b742f2debd09440620",
+  "metric_errors": {
+    "end_effector_rotation_error": {
+      "maximum": 0.0006657005675686028,
+      "median": 0.0,
+      "p95": 4.812288296300582e-05
+    },
+    "end_effector_translation_error": {
+      "maximum": 0.00027695087656856473,
+      "median": 0.0,
+      "p95": 2.1653858816294983e-06
+    },
+    "joint_max_error": {
+      "maximum": 0.0012869834899902344,
+      "median": 0.00022239238023757935,
+      "p95": 0.0010908484458923339
+    },
+    "object_rotation_error": {
+      "maximum": 0.05415286012032404,
+      "median": 8.415022910912754e-05,
+      "p95": 0.033803398474762936
+    },
+    "object_translation_error": {
+      "maximum": 0.03134438016912512,
+      "median": 2.4578447942743725e-07,
+      "p95": 0.002969408628089399
+    }
+  },
+  "minimum_pass_rate": 0.95,
+  "pass_rate": 0.9833333333333333,
+  "passed": true,
+  "passed_checks": 118,
+  "per_actor_failure_counts": {
+    "place_container_plate": {
+      "container:rotation": 1,
+      "container:translation": 1
+    }
+  },
+  "per_task_control_trace_replay_minimum_pass_rate": 0.95,
+  "preflight_errors": [],
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/protocol.v2.3.json",
+  "protocol_revision": "2.3",
+  "protocol_sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+  "restore_determinism": {
+    "failed_checks": 0,
+    "pass_rate": 1.0,
+    "passed": true,
+    "passed_checks": 60,
+    "required_pass_rate": 1.0,
+    "total_checks": 60
+  },
+  "schema_version": 2,
+  "tasks": {
+    "place_container_plate": {
+      "available_failures": 237,
+      "available_successes": 563,
+      "available_trajectories": 800,
+      "control_trace_replay": {
+        "failed_checks": 2,
+        "pass_rate": 0.9666666666666667,
+        "passed": true,
+        "passed_checks": 58,
+        "total_checks": 60
+      },
+      "pass_rate": 0.9833333333333333,
+      "passed_checks": 118,
+      "preflight_errors": [],
+      "replay_gate_passed": true,
+      "requested_trajectories": 20,
+      "restore_determinism": {
+        "failed_checks": 0,
+        "pass_rate": 1.0,
+        "passed": true,
+        "passed_checks": 60,
+        "total_checks": 60
+      },
+      "selected_failures": 10,
+      "selected_successes": 10,
+      "selected_trajectories": 20,
+      "snapshots_per_trajectory": 3,
+      "total_checks": 120
+    }
+  },
+  "thresholds": {
+    "end_effector_rotation_error": 0.05,
+    "end_effector_translation_error": 0.005,
+    "joint_max_error": 0.01,
+    "object_rotation_error": 0.05,
+    "object_translation_error": 0.005
+  },
+  "total_checks": 120
+}

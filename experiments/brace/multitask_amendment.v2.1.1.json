@@ -1,0 +1,44 @@
+{
+  "amendment_revision": "brace.multitask.v2.1.1",
+  "schema_version": 1,
+  "status": "frozen",
+  "date": "2026-08-11",
+  "applies_to": {
+    "protocol_revision": "brace.multitask.v2",
+    "protocol_path": "experiments/brace/multitask_protocol.v2.json",
+    "protocol_sha256": "52b16a96efc375a0d8dd72edeab619ad95eeb639348a40b8b3156fd3d7353953",
+    "related_amendment": "experiments/brace/multitask_amendment.v2.1.json"
+  },
+  "reason": [
+    "Base200 frozen characterization eval (demo_randomized / confirm_hard) can raise",
+    "envs.utils.create_actor.UnStableError during setup_demo for a frozen held-out seed.",
+    "That event is operational simulator missingness, not learned-policy failure, and must",
+    "not crash the shard, replace the seed, or be counted as success=false in the primary SR.",
+    "This amendment freezes the recording and denominator rule for Base200 eval resumes."
+  ],
+  "base200_frozen_eval_unstable_missingness": {
+    "scope": "experiments/phase1/eval_per_seed.py Base200 frozen characterization",
+    "catch": "UnStableError during setup_demo only",
+    "row_fields": {
+      "evaluated": false,
+      "operational_missingness": true,
+      "success": false,
+      "missingness_reason": "UnStableError"
+    },
+    "resume_rule": [
+      "Atomic per-episode checkpoint may resume incomplete shards.",
+      "Once a (split, env_seed, repeat) row is written with evaluated=false, resume skips it;",
+      "do not infinite-retry the same UnStableError, do not swap seeds, and do not treat it",
+      "as a policy failure."
+    ],
+    "denominator": {
+      "primary_mean_sr": "evaluated_episodes_only",
+      "sensitivity": "also_report_mean_sr_including_missing_as_failure",
+      "completeness_gate": "all_work_items_have_rows_including_missingness; do_not_relax_for_traced"
+    },
+    "traced_gate": {
+      "unchanged": true,
+      "note": "place traced still requires easy+hard merged progress.complete + Base200 provenance; SR never gates traced"
+    }
+  }
+}

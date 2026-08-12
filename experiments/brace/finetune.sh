@@ -15,8 +15,14 @@ batch_size=${11:-128}
 anchor_zarr_path=${12:-}
 screen_protocol_path=${13:-${BRACE_SCREEN_PROTOCOL_PATH:-}}
 
+rollout_budget="${rollout_per_batch}"
 case "${method}" in
   B1|N1|U1) anchor=false ;;
+  U0)
+    anchor=false
+    # Expert-only control: omit rollout split (raw expert zarr has no sample_sources).
+    rollout_budget=""
+    ;;
   B2|B3) anchor=true ;;
   *) echo "unsupported BRACE method: ${method}" >&2; exit 2 ;;
 esac
@@ -57,7 +63,6 @@ args=(
   task.dataset.load_to_memory=False
   dataloader.batch_size="${batch_size}"
   dataloader.num_batches="${steps_per_epoch}"
-  dataloader.rollout_per_batch="${rollout_per_batch}"
   training.debug=False
   training.seed="${train_seed}"
   training.device=cuda:0
@@ -78,6 +83,9 @@ args=(
   expert_data_num=200
   head_camera_type=D435
 )
+if [[ -n "${rollout_budget}" ]]; then
+  args+=(dataloader.rollout_per_batch="${rollout_budget}")
+fi
 if [[ "${anchor}" == "true" ]]; then
   args+=(training.brace_anchor.dataset.zarr_path="${anchor_zarr_path}")
 fi
@@ -93,6 +101,9 @@ touch "${final}.complete"
 
 if [[ "${anchor}" == "true" ]]; then
   protocol_path="${screen_protocol_path:-${repo_root}/experiments/brace/screen_protocol.v1.2.json}"
+  if [[ "${protocol_path}" != /* ]]; then
+    protocol_path="${repo_root}/${protocol_path}"
+  fi
   [[ -f "${protocol_path}" ]] || { echo "missing screen protocol: ${protocol_path}" >&2; exit 2; }
   feasibility_json="${checkpoint_dir}/${epochs}.feasibility.json"
   log_path=""

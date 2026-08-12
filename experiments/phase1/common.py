@@ -20,10 +20,18 @@ if str(REPO_ROOT / "description" / "utils") not in sys.path:
     sys.path.append(str(REPO_ROOT / "description" / "utils"))
 
 TASKS = (
-    "move_can_pot",
     "place_container_plate",
-    "click_alarmclock",
     "dump_bin_bigbin",
+    "beat_block_hammer",
+    "click_alarmclock",
+    "handover_mic",
+    "lift_pot",
+    "move_can_pot",
+    "open_laptop",
+    "place_burger_fries",
+    "put_object_cabinet",
+    "shake_bottle",
+    "stack_bowls_three",
 )
 
 VARIANTS = (

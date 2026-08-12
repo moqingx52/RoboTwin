@@ -49,11 +49,31 @@ PROMOTE_TARGETS: dict[str, dict[str, Any]] = {
         "required": ["summary.json"],
         "validate_replay_gate": True,
     },
+    "archive/replay_audit_v2_place_base200_v2_gate": {
+        "kind": "audit",
+        "task": "place_container_plate",
+        "required": ["summary.json"],
+        "validate_replay_gate": True,
+        "require_passed": True,
+        "base200_line_a": True,
+        "traced_corpus": "experiments/brace/rollouts_traced_base200_v2",
+        "ckpt_path": "policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+        "amendment": "experiments/brace/multitask_amendment.v2.1.json",
+        "protocol": "experiments/brace/protocol.v2.3.json",
+    },
     "archive/replay_audit_v2_dump_v2.3_gate": {
         "kind": "audit",
         "task": "dump_bin_bigbin",
         "required": ["summary.json"],
         "validate_replay_gate": True,
+    },
+    "archive/branches_place_base200_v2": {
+        "kind": "branch",
+        "branch_label": "branches_place_base200_v2",
+        "required": ["summary.json", "checks.jsonl"],
+        "optional": ["budgets.json"],
+        "extra_protocol": "protocol.v2.3.json",
+        "validate_passed": True,
     },
 }
 
@@ -95,11 +115,13 @@ def validate_branch_summary(summary_path: Path, *, require_passed: bool) -> None
         raise ValueError(f"branch harness_valid=false, refuse promote: {summary_path}")
 
 
-def validate_audit_summary(summary_path: Path, task: str) -> None:
+def validate_audit_summary(summary_path: Path, task: str, *, require_passed: bool = False) -> None:
     summary = read_json(summary_path)
     task_stats = summary.get("tasks", {}).get(task, {})
     if not summary.get("complete"):
         raise ValueError(f"audit complete=false, refuse promote: {summary_path}")
+    if require_passed and not summary.get("passed"):
+        raise ValueError(f"audit passed=false, refuse promote: {summary_path}")
     replay = summary.get("control_trace_replay", {})
     if int(replay.get("total_checks", 0)) == 0:
         raise ValueError(f"audit has zero replay checks, refuse promote: {summary_path}")
@@ -187,12 +209,78 @@ def promote_branch(run_dir: Path, archive_dir: Path, spec: dict[str, Any]) -> di
 def promote_audit(run_dir: Path, archive_dir: Path, spec: dict[str, Any]) -> dict[str, Any]:
     task = spec["task"]
     source = audit_source_dir(run_dir, task)
-    validate_audit_summary(source / "summary.json", task)
+    validate_audit_summary(
+        source / "summary.json",
+        task,
+        require_passed=bool(spec.get("require_passed")),
+    )
+    if (archive_dir / "summary.json").is_file():
+        raise FileExistsError(
+            f"promote target already populated: {archive_dir / 'summary.json'}. "
+            "Choose a new versioned promote target."
+        )
     names = ["summary.json", "checks.jsonl", "failures.jsonl", "diagnostics.jsonl"]
     copied = [copy_file(source / name, archive_dir / name) for name in names]
-    protocol = BRACE_DIR / "protocol.v2.3.json"
+    protocol_rel = spec.get("protocol") or "experiments/brace/protocol.v2.3.json"
+    protocol = repo_path(Path(protocol_rel))
     copied.append(copy_file(protocol, archive_dir / "protocol.v2.3.json"))
     names.append("protocol.v2.3.json")
+
+    if spec.get("base200_line_a"):
+        traced_corpus = repo_path(Path(spec["traced_corpus"]))
+        traced_prov = traced_corpus / task / "brace_base200_traced_provenance.json"
+        seeds_file = traced_corpus / task / "base200_v2_rollout_train_seeds.json"
+        ckpt = repo_path(Path(spec["ckpt_path"]))
+        ckpt_prov = ckpt.with_name("brace_base200_provenance.json")
+        amendment = repo_path(Path(spec["amendment"]))
+        amendment_sidecar = Path(str(amendment) + ".sha256")
+        for label, path in (
+            ("traced_provenance", traced_prov),
+            ("seeds_file", seeds_file),
+            ("ckpt", ckpt),
+            ("ckpt_provenance", ckpt_prov),
+            ("amendment", amendment),
+            ("amendment_sha256_sidecar", amendment_sidecar),
+        ):
+            if not path.is_file():
+                raise FileNotFoundError(f"missing Base200 promote evidence ({label}): {path}")
+        for src, dest_name in (
+            (traced_prov, "brace_base200_traced_provenance.json"),
+            (seeds_file, "base200_v2_rollout_train_seeds.json"),
+            (ckpt_prov, "brace_base200_ckpt_provenance.json"),
+            (amendment, "multitask_amendment.v2.1.json"),
+            (amendment_sidecar, "multitask_amendment.v2.1.json.sha256"),
+        ):
+            copied.append(copy_file(src, archive_dir / dest_name))
+            names.append(dest_name)
+        provenance_payload = {
+            "schema_version": 1,
+            "task": task,
+            "passed": True,
+            "replay_gate_passed": True,
+            "traced_corpus": str(Path(spec["traced_corpus"])),
+            "traced_provenance_sha256": file_sha256(traced_prov),
+            "seeds_file_sha256": file_sha256(seeds_file),
+            "ckpt_path": str(Path(spec["ckpt_path"])),
+            "ckpt_sha256": file_sha256(ckpt),
+            "ckpt_provenance_sha256": file_sha256(ckpt_prov),
+            "protocol": str(Path(protocol_rel)),
+            "protocol_sha256": file_sha256(protocol),
+            "amendment": str(Path(spec["amendment"])),
+            "amendment_sha256": file_sha256(amendment),
+            "source_audit_summary_sha256": file_sha256(source / "summary.json"),
+        }
+        write_json_atomic(archive_dir / "base200_line_a_provenance.json", provenance_payload)
+        names.append("base200_line_a_provenance.json")
+        copied.append(
+            {
+                "source": "synthesized:base200_line_a_provenance",
+                "dest": str(archive_dir / "base200_line_a_provenance.json"),
+                "sha256": file_sha256(archive_dir / "base200_line_a_provenance.json"),
+                "size_bytes": (archive_dir / "base200_line_a_provenance.json").stat().st_size,
+                "synthesized": True,
+            }
+        )
     return {"source_dir": str(source), "copied": copied, "manifest_names": names}
 
 
@@ -250,6 +338,7 @@ def promote(
                 validate_audit_summary(
                     audit_source_dir(source_run, spec["task"]) / "summary.json",
                     spec["task"],
+                    require_passed=bool(spec.get("require_passed")),
                 )
             result = promote_audit(source_run, archive_dir, spec)
         else:
@@ -314,7 +403,51 @@ def main() -> int:
     parser.add_argument("--run-dir", type=Path, default=None, help="defaults to runs/LATEST")
     parser.add_argument("--run-label", default=None, help="required for datasets/ promote")
     parser.add_argument("--allow-failed-gate", action="store_true")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate source/target/gate only; do not write archive files.",
+    )
     args = parser.parse_args()
+
+    if args.dry_run:
+        if args.target.startswith("datasets/"):
+            raise SystemExit("dry-run not implemented for datasets/")
+        if args.target not in PROMOTE_TARGETS:
+            raise SystemExit(f"unknown promote target: {args.target}")
+        spec = PROMOTE_TARGETS[args.target]
+        source_run = resolve_run_dir(args.run_dir, args.target)
+        archive_dir = repo_path(BRACE_DIR / args.target)
+        if (archive_dir / "summary.json").is_file():
+            raise SystemExit(f"dry-run fail: target already exists: {archive_dir}")
+        if spec["kind"] == "audit":
+            source = audit_source_dir(source_run, spec["task"])
+            validate_audit_summary(
+                source / "summary.json",
+                spec["task"],
+                require_passed=bool(spec.get("require_passed")),
+            )
+            summary = read_json(source / "summary.json")
+            task_stats = summary["tasks"][spec["task"]]
+            print(
+                json.dumps(
+                    {
+                        "dry_run": True,
+                        "ok": True,
+                        "target": args.target,
+                        "source_run": str(source_run),
+                        "source_summary": str(source / "summary.json"),
+                        "passed": summary.get("passed"),
+                        "replay_gate_passed": task_stats.get("replay_gate_passed"),
+                        "protocol_sha256": summary.get("protocol_sha256"),
+                        "archive_dir_absent_or_empty": not (archive_dir / "summary.json").is_file(),
+                        "base200_line_a": bool(spec.get("base200_line_a")),
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        raise SystemExit(f"dry-run not implemented for kind={spec['kind']}")
 
     payload = promote(
         target=args.target,

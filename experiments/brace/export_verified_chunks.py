@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import random
 import sys
@@ -346,8 +347,14 @@ def build_n1_records_strict(
 
     b1_per_seed = Counter(int(row["env_seed"]) for row in b1_records)
     n1_per_seed = Counter(int(row["env_seed"]) for row in records)
-    b1_over = {seed: count for seed, count in b1_per_seed.items() if count / max(1, len(b1_records)) > max_share}
-    over_limit = {seed: count for seed, count in n1_per_seed.items() if count / max(1, len(records)) > max_share}
+    # Discrete budget-matching: max share is an integer cap ceil(max_share * n),
+    # not a raw ratio test (which is infeasible for small n, e.g. 1/3 > 0.25).
+    b1_n = max(1, len(b1_records))
+    n1_n = max(1, len(records))
+    b1_max_allowed = max(1, math.ceil(max_share * b1_n))
+    n1_max_allowed = max(1, math.ceil(max_share * n1_n))
+    b1_over = {seed: count for seed, count in b1_per_seed.items() if count > b1_max_allowed}
+    over_limit = {seed: count for seed, count in n1_per_seed.items() if count > n1_max_allowed}
     exact_pair_matches = sum(1 for row in records if row.get("exact_env_seed_match"))
     audit = {
         "strict_matching": True,
@@ -362,6 +369,10 @@ def build_n1_records_strict(
         "shared_env_seeds": sorted(set(n1_per_seed) & set(b1_per_seed)),
         "per_seed_chunk_count_b1": dict(b1_per_seed),
         "per_seed_chunk_count_n1": dict(n1_per_seed),
+        "max_chunk_share_per_seed": max_share,
+        "share_cap_rule": "ceil_max_share_times_n",
+        "b1_max_allowed_per_seed": b1_max_allowed,
+        "n1_max_allowed_per_seed": n1_max_allowed,
         "over_share_limit_b1": b1_over,
         "over_share_limit_n1": over_limit,
         "b1_chunk_index_hist": dict(Counter(int(row["branch_chunk_index"]) for row in b1_records)),
