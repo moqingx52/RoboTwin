@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -71,7 +72,7 @@ def success_rate(root: Path, variant: str) -> float | None:
     if not path.is_file():
         return None
     payload = read_json(path)
-    rows = payload.get("results") or payload.get("episodes") or []
+    rows = payload.get("rows") or payload.get("results") or payload.get("episodes") or []
     if not rows:
         summary = payload.get("summary") or {}
         if "success_rate" in summary:
@@ -81,6 +82,41 @@ def success_rate(root: Path, variant: str) -> float | None:
     if not oks:
         return None
     return sum(oks) / len(oks)
+
+
+def preservation_endpoints(root: Path, variant: str, *, split: str = "untouched_preservation") -> dict[str, Any]:
+    """Return frozen 3/3 and continuous per-seed preservation endpoints."""
+    path = root / "place_container_plate" / f"{variant}.json"
+    if not path.is_file():
+        return {"split": split, "p_pres": None, "mean_success_probability": None, "seed_rates": {}}
+    payload = read_json(path)
+    rows = payload.get("rows") or payload.get("results") or payload.get("episodes") or []
+    selected = [
+        row for row in rows
+        if row.get("split") == split and row.get("evaluated", True) and "success" in row
+    ]
+    by_seed: dict[int, list[float]] = {}
+    for row in selected:
+        by_seed.setdefault(int(row["env_seed"]), []).append(1.0 if row["success"] else 0.0)
+    seed_rates = {seed: sum(values) / len(values) for seed, values in sorted(by_seed.items())}
+    strict = {seed: float(all(value == 1.0 for value in values)) for seed, values in by_seed.items()}
+    return {
+        "split": split,
+        "n_seeds": len(by_seed),
+        "repeats_by_seed": {str(seed): len(values) for seed, values in sorted(by_seed.items())},
+        "p_pres": sum(strict.values()) / len(strict) if strict else None,
+        "mean_success_probability": sum(seed_rates.values()) / len(seed_rates) if seed_rates else None,
+        "seed_rates": {str(seed): rate for seed, rate in seed_rates.items()},
+    }
+
+
+def paired_delta_from_base(endpoint: dict[str, Any], base: dict[str, Any]) -> float | None:
+    arm_rates = {int(seed): float(value) for seed, value in endpoint.get("seed_rates", {}).items()}
+    base_rates = {int(seed): float(value) for seed, value in base.get("seed_rates", {}).items()}
+    common = sorted(set(arm_rates) & set(base_rates))
+    if not common:
+        return None
+    return sum(arm_rates[seed] - base_rates[seed] for seed in common) / len(common)
 
 
 def load_jsonl_stats(path: Path) -> dict[str, Any]:
@@ -136,6 +172,7 @@ def preservation_matrix(eval_root: Path) -> dict[str, Any]:
     missing = []
     base_variant = "line_a_base_preservation"
     base_done = eval_variant_complete(eval_root, base_variant)
+    base_endpoints = preservation_endpoints(eval_root, base_variant) if base_done else {}
     cells.append(
         {
             "method": "base",
@@ -143,6 +180,8 @@ def preservation_matrix(eval_root: Path) -> dict[str, Any]:
             "variant": base_variant,
             "complete": base_done,
             "success_rate": success_rate(eval_root, base_variant) if base_done else None,
+            "endpoints": base_endpoints,
+            "delta_pres": 0.0 if base_endpoints.get("seed_rates") else None,
         }
     )
     if not base_done:
@@ -151,6 +190,7 @@ def preservation_matrix(eval_root: Path) -> dict[str, Any]:
         for seed in SEEDS:
             variant = f"line_a_{method}_seed{seed}_preservation"
             done = eval_variant_complete(eval_root, variant)
+            endpoints = preservation_endpoints(eval_root, variant) if done else {}
             cells.append(
                 {
                     "method": method,
@@ -158,6 +198,8 @@ def preservation_matrix(eval_root: Path) -> dict[str, Any]:
                     "variant": variant,
                     "complete": done,
                     "success_rate": success_rate(eval_root, variant) if done else None,
+                    "endpoints": endpoints,
+                    "delta_pres": paired_delta_from_base(endpoints, base_endpoints) if done else None,
                 }
             )
             if not done:
@@ -202,47 +244,91 @@ def checkpoint_hashes() -> dict[str, Any]:
 
 
 def behavioral_preservation_go_no_go(pres: dict[str, Any]) -> dict[str, Any]:
-    """Paired seed 4/5 directional wins of B1 vs N1 on untouched rates when complete.
-
-    Placeholder until full cohort-level forgetting aggregation is wired; still
-    surfaces completeness and per-seed rates for archival.
-    """
+    """Report anchor and verification effects without conflating their gates."""
     by_key = {(c["method"], c["seed"]): c for c in pres["cells"] if c["method"] != "base"}
-    wins = 0
-    pairs = []
-    for seed in SEEDS:
-        b1 = by_key.get(("B1", seed))
-        n1 = by_key.get(("N1", seed))
-        if not b1 or not n1 or not b1["complete"] or not n1["complete"]:
-            return {
-                "passed": False,
-                "complete": False,
-                "paired_seed_count": 0,
-                "directional_wins": 0,
-                "effect_point_estimate": None,
-                "reason": "preservation_eval_incomplete",
-                "pairs": pairs,
-            }
-        b1_sr = b1["success_rate"]
-        n1_sr = n1["success_rate"]
-        delta = None if b1_sr is None or n1_sr is None else b1_sr - n1_sr
-        win = delta is not None and delta > 0
-        if win:
-            wins += 1
-        pairs.append({"seed": seed, "B1": b1_sr, "N1": n1_sr, "delta": delta, "win": win})
-    deltas = [p["delta"] for p in pairs if p["delta"] is not None]
-    effect = sum(deltas) / len(deltas) if deltas else None
+    required = [(method, seed) for method in ("N1", "B1", "B2", "B3") for seed in SEEDS]
+    if any(key not in by_key or not by_key[key]["complete"] for key in required):
+        return {"passed": False, "complete": False, "reason": "preservation_eval_incomplete", "effects": {}}
+
+    def value(method: str, seed: int, metric: str) -> float | None:
+        cell = by_key[(method, seed)]
+        if metric == "p_pres":
+            result = (cell.get("endpoints") or {}).get("p_pres")
+        else:
+            result = cell.get("delta_pres")
+        return None if result is None else float(result)
+
+    def sign_p(wins: int, n: int) -> float | None:
+        if n <= 0:
+            return None
+        return sum(math.comb(n, k) for k in range(wins, n + 1)) / (2**n)
+
+    def summarize_effect(metric: str, kind: str) -> dict[str, Any]:
+        rows = []
+        for seed in SEEDS:
+            n1, b1 = value("N1", seed, metric), value("B1", seed, metric)
+            b2, b3 = value("B2", seed, metric), value("B3", seed, metric)
+            if None in (n1, b1, b2, b3):
+                continue
+            simple_b2 = b2 - n1
+            simple_b3 = b3 - b1
+            effect = (simple_b2 + simple_b3) / 2 if kind == "anchor" else b1 - n1
+            rows.append({
+                "seed": seed,
+                "effect": effect,
+                "win": effect > 0,
+                "B2_minus_N1": simple_b2,
+                "B3_minus_B1": simple_b3,
+                "B1_minus_N1": b1 - n1,
+            })
+        effects = [row["effect"] for row in rows]
+        wins = sum(row["win"] for row in rows)
+        estimate = sum(effects) / len(effects) if effects else None
+        return {
+            "metric": metric,
+            "definition": (
+                "[(B2-N1)+(B3-B1)]/2" if kind == "anchor" else "B1-N1"
+            ),
+            "paired_seed_count": len(rows),
+            "directional_wins": wins,
+            "one_sided_exact_sign_p": sign_p(wins, len(rows)),
+            "effect_point_estimate": estimate,
+            "development_gate_passed": len(rows) == 5 and wins >= 4 and estimate is not None and estimate > 0,
+            "confirmatory_significance_note": (
+                "4/5 same-direction gives p=0.1875; only 5/5 gives p=0.03125. "
+                "This is a developmental gate, not confirmatory significance."
+            ),
+            "simple_effect_B2_minus_N1": (
+                sum(row["B2_minus_N1"] for row in rows) / len(rows) if rows else None
+            ),
+            "simple_effect_B3_minus_B1": (
+                sum(row["B3_minus_B1"] for row in rows) / len(rows) if rows else None
+            ),
+            "pairs": rows,
+        }
+
+    effects = {
+        metric: {
+            "anchor_effect": summarize_effect(metric, "anchor"),
+            "verification_effect": summarize_effect(metric, "verification"),
+        }
+        for metric in ("p_pres", "delta_pres")
+    }
+    primary = effects["delta_pres"]["anchor_effect"]
+    endpoint_complete = all(
+        payload[kind]["paired_seed_count"] == len(SEEDS)
+        for payload in effects.values()
+        for kind in ("anchor_effect", "verification_effect")
+    )
     return {
-        "passed": wins >= 4 and effect is not None and effect > 0,
-        "complete": True,
-        "paired_seed_count": 5,
-        "directional_wins": wins,
-        "minimum_directional_wins": 4,
-        "effect_point_estimate": effect,
-        "pairs": pairs,
+        "passed": bool(endpoint_complete and primary["development_gate_passed"]),
+        "complete": endpoint_complete,
+        "reason": None if endpoint_complete else "untouched_preservation_endpoint_missing",
+        "primary_gate": "delta_pres.anchor_effect",
+        "effects": effects,
         "note": (
-            "Interim B1-vs-N1 success-rate sign rule on preservation variants. "
-            "Replace with cohort forgetting aggregator before confirmatory freeze."
+            "Anchor preservation and branch verification are reported separately. "
+            "delta_pres uses common-random-number Base fresh re-evaluation; p_pres is the frozen all-repeat endpoint."
         ),
     }
 
@@ -284,6 +370,7 @@ def joint_gate(
         "ineligible_if_infeasible": ineligible_if_infeasible,
         "constraint_feasibility_passed": feas_passed,
         "behavioral_preservation_passed": bool(behavioral.get("passed")),
+        "behavioral_gate_estimand": "anchor_effect",
         "feasibility_summary": feas_summary,
         "line_a_conclusion": "go" if passed else "no-go",
         "freeze_blocked_until": reasons,
@@ -348,7 +435,7 @@ def main() -> int:
     )
 
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "task": "place_container_plate",
         "stage": "brace_v2_intervention_pilot",
         "substrate": "Base200",
@@ -375,14 +462,15 @@ def main() -> int:
         "constraint_feasibility": feasibility_inv.get("summary") if feasibility_inv else None,
         "constraint_feasibility_rows": feasibility_inv.get("rows") if feasibility_inv else None,
         "preservation_go_no_go": behavioral,
+        "behavioral_effects": behavioral.get("effects", {}),
         "joint_line_a_gate": gate,
         "checkpoints": checkpoint_hashes(),
         "method_budget": {
             "B1": load_jsonl_stats(BRACE / "datasets/place_base200_v2_B1.jsonl"),
             "N1": load_jsonl_stats(BRACE / "datasets/place_base200_v2_N1.jsonl"),
             "export_note": (
-                "export_verified_chunks exports all accepted=true points without filtering "
-                "point_type; confirm random_negative_control inclusion is intentional before freeze."
+                "export_verified_chunks recomputes paired LCBs, defaults to scientific divergence "
+                "point types only, and refuses export until the branch confirm completeness gate passes."
             ),
         },
         "freeze_wiring": {

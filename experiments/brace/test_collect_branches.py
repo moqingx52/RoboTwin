@@ -11,6 +11,7 @@ from experiments.brace.collect_branches import (
     _select_control_failure_rollout_ids,
     bootstrap_lcb,
     evaluate_harness_sanity,
+    paired_cluster_lcb,
     select_branch_points,
     summarize_branch_rows,
 )
@@ -20,6 +21,7 @@ from experiments.brace.control_trace import (
     take_action_cnt_before_chunk,
 )
 from experiments.brace.replay_audit import Candidate
+from experiments.brace.export_verified_chunks import branch_confirm_completeness, exportable_point_types
 
 
 def _make_control_step(physics_step: int, policy_chunk_index: int, joint_value: float = 0.0) -> dict:
@@ -122,6 +124,25 @@ class BranchContextTest(unittest.TestCase):
 
 
 class CollectBranchesTest(unittest.TestCase):
+    def test_branch_confirm_gate_is_hard_and_random_controls_are_not_exportable(self):
+        protocol = {
+            "branch_confirm_gate": {
+                "min_seeds": 10,
+                "min_points": 30,
+                "max_seed_accepted_share": 0.2,
+            }
+        }
+        pilot = [
+            {"env_seed": seed, "accepted": True}
+            for seed in range(3)
+            for _ in range(3)
+        ]
+        result = branch_confirm_completeness(pilot, protocol)
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["checks"]["min_seeds"])
+        self.assertFalse(result["checks"]["min_points"])
+        self.assertNotIn("random_negative_control", exportable_point_types(protocol))
+
     def test_bootstrap_lcb_is_conservative(self):
         rng = __import__("random").Random(0)
         lcb = bootstrap_lcb([True, False, True], alpha=0.1, samples=200, rng=rng)
@@ -154,6 +175,29 @@ class CollectBranchesTest(unittest.TestCase):
         self.assertEqual(summary["matched_success_lift"], 1.0)
         self.assertTrue(summary["passed"])
 
+    def test_paired_cluster_lcb_does_not_degenerate_for_three_of_three(self):
+        rows = []
+        for continuation_seed in range(3):
+            rows.extend(
+                [
+                    {
+                        "branch_role": "candidate",
+                        "continuation_seed": continuation_seed,
+                        "success": True,
+                    },
+                    {
+                        "branch_role": "control",
+                        "continuation_seed": continuation_seed,
+                        "success": False,
+                    },
+                ]
+            )
+        rng = __import__("random").Random(0)
+        lcb, paired = paired_cluster_lcb(rows, alpha=0.1, samples=500, rng=rng)
+        self.assertEqual(paired, [1.0, 1.0, 1.0])
+        self.assertLess(lcb, 1.0)
+        self.assertLessEqual(lcb, 0.15)
+
     def test_select_branch_points_use_snapshots_only(self):
         success_trace = _make_trace(chunk_sizes=(4, 4, 4, 4))
         failure_trace = _make_trace(chunk_sizes=(4, 4, 4, 4))
@@ -182,6 +226,10 @@ class CollectBranchesTest(unittest.TestCase):
         for point in points:
             self.assertNotEqual(point.physics_step, point.snapshot_physics_step)
             self.assertGreater(point.branch_chunk_index, 0)
+        self.assertEqual(
+            {point.point_type for point in points},
+            {"local_divergence_peak", "first_persistent_divergence", "random_negative_control"},
+        )
 
     def test_control_same_chunk_different_rollouts(self):
         failures = [

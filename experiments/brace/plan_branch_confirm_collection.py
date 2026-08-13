@@ -5,11 +5,20 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from pathlib import Path
+import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-from experiments.brace.replay_audit import read_json, read_jsonl, repo_path
+from experiments.brace.replay_audit import read_json, repo_path
+from experiments.brace.collect_branches import summarize_branch_rows
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def plan_confirm_collection(*, branch_dir: Path, protocol: dict) -> dict:
@@ -18,13 +27,22 @@ def plan_confirm_collection(*, branch_dir: Path, protocol: dict) -> dict:
     min_seeds = int(gate.get("min_seeds", 10))
     min_points = int(gate.get("min_points", 30))
     max_share = float(gate.get("max_seed_accepted_share", 0.2))
-    seeds = sorted({int(row["env_seed"]) for row in checks})
-    points = len(checks)
-    accepted = [row for row in checks if row.get("accepted")]
-    per_seed = {}
-    for row in accepted:
-        per_seed.setdefault(int(row["env_seed"]), 0)
-        per_seed[int(row["env_seed"])] += 1
+    alpha = float(gate.get("one_sided_alpha", 0.1))
+    delta = float(gate.get("minimum_advantage_delta", 0.15))
+    summarized = summarize_branch_rows(checks, alpha=alpha, delta=delta)
+    point_rows = summarized.get("points", [])
+    seeds = sorted({int(row["env_seed"]) for row in point_rows})
+    points = len(point_rows)
+    accepted_types = set(
+        (protocol.get("acceptance") or {}).get(
+            "accepted_point_types", ["local_divergence_peak", "first_persistent_divergence"]
+        )
+    )
+    accepted = [
+        row for row in point_rows
+        if row.get("accepted") and str(row.get("point_type")) in accepted_types
+    ]
+    per_seed = Counter(int(row["env_seed"]) for row in accepted)
     max_seed_share = max((count / max(1, len(accepted)) for count in per_seed.values()), default=0.0)
     merged_gate = {
         "checks": {
@@ -34,17 +52,6 @@ def plan_confirm_collection(*, branch_dir: Path, protocol: dict) -> dict:
         }
     }
     merged_gate["passed"] = all(merged_gate["checks"].values())
-    min_seeds = int(gate.get("min_seeds", 10))
-    min_points = int(gate.get("min_points", 30))
-    max_share = float(gate.get("max_seed_accepted_share", 0.2))
-    seeds = sorted({int(row["env_seed"]) for row in checks})
-    points = len(checks)
-    accepted = [row for row in checks if row.get("accepted")]
-    per_seed = {}
-    for row in accepted:
-        per_seed.setdefault(int(row["env_seed"]), 0)
-        per_seed[int(row["env_seed"])] += 1
-    max_seed_share = max((count / max(1, len(accepted)) for count in per_seed.values()), default=0.0)
     return {
         "current": {
             "unique_seeds": len(seeds),
@@ -82,7 +89,7 @@ def main() -> int:
     if args.output:
         args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2, sort_keys=True))
-    return 0
+    return 0 if payload["current"]["merged_gate"]["passed"] else 2
 
 
 if __name__ == "__main__":

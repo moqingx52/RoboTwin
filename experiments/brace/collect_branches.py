@@ -113,12 +113,38 @@ def select_branch_points(
     if not scored:
         return []
 
-    scored.sort(key=lambda item: item[0], reverse=True)
-    selected = scored[:max_points]
-    point_types = ["local_divergence_peak", "first_persistent_divergence", "random_negative_control"]
+    chronological = sorted(scored, key=lambda item: int(item[1]["physics_step"]))
+    peak = max(scored, key=lambda item: item[0])
+    selected: list[tuple[str, tuple[float, dict[str, Any], BranchContext]]] = [
+        ("local_divergence_peak", peak)
+    ]
+
+    # Operational definition for the developmental selector: onset is the first
+    # of two consecutive snapshots at or above 25% of the within-pair peak.
+    # Unlike the old rank label, this searches forward in time.
+    threshold = 0.25 * float(peak[0])
+    persistent = None
+    for index in range(max(0, len(chronological) - 1)):
+        window = chronological[index : index + 2]
+        if len(window) == 2 and all(float(item[0]) >= threshold for item in window):
+            if window[0][1]["snapshot_id"] != peak[1]["snapshot_id"]:
+                persistent = window[0]
+                break
+    if persistent is None:
+        persistent = next(
+            (item for item in chronological if item[1]["snapshot_id"] != peak[1]["snapshot_id"]),
+            None,
+        )
+    if persistent is not None:
+        selected.append(("first_persistent_divergence", persistent))
+
+    used_ids = {int(item[1]["snapshot_id"]) for _, item in selected}
+    negative_pool = [item for item in chronological if int(item[1]["snapshot_id"]) not in used_ids]
+    if negative_pool:
+        selected.append(("random_negative_control", rng.choice(negative_pool)))
+
     points: list[BranchPoint] = []
-    for rank, (_divergence, snapshot, context) in enumerate(selected):
-        point_type = point_types[min(rank, len(point_types) - 1)]
+    for point_type, (_divergence, snapshot, context) in selected[:max_points]:
         points.append(
             BranchPoint(
                 task=task,
@@ -482,6 +508,38 @@ def bootstrap_lcb(successes: list[bool], *, alpha: float, samples: int, rng: ran
     return float(np.quantile(boot, alpha))
 
 
+def paired_cluster_lcb(
+    group: list[dict[str, Any]], *, alpha: float, samples: int, rng: random.Random
+) -> tuple[float, list[float]]:
+    """LCB for candidate-control lift, paired and clustered by continuation seed.
+
+    Candidate outcomes are compared with the mean of controls sharing the same
+    continuation RNG seed. A bounded finite-cluster correction prevents the
+    degenerate 3/3 -> LCB=1 result of the old candidate-only bootstrap.
+    """
+    candidates: dict[int, list[float]] = {}
+    controls: dict[int, list[float]] = {}
+    for row in group:
+        continuation = int(row.get("continuation_seed", -1))
+        target = candidates if row.get("branch_role") == "candidate" else controls
+        target.setdefault(continuation, []).append(1.0 if row.get("success") else 0.0)
+    paired = []
+    for continuation in sorted(set(candidates) & set(controls)):
+        candidate_mean = float(np.mean(candidates[continuation]))
+        control_mean = float(np.mean(controls[continuation]))
+        paired.append(candidate_mean - control_mean)
+    if not paired:
+        return -1.0, []
+    n = len(paired)
+    boot = [
+        float(np.mean([paired[rng.randrange(n)] for _ in range(n)]))
+        for _ in range(samples)
+    ]
+    percentile_lcb = float(np.quantile(boot, alpha))
+    bounded_radius = float(np.sqrt(2.0 * np.log(1.0 / alpha) / n))
+    return max(-1.0, percentile_lcb - bounded_radius), paired
+
+
 def evaluate_harness_sanity(rows: list[dict[str, Any]], *, min_rate: float) -> tuple[bool, str | None]:
     candidate_rows = [row for row in rows if row.get("branch_role") == "candidate"]
     if not candidate_rows:
@@ -507,8 +565,8 @@ def summarize_branch_rows(rows: list[dict[str, Any]], *, alpha: float, delta: fl
             sum(control_success) / len(control_success) if control_success else 0.0
         )
         rng = random.Random(_env_seed + _snapshot_id + _physics_step)
-        lcb = bootstrap_lcb(candidate_success, alpha=alpha, samples=500, rng=rng) - (
-            sum(control_success) / len(control_success) if control_success else 0.0
+        lcb, paired_differences = paired_cluster_lcb(
+            group, alpha=alpha, samples=2000, rng=rng
         )
         accepted_flag = lcb > delta
         accepted += int(accepted_flag)
@@ -524,6 +582,9 @@ def summarize_branch_rows(rows: list[dict[str, Any]], *, alpha: float, delta: fl
                 "control_success_rate": sum(control_success) / len(control_success),
                 "advantage": advantage,
                 "lcb_advantage": lcb,
+                "lcb_method": "paired_continuation_cluster_bootstrap_with_bounded_small_n_correction",
+                "paired_cluster_count": len(paired_differences),
+                "paired_cluster_differences": paired_differences,
                 "accepted": accepted_flag,
             }
         )

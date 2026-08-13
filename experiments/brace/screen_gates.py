@@ -11,9 +11,20 @@ import numpy as np
 
 REQUIRED_ANCHOR_GROUPS = ("base_solved", "boundary")
 
-# NOTE: screen.v1.2 reuses anchor_smoke.identity_epsilon for feasibility gating.
-# That value validates implementation correctness (same-weight student≈teacher),
-# not a behavior-calibrated preservation budget. See Phase 2 protocol split.
+def constraint_epsilon(protocol: dict[str, Any]) -> tuple[float, str]:
+    """Resolve the training constraint, never silently preferring smoke tolerance."""
+    training_anchor = (protocol.get("training") or {}).get("brace_anchor") or {}
+    if "epsilon" in training_anchor:
+        return float(training_anchor["epsilon"]), "training.brace_anchor.epsilon"
+    gate = protocol.get("constraint_feasibility") or {}
+    if "epsilon" in gate:
+        return float(gate["epsilon"]), "constraint_feasibility.epsilon"
+    # Frozen screen.v1.2 predates the split. Preserve its historical result while
+    # making the legacy source explicit in every new artifact.
+    smoke = protocol.get("anchor_smoke") or {}
+    if "identity_epsilon" in smoke:
+        return float(smoke["identity_epsilon"]), "legacy:anchor_smoke.identity_epsilon"
+    return 1e-4, "legacy:default_1e-4"
 
 
 def hard_for_checkpoint_selection(protocol: dict[str, Any]) -> bool:
@@ -117,9 +128,18 @@ def evaluate_constraint_feasibility(
     protocol: dict[str, Any],
     *,
     required_groups: tuple[str, ...] = REQUIRED_ANCHOR_GROUPS,
+    mode: str = "training_path",
 ) -> dict[str, Any]:
+    """Evaluate either the optimization path or the final frozen-probe row.
+
+    ``final_checkpoint`` is a forensic endpoint assessment. It must be called
+    with held-out fixed-draw probe rows; the last row is the final checkpoint.
+    It does not rewrite the frozen training-path gate.
+    """
+    if mode not in {"training_path", "final_checkpoint"}:
+        raise ValueError(f"unknown feasibility mode: {mode}")
     gate = protocol.get("constraint_feasibility", {})
-    epsilon = float(protocol.get("anchor_smoke", {}).get("identity_epsilon", 1e-4))
+    epsilon, epsilon_source = constraint_epsilon(protocol)
     mean_factor = float(gate.get("mean_tolerance_factor", 2.0))
     p90_factor = float(gate.get("p90_max_factor", 5.0))
     violation_max = gate.get("violation_fraction_max", {})
@@ -128,9 +148,10 @@ def evaluate_constraint_feasibility(
     groups: dict[str, Any] = {}
     missing_groups = []
     for group in required_groups:
+        selected_rows = rows[-1:] if mode == "final_checkpoint" else rows
         raw_values = [
             float(row[f"brace_constraint/{group}"])
-            for row in rows
+            for row in selected_rows
             if f"brace_constraint/{group}" in row
         ]
         if not raw_values:
@@ -139,7 +160,7 @@ def evaluate_constraint_feasibility(
         arr = np.asarray(raw_values, dtype=np.float64)
         ema_values = [
             float(row[f"brace_monitor/{group}_ema_drift"])
-            for row in rows
+            for row in selected_rows
             if f"brace_monitor/{group}_ema_drift" in row
         ]
         ema_arr = np.asarray(ema_values, dtype=np.float64) if ema_values else None
@@ -149,6 +170,7 @@ def evaluate_constraint_feasibility(
             "p90": float(np.percentile(arr, 90)),
             "violation_fraction": float(np.mean(arr > epsilon)),
             "epsilon": epsilon,
+            "epsilon_source": epsilon_source,
             "mean_pass": float(arr.mean()) <= epsilon * mean_factor,
             "p90_pass": float(np.percentile(arr, 90)) <= epsilon * p90_factor,
             "violation_fraction_pass": float(np.mean(arr > epsilon))
@@ -180,6 +202,11 @@ def evaluate_constraint_feasibility(
     passed = not missing_groups and all(group["passed"] for group in groups.values())
     return {
         "passed": passed,
+        "mode": mode,
+        "rows_available": len(rows),
+        "rows_evaluated": min(len(rows), 1) if mode == "final_checkpoint" else len(rows),
+        "epsilon": epsilon,
+        "epsilon_source": epsilon_source,
         "missing_groups": missing_groups,
         "groups": groups,
         "require_raw_and_ema": require_raw_and_ema,

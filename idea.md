@@ -1,1968 +1,552 @@
-我现在做的是：我把robotwin的env和推理和sft分开了，接入了rlinf，我发现针对一个50成功率的模型，我们只需要测试足够多的轨迹，取成功的再sft就能左脚踩右脚把自己叠到一个足够高的成功率，但是显然这个工作应该有问题，解决这个问题或许能发文章，帮我想一想
+A观点：
+有问题，而且不只是“anchor（锚定）超参数没调好”。我审查的是 `moqingx52/RoboTwin` 的 `exp/dp-self-improvement` 分支，当前 HEAD（分支头）为 [`c690139`](https://github.com/moqingx52/RoboTwin/commit/c690139543b6a4d41f3a8b327473859c51e42b77)。
 
-## 先给判断
+你的研究问题拆分是成立的，N1/B1/B2/B3 的 (2\times2) 因子设计也基本正确；但目前有几处代码和统计口径会直接改变实验结论。现在最多能判定“当前协议不具备冻结资格”，还不能严格判定“10/10 最终 checkpoint（检查点）位于可行域外”。
 
-你的现象**不是漏洞，也不是“错误地把成功率刷高了”**。它本质上是一种：
+## 最严重的问题
 
-> **Success-Filtered Self-Training / Rejection-Sampling Fine-Tuning / Self-Imitation**
+| 严重度 | 问题                                                 | 对当前结论的影响                                     |
+| --- | -------------------------------------------------- | -------------------------------------------- |
+| P0  | 行为保持汇总代码比较错了实验臂                                    | 实际比较 B1−N1，而不是有/无 anchor（锚定）                 |
+| P0  | feasibility（可行性）统计整段训练历史，不是最终模型                    | 不能推出 (\theta_{\text{final}}\notin\mathcal F) |
+| P0  | branch LCB（分支置信下界）计算不正确                            | 5 个 accepted chunks（接受片段）中至少 3 个被明显过度自信地接受   |
+| P1  | branch point（分支点）类型只是错误标签                          | 所谓随机负对照实际上不是随机点                              |
+| P1  | 冻结的 branch confirm gate（分支确认门槛）没有执行                | 实际 3 个 seed（种子）、9 个点，却继续做了完整训练               |
+| P1  | anchor teacher（锚定教师）用 raw（原始权重），行为评估部署 EMA（指数移动平均） | 内部偏离和实际基线不是同一个策略                             |
+| P1  | anchor（锚定）只有大约 16 个固定状态，且对偶惩罚启动过慢                  | 当前失败很可能是机制实现与门槛互相冲突                          |
 
-即：
+### 1. 行为保持的代码比较错了实验臂
 
-1. 当前策略在环境中采样；
-2. 用成功判据过滤轨迹；
-3. 把成功轨迹当作新的 demonstrations；
-4. 再做 SFT；
-5. 重复迭代。
-
-这在数学上接近 **Reward-Weighted Regression、EM policy search 和 Cross-Entropy Method**。近期 SEIL 已经明确采用“在模拟器中运行当前策略、保留成功轨迹、迭代做模仿学习”的路线；SIME 也研究了自采集轨迹的多样性和片段筛选。因此，**“成功轨迹再 SFT”本身已经不足以成为论文贡献**。([arXiv][1])
-
-但你现在的系统非常适合研究一个更重要的问题：
-
-> **为什么 success-only SFT 能提高平均成功率，却可能错误地放大容易样本、错误动作和单一行为模式？如何把轨迹级二值成功信号转化成无偏、细粒度的动作学习信号？**
-
-这个方向有机会形成一篇很扎实的文章。
-
----
-
-# 一、为什么“左脚踩右脚”真的可以成立
-
-设当前策略是 (\pi_k)，一条轨迹为：
+[`behavioral_preservation_go_no_go()`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/_aggregate_place_base200_line_a.py#L166-L229) 明确计算的是：
 
 [
-\tau=(h_0,a_0,h_1,a_1,\ldots,h_T)
+P_{\mathrm{B1}}-P_{\mathrm{N1}}
 ]
 
-其中 (h_t) 是图像、机器人状态和历史信息，最终成功标签为：
+但这衡量的是 verification effect（验证片段效应），不是 anchor effect（锚定效应）。
+
+真正的 anchor effect（锚定效应）应该按相同训练 seed（种子）计算：
 
 [
-Y(\tau)\in{0,1}
-]
-
-你保留成功轨迹再做 SFT，优化的是：
-
-[
-\mathcal L_{\mathrm{success\text{-}SFT}}
-========================================
-
--\mathbb E_{\tau\sim p_{\pi_k}(\tau\mid Y=1)}
-\left[
-\sum_t\log\pi_\theta(a_t\mid h_t)
-\right]
-]
-
-成功轨迹分布满足：
-
-[
-p_{\pi_k}(\tau\mid Y=1)
-=======================
-
-\frac{p_{\pi_k}(\tau)Y(\tau)}
-{J(\pi_k)}
-]
-
-因此它等价于：
-
-[
-\mathcal L
-\propto
--\mathbb E_{\tau\sim\pi_k}
-\left[
-Y(\tau)
-\sum_t\log\pi_\theta(a_t\mid h_t)
-\right]
-]
-
-也就是给成功轨迹权重 1、失败轨迹权重 0 的 reward-weighted behavior cloning。已有理论工作也把 filtered SFT 解释为稀疏奖励 RL 目标的一个下界。([arXiv][2])
-
-更直观地看，在一个给定历史 (h) 上，理想的下一轮策略近似为：
-
-[
-\pi_{k+1}(a\mid h)
-\approx
-p_{\pi_k}(a\mid h,Y=1)
-]
-
-根据贝叶斯公式：
-
-[
-\pi_{k+1}(a\mid h)
-==================
-
-\pi_k(a\mid h)
-\frac{Q_k(h,a)}
-{V_k(h)}
-]
-
-其中：
-
-[
-Q_k(h,a)=P(Y=1\mid h,a,\pi_k)
-]
-
-[
-V_k(h)=P(Y=1\mid h,\pi_k)
-]
-
-所以：
-
-* (Q_k(h,a)>V_k(h)) 的动作概率被放大；
-* (Q_k(h,a)<V_k(h)) 的动作概率被压低。
-
-这其实是一种**乘法权重策略更新**。重复进行：
-
-[
-\pi_{k+n}(a\mid h)
-\propto
-\pi_k(a\mid h)Q(h,a)^n
-]
-
-好的动作模式会不断被放大。
-
-因此，一个 50% 成功率的策略尤其适合这样做：
-
-* 成功轨迹足够多，不缺正样本；
-* 又有大量失败，说明策略还有提升空间；
-* 策略本身已经覆盖了可行解，只需要把概率质量集中到成功模式上。
-
-所以这个现象是合理的，不是训练 bug。
-
----
-
-# 二、真正的问题一：成功数据严重偏向“容易初始状态”
-
-这是我认为你最值得首先验证的问题。
-
-设 RoboTwin 的初始配置、物体位置和随机种子为 (z)，原始训练分布为：
-
-[
-z\sim\rho(z)
-]
-
-策略在该配置上的成功概率为：
-
-[
-J_k(z)=P_{\pi_k}(Y=1\mid z)
-]
-
-经过成功过滤以后，成功数据中的初始配置分布变成：
-
-[
-\rho_k^+(z)
-===========
-
-# P(z\mid Y=1)
-
-\frac{\rho(z)J_k(z)}
-{\mathbb E_{z\sim\rho}[J_k(z)]}
-]
-
-这意味着成功率高的配置会被自动过采样。
-
-例如：
-
-* 容易配置成功率：(0.9)
-* 困难配置成功率：(0.1)
-
-即使二者在原始环境中各占一半，经过成功过滤后：
-
-[
-\frac{P(z_{\mathrm{easy}}\mid Y=1)}
-{P(z_{\mathrm{hard}}\mid Y=1)}
-==============================
-
-# \frac{0.9}{0.1}
-
-9
-]
-
-你的新 SFT 数据里，容易配置会是困难配置的 9 倍。
-
-于是模型可能表现为：
-
-* 平均成功率快速上升；
-* 容易样本接近 100%；
-* 困难长尾几乎没改善；
-* OOD 和 domain randomization 反而下降；
-* 如果评测 seed 与采样 seed 重叠，提升会更加夸张。
-
-这可能制造一种 **self-training illusion**：
-
-> 模型不是学会了更多状态，而是在更熟练地重复自己本来就会的状态。
-
-已有大规模 autonomous imitation learning 研究发现，自动采集成功数据在复杂真实任务上的增益往往有限，而且容易被环境设计、reset、成功检测和初始状态分布等因素制约。([arXiv][3])
-
----
-
-# 三、真正的问题二：整条成功轨迹不代表每一步都是好动作
-
-你现在给整条轨迹统一标签：
-
-```text
-成功轨迹：所有 action chunk 都是正样本
-失败轨迹：所有 action chunk 都丢弃
-```
-
-但真实情况可能是：
-
-### 成功轨迹中包含坏动作
-
-例如：
-
-```text
-正常接近
-→ 抓偏
-→ 物体滑动
-→ 策略偶然恢复
-→ 最终成功
-```
-
-整轨迹 SFT 会连“抓偏”一起学习。
-
-实际上该动作可能满足：
-
-[
-A(h_t,a_t)
-==========
-
-Q(h_t,a_t)-V(h_t)<0
-]
-
-只是后续动作把它救回来了。
-
-### 失败轨迹中包含大量好动作
-
-例如：
-
-```text
-正确接近
-→ 正确抓取
-→ 正确抬起
-→ 最后放置差 2 cm
-→ 失败
-```
-
-整条失败轨迹被丢弃，但前面 80% 的动作可能都是高质量动作。
-
-所以成功过滤存在两种错误：
-
-[
-\boxed{\text{Bad-in-Success}}
-]
-
-和
-
-[
-\boxed{\text{Good-in-Failure}}
-]
-
-近期 VLA 后训练正在集中解决这种 trajectory-level reward 的信用分配问题。Feat2Go 尝试从视觉特征构造过程进度价值；Q-VGM 使用动作敏感 critic 对 flow-matching VLA 进行价值引导；TSIL 则只重放快速成功轨迹，并用 value gap 控制哪些片段值得模仿。([arXiv][4])
-
-因此，单纯“整条成功轨迹 SFT”会越来越难体现创新性。
-
----
-
-# 四、真正的问题三：策略会发生模式坍缩
-
-假设一个任务有三种有效策略：
-
-```text
-模式 A：左手先抓，右手辅助
-模式 B：右手先抓，左手辅助
-模式 C：双手同步接近
-```
-
-当前模型的概率可能是：
-
-[
-P(A)=0.5,\quad P(B)=0.3,\quad P(C)=0.2
-]
-
-如果第一轮成功数据中 A 偶然更多，SFT 会继续提高 A 的概率。下一轮采样中 A 更多，成功数据中 A 又更多。
-
-最终：
-
-[
-P(A)\rightarrow1,\qquad
-P(B),P(C)\rightarrow0
-]
-
-平均 ID 成功率可能上升，但：
-
-* 动作多样性降低；
-* 新场景下缺少替代解；
-* 一种抓取方式失效时无法切换；
-* `pass@K` 可能不升反降；
-* 后续 RL 探索能力下降。
-
-SIME 和 SEIL 都已经把“如何维持自采集数据多样性”视为核心问题：前者做 modal-level exploration 和片段筛选，后者加入 EMA 模型、环境变化和信息量选择器。([arXiv][1])
-
----
-
-# 五、我最推荐的论文方向
-
-## 题目方向
-
-可以暂时叫：
-
-> **Beyond Success Filtering: Difficulty-Balanced Counterfactual Self-Training for Vision-Language-Action Models**
-
-中文可以理解为：
-
-> **超越成功轨迹过滤：面向 VLA 的难度平衡与反事实片段自训练**
-
-核心不是再提出一个“成功后 SFT”，而是解决两个偏差：
-
-[
-\boxed{\text{初始配置选择偏差}}
-+
-\boxed{\text{轨迹级信用分配偏差}}
-]
-
----
-
-# 六、具体方法：同初始状态分组采样
-
-对于每一个 RoboTwin 初始配置 (z_i)，不要只运行一次，而是用不同 stochastic noise 运行 (K) 次：
-
-[
-{\tau_i^1,\tau_i^2,\ldots,\tau_i^K}
-]
-
-得到配置级成功率：
-
-[
-\hat J(z_i)
-===========
-
-\frac{1}{K}
-\sum_{j=1}^K Y(\tau_i^j)
-]
-
-例如：
-
-```text
-seed 001：8/8 成功，p̂=1.00
-seed 002：4/8 成功，p̂=0.50
-seed 003：1/8 成功，p̂=0.125
-seed 004：0/8 成功，p̂=0.00
-```
-
-这样你就不再只有一个粗糙的 episode success，而是知道：
-
-* 哪些配置已经完全解决；
-* 哪些配置处于能力边界；
-* 哪些配置几乎不可能成功；
-* 同一配置下哪些动作导致成功、哪些动作导致失败。
-
-这比把所有随机轨迹混在一起强很多。
-
----
-
-# 七、第一项改进：难度平衡成功 SFT
-
-对成功轨迹赋予配置级权重：
-
-[
-w_{\mathrm{cfg}}(z)
-===================
-
-\operatorname{clip}
-\left(
-\frac{1}
-{(\hat J(z)+\epsilon)^\alpha},
-w_{\min},
-w_{\max}
-\right)
-]
-
-其中：
-
-* (\alpha=0)：退化为普通成功 SFT；
-* (\alpha=1)：完全逆成功率校正；
-* 实际可以取 (0.3\sim0.7)，避免极端放大。
-
-容易配置：
-
-[
-\hat J(z)\approx1
-\Rightarrow
-w_{\mathrm{cfg}}\text{较小}
-]
-
-困难但偶尔成功的配置：
-
-[
-\hat J(z)\approx0.1
-\Rightarrow
-w_{\mathrm{cfg}}\text{较大}
-]
-
-这样可以纠正：
-
-[
-\rho^+(z)\propto\rho(z)J(z)
-]
-
-造成的 easy-seed bias。
-
-对于完全零成功的配置，不要直接给无限权重，因为没有正样本。可以：
-
-* 保留原始 expert demonstration；
-* 使用邻近配置 curriculum；
-* 增大探索噪声；
-* 用检索到的相似成功轨迹引导；
-* 暂时不进入纯自训练阶段。
-
----
-
-# 八、第二项改进：反事实 action-chunk 信用分配
-
-这是更有论文价值的部分。
-
-你的 env、inference、SFT 已经拆开，非常适合做 **branch rollout**。
-
-假设执行到状态 (h_t)，保存模拟器 snapshot。然后从当前 VLA 采样 (M) 个 action chunk：
-
-[
-a_t^1,a_t^2,\ldots,a_t^M
-]
-
-每次恢复到相同 snapshot：
-
-```text
-相同状态 h_t
- ├── action chunk 1 → 当前策略继续执行 → 成功
- ├── action chunk 2 → 当前策略继续执行 → 失败
- ├── action chunk 3 → 当前策略继续执行 → 成功
- └── action chunk 4 → 当前策略继续执行 → 失败
-```
-
-估计：
-
-[
-\hat Q(h_t,a_t^j)
-=================
-
-\frac{1}{N}
-\sum_{n=1}^{N}
-Y(\tau_{t,j,n})
-]
-
-再估计：
-
-[
-\hat V(h_t)
-===========
-
-\frac{1}{M}
-\sum_j\hat Q(h_t,a_t^j)
-]
-
-得到 chunk advantage：
-
-[
-\hat A(h_t,a_t^j)
-=================
-
-\hat Q(h_t,a_t^j)-\hat V(h_t)
-]
-
-于是：
-
-* 成功轨迹中 (\hat A<0) 的坏片段不再学习；
-* 失败轨迹中 (\hat A>0) 的好片段可以保留；
-* 不需要手工设计 grasp reward、distance reward；
-* 仍然只依赖最终 binary success verifier；
-* 不要求 VLA 提供稳定的 action log-probability。
-
-这对 flow-matching VLA 特别有价值，因为你可以继续使用原生 flow-matching SFT loss，而不必直接做 PPO ratio。
-
----
-
-# 九、最终训练目标
-
-如果你的 VLA 是 flow matching，标准损失一般类似：
-
-[
-\mathcal L_{\mathrm{FM}}
-========================
-
-\left|
-v_\theta(x_s,s,h)
--u_s(a)
-\right|^2
-]
-
-可以修改为：
-
-[
-\mathcal L_{\mathrm{CST}}
-=========================
-
-\sum_{i,t}
-w_{\mathrm{cfg}}(z_i)
-\cdot
-[\hat A_{i,t}]*+^\beta
-\cdot
-\left|
-v*\theta(x_s,s,h_{i,t})
--u_s(a_{i,t})
-\right|^2
-]
-
-其中：
-
-[
-[x]_+=\max(x,0)
-]
-
-此外保留原始 expert 数据作为 anchor：
-
-[
-\mathcal L
-==========
-
-\mathcal L_{\mathrm{CST}}
-+
-\lambda_{\mathrm{expert}}
-\mathcal L_{\mathrm{expert}}
-+
-\lambda_{\mathrm{KL}}
-D_{\mathrm{KL}}(\pi_\theta|\pi_0)
-]
-
-三个部分分别解决：
-
-* (\mathcal L_{\mathrm{CST}})：利用自采集经验提高成功率；
-* (\mathcal L_{\mathrm{expert}})：防止能力漂移和遗忘；
-* KL 或参数约束：防止单轮更新过大。
-
-如果模型是 action-token autoregressive VLA，可以直接使用：
-
-[
--,
-w_{\mathrm{cfg}}
-[\hat A]*+
-\log\pi*\theta(a_t\mid h_t)
-]
-
----
-
-# 十、还可以加入“能力边界主动采样”
-
-不是所有配置都有相同的信息量。
-
-### 已完全解决
-
-[
-\hat J(z)\approx1
-]
-
-继续采样价值很低。
-
-### 完全不会
-
-[
-\hat J(z)\approx0
-]
-
-纯自采样几乎得不到成功轨迹。
-
-### 能力边界
-
-[
-\hat J(z)\approx0.5
-]
-
-同一个配置中同时出现成功和失败，最适合研究动作差异。
-
-可以定义采样优先级：
-
-[
-s(z)
-====
-
-4\hat J(z)(1-\hat J(z))
-+
-\lambda_{\mathrm{novel}}N(z)
-+
-\lambda_{\mathrm{hard}}H(z)
-]
-
-第一项在 (J=0.5) 时达到最大。
-
-于是训练数据飞轮不再是：
-
-```text
-随机采样 → 过滤成功 → SFT
-```
-
-而是：
-
-```text
-估计各配置成功率
-        ↓
-选择能力边界与困难长尾
-        ↓
-同状态多分支 action chunk 采样
-        ↓
-估计 chunk advantage
-        ↓
-难度平衡、片段加权 SFT
-        ↓
-更新能力地图
-```
-
-这会比单纯扩大 rollout 数量更有方法贡献。
-
----
-
-# 十一、必须防止多样性坍缩
-
-对于同一配置的成功轨迹，可以根据以下特征聚类：
-
-* 左右手主从关系；
-* 接近方向；
-* grasp pose；
-* 接触顺序；
-* action chunk embedding；
-* 末端轨迹；
-* 完成时间。
-
-不要直接保留概率最高的所有成功轨迹，而是每个 mode 保留若干代表：
-
-[
-D^+
-===
-
-\bigcup_{m=1}^{M}
-\operatorname{TopK}(D_m^+)
-]
-
-训练采样时对 mode 做均衡，而不是按出现频率采样。
-
-建议同时报告：
-
-* average success；
-* `pass@1`；
-* `pass@K`；
-* action-mode entropy；
-* 轨迹 embedding coverage；
-* 左右手使用比例；
-* grasp/contact pattern 数量。
-
-否则平均成功率升高并不能说明策略真的变强。
-
----
-
-# 十二、最关键的实验设计
-
-建议先不要马上写复杂算法。先做一组能验证问题是否存在的诊断实验。
-
-## 数据划分
-
-对每个任务固定：
-
-```text
-训练配置：1000 个随机 seed
-ID held-out：500 个完全未参与采样的 seed
-Hard split：基础策略成功率最低的 20% 配置
-OOD split：更大物体位置、纹理、光照、物理参数变化
-```
-
-训练 seed 与评测 seed 必须完全分开。
-
-对每个训练配置运行 (K=8) 或 (K=16) 次，用来估计配置级成功概率。
-
-## 对比方法
-
-至少比较：
-
-| 方法                      | 作用                     |
-| ----------------------- | ---------------------- |
-| Initial SFT             | 基础模型                   |
-| More original SFT       | 排除只是增加训练步数             |
-| Success-only SFT        | 你的强基线                  |
-| One-success-per-seed    | 排除容易 seed 数量偏差         |
-| Difficulty-weighted SFT | 验证配置偏差                 |
-| Fast-success SFT        | 对比时长筛选                 |
-| Positive-chunk SFT      | 验证片段信用分配               |
-| Proposed full method    | 难度校正 + chunk advantage |
-| PPO/GRPO                | RLinf 强基线              |
-| Offline value method    | 与 Q/critic 类方法比较       |
-
-Q-VGM 已经在 RoboTwin 2.0 上展示了基于自采集 rollout 和 critic 的 flow-VLA 后训练，因此它会是一个重要的同期对照方向。([arXiv][5])
-
-## 不只看平均成功率
-
-必须报告：
-
-[
-\text{Mean SR}
-]
-
-[
-\text{Worst-20% SR}
-]
-
-[
-\operatorname{CVaR}_{10%}
-]
-
-[
-\text{Coverage}
-===============
-
+A_i=
 \frac{
-|{z:\hat J(z)>\delta}|
-}{
-|\mathcal Z|
-}
-]
-
-以及：
-
-* unseen-seed success；
-* OOD success；
-* 每提升 1% 成功率所需 rollout 数；
-* 每个配置的成功率分布；
-* 模式熵；
-* 轨迹长度；
-* 碰撞率和动作 jerk；
-* 多轮自训练是否出现退化。
-
----
-
-# 十三、论文最可能成立的结果故事
-
-一个比较理想的实验故事可能是：
-
-### 发现一：普通成功 SFT 提高平均值，但没有扩大能力覆盖
-
-```text
-Initial SFT：
-平均 50%，困难集 18%
-
-Success-only SFT：
-平均 78%，困难集 20%
-
-说明主要是在重复强化容易配置。
-```
-
-### 发现二：成功数据的初始状态分布明显偏移
-
-展示：
-
-[
-\rho^+(z)\propto\rho(z)J(z)
-]
-
-并画出成功数据中基础难度的直方图，证明成功池主要来自原本成功率高的配置。
-
-### 发现三：轨迹级标签包含大量错误监督
-
-通过 branch rollout 证明：
-
-* 成功轨迹中有一部分 chunk 的 advantage 为负；
-* 失败轨迹中有大量 chunk 的 advantage 为正；
-* 轨迹越长，错误信用分配越严重。
-
-### 发现四：难度平衡 + 片段筛选提高长尾和 OOD
-
-```text
-Proposed：
-平均 83%，困难集 54%，OOD 61%
-```
-
-具体数值当然需要实验，但**平均成功率 + 困难覆盖 + OOD 同时提高**，会比单纯把 50% 做到 95% 有说服力得多。
-
----
-
-# 十四、与已有工作的差异必须这样组织
-
-你不能把贡献写成：
-
-> 我们发现成功轨迹可以用于自训练。
-
-因为 SEIL、RoboCat、SIME 和很多 autonomous imitation learning 工作已经覆盖了这一点。([arXiv][1])
-
-你应该写成：
-
-> 现有成功过滤自训练把 episode-level outcome 直接传播给整条轨迹，并隐式地将训练初始状态分布从 (\rho(z)) 改变为 (\rho(z)J(z))。我们系统揭示了由此产生的 difficulty bias、credit leakage 和 mode collapse，并提出基于 matched-reset grouped rollouts 的配置校正与反事实 action-chunk 监督方法。
-
-你的差异点可以是：
-
-1. **理论上刻画 success filtering 的配置选择偏差；**
-2. **同一个初始配置进行成功/失败配对，而非跨配置比较；**
-3. **通过 simulator snapshot 做 action-chunk 反事实分支；**
-4. **同时利用 Good-in-Failure 和过滤 Bad-in-Success；**
-5. **完全兼容 flow-matching SFT，不依赖动作 log-probability；**
-6. **在相同 rollout 预算下与 PPO/GRPO、success SFT 比较。**
-
-在我查到的公开工作中，**“初始配置 propensity correction + matched-reset counterfactual chunk credit + flow-SFT”这个组合没有被直接完整覆盖**；但近期相关工作非常密集，特别是 Q-VGM、Feat2Go、TSIL 和 SEIL，正式投稿前仍需要继续做系统查新。([arXiv][5])
-
----
-
-## 我的最终建议
-
-你现在最有价值的不是证明：
-
-> 成功轨迹重复 SFT 可以把 50% 提到很高。
-
-这个结果本身大概率只能成为一个强 baseline。
-
-最值得做的是证明：
-
-> **普通成功过滤提升的是已有成功模式的概率，而不一定扩大策略的能力支持域；其根本原因是容易配置偏采样和轨迹级错误信用分配。**
-
-然后提出：
-
-[
-\boxed{
-\text{Difficulty-Balanced}
+(P_{\mathrm{B2},i}-P_{\mathrm{N1},i})
 +
-\text{Matched-Reset}
-+
-\text{Counterfactual Chunk Credit}
-+
-\text{Diversity-Preserving SFT}
-}
+(P_{\mathrm{B3},i}-P_{\mathrm{B1},i})
+}{2}
 ]
 
-你的 RLinf 解耦架构正好适合这个工作，因为环境可以负责 snapshot 和 branch rollout，推理模块批量生成 action chunk，SFT 模块只需要读取加权后的片段数据。相比直接继续调 PPO，这条路线更容易解释、更稳定，也更容易形成清晰的论文问题和消融实验。
+代码目前完全没有在行为保持门槛里使用 B2/B3。也就是说，即使内部 feasibility（可行性）没有失败，现有 joint gate（联合门槛）也可能因为比较错实验臂而产生错误结论。
 
-[1]: https://arxiv.org/html/2509.19460v1 "Self-evolved Imitation Learning in Simulated World"
-[2]: https://arxiv.org/html/2507.12856v1 "Supervised Fine Tuning on Curated Data is Reinforcement Learning (and can be improved)"
-[3]: https://arxiv.org/html/2411.01813v1 "So You Think You Can Scale Up Autonomous Robot Data Collection?"
-[4]: https://arxiv.org/html/2605.30795 "Feat2Go: Visual Feature-Grounded Value Estimation for Embodied Reinforcement Learning"
-[5]: https://arxiv.org/html/2606.08015v1 "Q-VGM: Q-Guided Value-Gradient Matching for Flow-Matching VLA Policies"
-
-	​
-
-你拟定的这套，我用DP可不可行，因为小的验证的快吧
-
-可以。这里按 **DP = Diffusion Policy** 理解。它非常适合做第一版小验证，甚至比直接上 π₀、OpenVLA-OFT 更适合，因为：
-
-* 模型小、训练快；
-* RoboTwin 官方已经提供 DP baseline；
-* DP 原生输出连续 action chunk；
-* 可以通过不同 diffusion noise 从同一状态采样多种动作；
-* 加权 SFT 只需要修改 denoising loss，不需要处理 PPO 的 log-probability。RoboTwin 官方仓库目前明确支持 DP，Diffusion Policy 本身也是基于条件扩散生成连续动作序列。([GitHub][1])
-
-但第一版不要一次把我之前提到的四个点都做完。建议先验证最核心的两个假设：
+同时，代码的 `success_rate()` 是把所有 episode（回合）直接求平均；但你的冻结定义要求一个环境 seed（种子）三次全部成功才算保持：
 
 [
-\boxed{\text{成功轨迹存在难度偏采样}}
+I_s(\pi)=\mathbf 1!\left[\sum_{r=1}^3\text{success}_{s,r}=3\right]
 ]
 
-和
+所以当前行为门槛不仅比较错了实验臂，指标本身也没有实现你描述的 (P_{\mathrm{pres}})。
 
-[
-\boxed{\text{轨迹级成功标签存在错误信用分配}}
-]
+### 2. “最终检查点不可行”这一结论目前不成立
 
----
-
-# 一、DP 可以怎样接入你的方案
-
-标准 DP 的训练大致是：
-
-[
-a^0_{t:t+H}
-\xrightarrow{\text{加噪}}
-a^k_{t:t+H}
-]
-
-模型根据观测 (o_t)、扩散步 (k)，预测噪声：
-
-[
-\hat\epsilon
-============
-
-\epsilon_\theta(a^k,k,o_t)
-]
-
-标准训练损失：
-
-[
-\mathcal L_{\mathrm{DP}}
-========================
-
-\left|
-\epsilon-\epsilon_\theta(a^k,k,o_t)
-\right|^2
-]
-
-你只需要给每个 action chunk 加一个权重：
-
-[
-\mathcal L_{\mathrm{weighted}}
-==============================
-
-w_{i,t}
-\left|
-\epsilon-\epsilon_\theta(a^k_{i,t},k,o_{i,t})
-\right|^2
-]
-
-其中 (w_{i,t}) 可以依次做成：
-
-### 普通成功过滤
-
-[
-w_{i,t}=Y_i
-]
-
-成功轨迹中所有 chunk 权重为 1，失败轨迹全部为 0。
-
-### 难度平衡
-
-[
-w_{i,t}
-=======
-
-Y_i
-\cdot
-\frac{1}{(\hat J(z_i)+\epsilon)^\alpha}
-]
-
-### chunk 价值加权
-
-[
-w_{i,t}
-=======
-
-[\hat A(o_{i,t},a_{i,t})]_+
-]
-
-因此你几乎不需要改 DP 架构，只改：
-
-```python
-loss = mse(pred_noise, target_noise, reduction="none")
-loss = loss.mean(dim=action_dims)
-loss = (loss * chunk_weight).sum() / (chunk_weight.sum() + 1e-6)
-```
-
-这正是 DP 做小规模验证的最大优势。
-
----
-
-# 二、第一版最小验证不要直接做完整反事实树
-
-完整方案需要：
+[`evaluate_constraint_feasibility()`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/screen_gates.py#L115-L186) 会读取训练日志中的所有：
 
 ```text
-每个状态
-→ 采样 M 个 action chunk
-→ 每个 chunk 再 rollout N 次
-→ 估计 Q
+brace_constraint/base_solved
+brace_constraint/boundary
 ```
 
-计算量是：
+然后对整段训练过程求 mean（均值）、P90（90 分位数）和超限比例。
+
+因此实际检验的是：
 
 [
-O(MNTH)
+\frac1T\sum_{k=1}^T d_g(\theta_k)
 ]
 
-第一版没必要这么重。
+而不是最终检查点的：
 
-建议分成三个逐步实验。
+[
+d_g(\theta_T)
+]
 
----
+这两者不是一回事。尤其 primal-dual optimization（原始—对偶优化）本来就允许前期越界、后期由 (\lambda) 拉回来。你们旧的归档数据里也能看到 warmup（预热阶段）偏离很高、训练尾部明显降低的现象。
 
-# 三、实验 A：先证明 success-only DP 确实存在 easy-seed bias
+所以当前正确表述应当是：
 
-## 1. 选一个任务
+> 8/8 有可信日志的 anchor training histories（锚定训练历史）未通过 screen.v1.2 的全轨迹代理门槛；另外 2/10 缺少可信日志。因此 10/10 均不具备冻结资格。
 
-优先选：
+而不能表述为：
 
-* 成功判据明确；
-* episode 不太长；
-* 基础 DP 成功率约 30%～70%；
-* 物体初始位置变化能明显改变难度；
-* 不需要复杂语言泛化。
+> 10/10 最终检查点已被证明满足 (\theta\notin\mathcal F)。
 
-例如 RoboTwin 中较适合的：
+后两条尤其应区分：
 
-* `place_empty_cup`
-* `adjust_bottle`
-* `place_container_plate`
-* `click_bell`
+* `10/10 gate-ineligible（门槛不合格）`：成立；
+* `8/8 measured histories fail（已测训练历史失败）`：成立；
+* `10/10 final checkpoints infeasible（最终检查点不可行）`：目前未被证明。
 
-RoboTwin 的 RLinf 接口目前也支持这些任务，并使用连续 action chunks 控制双臂。([rlinf.readthedocs.io][2])
+此外，分析器从 `anchor_smoke.identity_epsilon` 读取 (\varepsilon)，而不是从实际训练的 `training.brace_anchor.epsilon` 读取。当前两者碰巧都是 (10^{-4})，但这是一个容易静默失配的代码问题。
 
-你已经有一个约 50% 成功率的模型，直接用它最好。
+### 3. branch LCB（分支置信下界）并不是 (\Delta) 的置信下界
 
----
+[`summarize_branch_rows()`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/collect_branches.py#L473-L543) 当前计算：
 
-## 2. 固定初始配置集合
+[
+\operatorname{LCB}(\hat p_c)-\hat p_{\mathrm{ctrl}}
+]
 
-不要每条轨迹都随机生成一个全新的 seed。
+它只对 candidate（候选组）做 bootstrap（自助法），然后减去 control（对照组）的点估计，没有计算：
 
-准备：
+[
+\operatorname{LCB}(\hat p_c-\hat p_{\mathrm{ctrl}})
+]
+
+因此完全忽略了 control（对照组）不确定性，也没有利用相同 continuation seed（续跑种子）的配对结构。
+
+这已经实际影响了 5 个 B1：
+
+* 两个点是 candidate（候选组） (2/3)，control（对照组） (1/9)；
+* 一个点是 candidate（候选组） (3/3)，control（对照组） (7/9)。
+
+代码把它们都接受了。即使暂时粗暴地把这些结果当独立 Bernoulli trial（伯努利试验），单侧 Fisher exact test（费舍尔精确检验）分别得到：
+
+* (2/3) 对 (1/9)：(p\approx0.127)，未达到 (\alpha=0.1)；
+* (3/3) 对 (7/9)：(p\approx0.545)，远不显著；
+* 只有两个 (3/3) 对 (0/9) 的点比较强，(p\approx0.0045)。
+
+真实数据还有 continuation seed（续跑种子）和 failure rollout（失败轨迹）聚类，实际有效样本量通常只会更小。因此目前的 5 个 accepted chunks（接受片段）里，很可能只有 2 个拥有较可靠的证据。
+
+### 4. 三种 branch point（分支点）并没有按名字实现
+
+[`select_branch_points()`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/collect_branches.py#L77-L134) 的实际流程是：
+
+1. 按成功/失败轨迹的关节距离排序；
+2. 取前三个最大 divergence（分歧）点；
+3. 按排名依次贴上：
 
 ```text
-训练配置：100 个 seed
-验证配置：100 个未见 seed
-困难验证：基础模型成功率最低的 20 个 seed
+local_divergence_peak
+first_persistent_divergence
+random_negative_control
 ```
 
-对每个训练 seed 执行 (K=8) 次：
+但代码没有：
+
+* 寻找“第一次持续分歧”；
+* 随机抽取 negative control（负对照）；
+* 使用传入的 `rng`（随机数生成器）进行分支点采样。
+
+所以 `random_negative_control` 只是“第三大的分歧点”。当前 5 个 B1 中有 2 个来自这种伪随机负对照，而且 [`export_verified_chunks.py`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/export_verified_chunks.py) 会导出所有 `accepted=true` 的点，不过滤 `point_type`（点类型）。
+
+更深一层的问题是：你们专门选择成功/失败轨迹状态差异最大的时刻，再把失败轨迹的绝对关节动作移植到成功轨迹状态上。于是比较很容易变成：
+
+> 与当前状态匹配的成功动作，对比与当前状态严重不匹配的失败动作。
+
+这会系统性地抬高 candidate（候选组）优势。更干净的 control（对照组）应当从同一个 snapshot state（快照状态）重新采样基础策略动作，或者使用对当前状态重新居中的动作扰动。
+
+### 5. 冻结的 branch confirm gate（分支确认门槛）没有满足
+
+[`screen_protocol.v1.2.json`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/screen_protocol.v1.2.json#L86-L92) 要求：
+
+* 至少 10 个有效环境 seed（种子）；
+* 至少 30 个 branch point（分支点）；
+* 单个 seed（种子）的 accepted share（接受占比）不超过 0.2。
+
+实际 Base200 数据是：
+
+* 3 个有效 seed（种子）；
+* 9 个 branch point（分支点）；
+* 5 个接受点来自 (1/2/2) 三个 seed（种子），最大占比 (2/5=0.4)。
+
+但归档的 `completeness_gate_check.json` 仍给出了 `GO`，随后用这 5 个片段跑了 25 条训练。
+
+如果把它定义成 developmental pilot（开发性预实验），这样做可以；但它不能同时被称为通过了冻结的 branch confirm gate（分支确认门槛）。
+
+### 6. raw teacher（原始权重教师）与 EMA deployment（指数移动平均部署）不一致
+
+训练配置明确设置 teacher reference（教师参考）为 raw model（原始模型），并从 `self.model.state_dict()` 复制教师；但 Base200 census（普查）和行为评估部署的是 EMA model（指数移动平均模型）。
+
+而代码又把当前 EMA（指数移动平均）输出与 raw teacher（原始权重教师）比较：
 
 [
-\hat J(z_i)
-===========
-
-\frac{1}{8}
-\sum_{j=1}^{8}Y_{ij}
+d_{\mathrm{EMA}}=
+|f_{\mathrm{EMA},\theta}-f_{\mathrm{raw},\theta_0}|^2
 ]
 
-总共只需要：
+这意味着所谓 EMA drift（指数移动平均偏离）可能部分只是基础检查点本身的：
 
 [
-100\times8=800
+f_{\mathrm{EMA},\theta_0}-f_{\mathrm{raw},\theta_0}
 ]
 
-条 rollout。
+而不是训练带来的遗忘。
 
-这已经足以看出成功数据是否向容易配置偏移。
+必须统一定义：
 
----
+* 如果 (\pi_0) 是实际部署的 EMA（指数移动平均）策略，anchor teacher（锚定教师）也应来自 Base200 EMA（指数移动平均）；
+* 或者全部改为 raw（原始权重）评估；
+* 至少先在 step 0（第零步）报告 raw–EMA baseline gap（原始权重—指数移动平均基线差距）。
 
-## 3. 画两张关键图
+### 7. 当前对偶优化与全轨迹门槛在结构上互相冲突
 
-第一张：
+[`BraceDualState`](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/policy/DP/diffusion_policy/workspace/robotworkspace.py#L35-L49) 从 (\lambda=0) 开始。`dual_only`（仅对偶）形式意味着：
 
-```text
-横轴：每个 seed 的基础成功率 J(z)
-纵轴：seed 在成功轨迹池中的出现次数
-```
+* 第一步 anchor gradient（锚定梯度）为零；
+* 第一步之后的对偶更新看到的还是更新前的约束；
+* 只有已经发生偏离后，(\lambda) 才逐渐增大；
+* `dual_lr=0.01` 时，若 (d-\varepsilon\approx9\times10^{-4})，单步只增加约 (9\times10^{-6})。
 
-理论上应该近似：
+因此它本来就是渐进纠偏机制，并不保证整个优化路径始终位于可行域内。与此同时，feasibility gate（可行性门槛）却把早期所有越界点都计入均值和 P90（90 分位数）。这种组合天然容易失败。
+
+此外，anchor replay set（锚定回放集）默认每组最多 8 条轨迹，每条只取一个固定中段窗口；窗口长度刚好等于训练 horizon（时域长度），所以每组基本只有 8 个可用序列。每个 anchor batch（锚定批次）又正好抽 8 个，等于每一步都在反复约束同一批十几个状态。[构建代码](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/build_anchor_replay_set.py#L99-L166)
+
+这不足以近似：
 
 [
-N_{\mathrm{success}}(z)
-\propto J(z)
+\mathbb E_{x\sim A_g}[\cdots]
 ]
 
-第二张：
+更像是在 16 个固定状态上的 functional memorization（函数记忆）。
 
-```text
-横轴：基础模型的 seed 难度分桶
-纵轴：SFT 前后成功率
-```
+## 哪些部分是合理的
 
-可能看到：
+你们不是整个方法都做错了，以下部分质量其实不错：
 
-```text
-基础成功率 0～20%：几乎不提升
-基础成功率 20～40%：少量提升
-基础成功率 40～60%：明显提升
-基础成功率 60～80%：大幅提升
-基础成功率 80～100%：接近满分
-```
+* 研究问题拆成 credit assignment（信用分配）与 preservation（能力保持）是正确的；
+* N1/B1/B2/B3 的因子设计公式正确；
+* snapshot restore（快照恢复）、control trace replay（控制轨迹重放）和相同状态分支执行的基础链路比较完整；
+* teacher（教师）被冻结、禁止梯度、保存 hash（哈希）并在恢复训练时校验，这部分严谨；
+* student/teacher（学生/教师）共享 clean action（干净动作）、noise（噪声）与 timestep（时间步）的实现正确；
+* SFT dataset（监督微调数据集）与 anchor replay set（锚定回放集）分开是正确的；
+* N1 至少匹配了 env seed（环境种子）、trajectory outcome（轨迹结果）和 chunk index（片段位置），并排除了同一条 B1 轨迹；
+* census enrollment（普查入组）和后续 preservation evaluation（保持能力评估）分开，避免直接在同一批重复结果上选择并评估，这个方向正确。
 
-仅这一实验就能确定你的论文问题是否真实存在。
+## 当前应该怎样重新下结论
 
----
+我建议把现有结论改成：
 
-# 四、实验 B：只做难度平衡，不做 critic
+> Base200 条件下，snapshot/replay/branch（快照、重放与分支）工程链路已经跑通，并按当前实现规则导出了 5 个候选片段及 5 个匹配 N1 片段。但当前 branch LCB（分支置信下界）、分支点选择和确认门槛存在统计与实现问题，因此这 5 个片段只能视为开发性候选，不能视为已确认的因果优势片段。
+>
+> 在 anchor（锚定）侧，8 个具有 seed-matched logs（种子匹配日志）的训练历史均未通过 screen.v1.2 的全训练轨迹代理门槛，另外 2 个缺少可信证据，因此 10 个带 anchor（锚定）的实验臂均不具备方法冻结资格。但该门槛并未直接评估最终 checkpoint（检查点）在固定 held-out probe（留出探针）上的约束值，所以尚不能断言 10 个最终模型全部位于数学可行域之外。
 
-对同一批成功轨迹训练两个模型。
+## 下一轮最值得做的事情
 
-## Baseline：Success-only DP
+先不要立即重跑 25 条训练。现有检查点还能完成三个不需要重训的 forensic analysis（取证分析）：
 
-[
-w_i=1
-]
+1. 对每个 epoch-10 checkpoint（第十轮检查点）在固定、留出的 anchor probe set（锚定探针集）上重新计算最终约束，只评估最终权重；同时测量 Base raw–EMA gap（基础原始权重—指数移动平均差距）。
 
-## 方法：Difficulty-balanced DP
+2. 按真正的 3/3 seed-level preservation（种子级能力保持）重新汇总：
 
 [
-w_i
-===
-
-\operatorname{clip}
-\left(
-\frac{1}
-{(\hat J(z_i)+0.05)^{0.5}},
-1,
-4
-\right)
-]
-
-举例：
-
-| seed 成功率 |     权重 |
-| -------: | -----: |
-|      1.0 |  约 1.0 |
-|      0.5 | 约 1.35 |
-|     0.25 | 约 1.83 |
-|    0.125 | 约 2.39 |
-
-不建议第一版使用完全逆概率：
-
-[
-w=\frac1J
-]
-
-因为一次偶然成功的极难 seed 会被赋予过大权重，训练容易不稳定。
-
-还可以使用更简单、更稳的分桶均衡：
-
-```text
-easy：J > 0.7
-medium：0.3 < J ≤ 0.7
-hard：0 < J ≤ 0.3
-```
-
-每个 batch 从三类中各采样三分之一。
-
-这一版甚至不需要改 loss，只需要改 sampler。
-
----
-
-# 五、实验 C：做轻量版 Good-in-Failure
-
-完整 branch rollout 之前，先验证：
-
-> 失败轨迹的前半段是不是也包含有价值的动作？
-
-可以利用 RoboTwin 的任务阶段信息、物体状态或简单规则，把任务拆成阶段。
-
-以放杯子为例：
-
-```text
-阶段 0：未接近
-阶段 1：末端到达物体附近
-阶段 2：成功抓取
-阶段 3：成功抬起
-阶段 4：到达目标附近
-阶段 5：放置成功
-```
-
-对于一条最终失败但已经达到阶段 3 的轨迹：
-
-```text
-正确接近 → 正确抓取 → 正确抬起 → 放置失败
-```
-
-保留它达到最高阶段之前的 chunk：
-
-[
-D_{\mathrm{prefix}}
-===================
-
-{(o_t,a_t)\mid t\le t_{\max\ progress}}
-]
-
-训练三组：
-
-1. 只用成功轨迹；
-2. 成功轨迹 + 失败轨迹正确前缀；
-3. 成功轨迹 + 随机失败前缀。
-
-如果第 2 组明显好于第 1、3 组，就证明：
-
-[
-\boxed{\text{Good-in-Failure 确实存在}}
-]
-
-这时再投资 branch rollout 和 value estimation 才值得。
-
----
-
-# 六、随后再做 DP 版本的反事实 chunk 采样
-
-DP 很适合这一步，因为同一个状态可以通过不同初始噪声生成多个 action chunks：
-
-[
-a_t^{(m)}
-=========
-
-\operatorname{DP}(o_t,\epsilon_m)
-]
-
-其中：
-
-[
-\epsilon_m\sim\mathcal N(0,I)
-]
-
-在相同状态下采样：
-
-[
-a_t^{(1)},a_t^{(2)},\ldots,a_t^{(M)}
-]
-
-执行每个候选 chunk，然后继续使用当前 DP rollout。
-
-## 最小参数
-
-第一版可以用：
-
-```text
-每条轨迹选择 3 个关键状态
-每个状态采样 M=4 个 chunk
-每个 chunk 只 rollout 1 次
-```
-
-也就是每条原始轨迹增加：
-
-[
-3\times4=12
-]
-
-次分支，而不是在每一个时间步进行分支。
-
-三个关键状态可以是：
-
-* 抓取前；
-* 抬起后；
-* 放置前。
-
----
-
-# 七、DP 的 branch rollout 有一个重要细节
-
-DP 一般预测长度为 (H_{\text{pred}}) 的动作序列，但实际只执行前 (H_{\text{exec}}) 步，然后重新规划。
-
-例如：
-
-```text
-prediction horizon = 16
-execution horizon = 4
-```
-
-做 chunk credit 时，建议把一个候选动作定义为：
-
-[
-a_t=a_{t:t+H_{\text{exec}}-1}
-]
-
-而不是整段 16 步预测。
-
-原因是：
-
-* 后 12 步实际上没有进入环境；
-* 对未执行动作赋予 credit 没有意义；
-* (H_{\text{exec}}) 太长会把多个决策混为一个；
-* (H_{\text{exec}}) 太短则仿真分支数量过大。
-
-第一版建议：
-
-[
-H_{\text{exec}}=4\sim8
-]
-
----
-
-# 八、如何估计 chunk 是否更好
-
-最简单可以使用最终成功：
-
-[
-\hat Q(o_t,a_t)=Y
-]
-
-但一次 rollout 方差较大。
-
-更稳的方法是加入任务进度：
-
-[
-\hat Q(o_t,a_t)
-===============
-
-Y+
-\lambda
-\left(
-p_{t+H}-p_t
-\right)
-]
-
-其中 (p_t) 是任务进度，例如：
-
-* 是否抓住物体；
-* 物体高度；
-* 物体与目标的距离；
-* 当前完成的阶段。
-
-第一版可以用：
-
-[
-\lambda=0.1
-]
-
-最终成功仍然是主信号，进度只用于区分同样失败的分支。
-
-同一状态的 (M) 个动作归一化：
-
-[
-A_m
-===
-
-Q_m-\frac1M\sum_{j=1}^M Q_j
-]
-
-然后只学习：
-
-[
-A_m>0
-]
-
-的 chunk。
-
-DP 损失变成：
-
-[
-\mathcal L
-==========
-
-\sum_m
-\operatorname{softplus}
-\left(
-\frac{A_m}{\tau}
-\right)
-\mathcal L_{\mathrm{DP}}^{(m)}
-]
-
-小验证也可以直接二值化：
-
-```python
-chunk_weight = (advantage > 0).float()
-```
-
-先不要把算法复杂化。
-
----
-
-# 九、环境快照可能是工程上最大的坑
-
-RoboTwin 基于仿真环境，但“恢复机械臂关节位置和物体 pose”不一定能百分之百恢复：
-
-* 速度；
-* 接触状态；
-* 约束求解器内部状态；
-* 摩擦接触历史；
-* 控制器状态。
-
-所以你要先做一个 determinism test：
-
-1. 在时间 (t) 保存状态；
-2. 原轨迹继续运行 50 步；
-3. 恢复状态；
-4. 输入完全相同动作；
-5. 比较物体位置和关节轨迹。
-
-定义误差：
-
-[
-e_{\mathrm{replay}}
-===================
-
-\frac1T
-\sum_t
-|x_t^{\mathrm{original}}-x_t^{\mathrm{restore}}|
-]
-
-如果恢复不稳定，更稳妥的方案是：
-
-> 从相同初始 seed 重新 reset，然后重放前缀动作，直到分支点。
-
-虽然慢一点，但实验可信度更高。
-
----
-
-# 十、DP 小验证的推荐规模
-
-## 最小可行版本
-
-```text
-任务：1 个
-训练 seed：100
-每 seed rollout：8
-总原始 rollout：800
-基础模型：成功率约 50%
-```
-
-从中预计获得约 400 条成功轨迹。
-
-训练：
-
-```text
-原始 expert 数据：保留
-新增成功数据：约 400 条
-训练 3 个随机种子
-```
-
-比较：
-
-| 模型          | 数据                       |
-| ----------- | ------------------------ |
-| DP-Base     | 原始 expert                |
-| DP-Success  | expert + 所有成功轨迹          |
-| DP-Balanced | expert + 难度平衡成功轨迹        |
-| DP-Prefix   | expert + 平衡成功轨迹 + 正确失败前缀 |
-
-评估：
-
-```text
-ID unseen seeds：100 × 每 seed 3 次
-Hard seeds：20 × 每 seed 8 次
-OOD：100 条
-```
-
----
-
-# 十一、最重要的指标
-
-不要只报告总成功率。
-
-至少报告：
-
-| 指标                 | 说明                     |
-| ------------------ | ---------------------- |
-| Mean SR            | 总体成功率                  |
-| Hard SR            | 原基础模型最困难 20% seed      |
-| Solved coverage    | 有至少一次成功的 seed 比例       |
-| Worst-bin SR       | 最困难分桶成功率               |
-| Success entropy    | 成功轨迹模式多样性              |
-| Rollout efficiency | 每 1000 条 rollout 带来的提升 |
-
-其中最关键的是：
-
-[
-\text{Solved Coverage}
+\text{Anchor effect}_i
 ======================
 
-\frac{
-|{z:\hat J(z)>0}|
-}{
-|\mathcal Z|
-}
+\frac{(B2_i-N1_i)+(B3_i-B1_i)}{2}
 ]
 
-可能出现：
+并单独报告两个简单效应 (B2-N1) 和 (B3-B1)。
 
-```text
-DP-Base：
-Mean SR = 50%
-Coverage = 68%
+3. 对 9 个 branch point（分支点）重新做 clustered/paired inference（聚类配对推断）和 multiple-comparison correction（多重比较校正）。按目前数据，我预计可靠 B1 很可能从 5 个缩到 2 个。
 
-DP-Success：
-Mean SR = 78%
-Coverage = 70%
+最后还有一个统计提醒：5 个训练 seed（种子）中“至少 4 个方向为正”只能作为工程门槛。单侧 exact sign test（精确符号检验）下，4/5 的 (p=0.1875)，并不构成常规意义上的显著性；5/5 才是 (p=0.03125)。因此五个训练 seed（种子）可以做 developmental screen（开发性筛选），但不适合承担很强的统计结论。
+B观点：
+结论先说：BRACE（分支验证与能力锚定）的完整方法目前确实没有验证成功，但问题不只是“anchor（锚定）阈值太严”。代码和归档里至少有三类独立问题：
 
-DP-Balanced：
-Mean SR = 76%
-Coverage = 85%
-```
+1. 当前 anchor（锚定）在行为上没有表现出防遗忘作用；
+2. anchor feasibility（锚定可行性）的判定对象和阈值定义不合理；
+3. branch verification（分支验证）本身还只是 pilot（先导实验），统计置信度和反事实对照都有漏洞。
 
-这会非常有意思：
+所以最准确的结论应该是：
 
-* success-only 平均分更高；
-* difficulty-balanced 真正扩大了会做的配置范围。
+> 当前 branch（分支）基础设施可运行，但尚未形成严格的因果验证证据；当前 dual anchor（对偶锚定）优化器也没有产生可观察的防遗忘收益。BRACE（分支验证与能力锚定）整体尚未被验证，不能只归因于 (\varepsilon=10^{-4}) 太严。
 
-这比单纯比较 78% 和 80% 更像论文结果。
+## 一、最严重的 branch verification（分支验证）问题
 
----
+### 1. 你自己的冻结门没有真正执行
 
-# 十二、RLinf 在这个实验里怎么用
+冻结的 `screen.v1.2` 要求：
 
-你已经把 RoboTwin env、inference、SFT 拆开，就不需要为了 DP 强行使用 PPO 模块。
+* 至少 10 个 seed（随机种子）；
+* 至少 30 个 branch point（分支点）；
+* 单个 seed（随机种子）占比不超过 20%。
 
-可以保留：
+但 Base200（基础策略）实际只有：
 
-```text
-RLinf Env Workers
-    ↓ observations
-DP Inference Workers
-    ↓ action chunks
-Trajectory Buffer
-    ↓ success / seed / progress / branch id
-DP SFT Worker
-```
+* 3 个 eligible seed（合格随机种子）；
+* 9 个 branch point（分支点）；
+* 5 个接受片段；
+* 两个 seed（随机种子）分别贡献 2/5，即 40%。
 
-每条数据建议记录：
+尽管如此，新的 completeness check（完整性检查）仍给出了 `verdict=GO`。这说明 operational completeness（运行完整性）被误当成 scientific validity（科学有效性）。证据见 [Base200 分支完整性检查](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/archive/branches_place_base200_v2/completeness_gate_check.json)、[冻结筛选协议](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/screen_protocol.v1.2.json)。
+
+这里应该直接改成 NO-GO（不通过），而不是“前半部分已验证”。
+
+### 2. 当前 LCB（置信下界）计算是反保守的
+
+实现中：
 
 ```python
-{
-    "task_id": ...,
-    "env_seed": ...,
-    "rollout_id": ...,
-    "parent_rollout_id": ...,
-    "branch_state_id": ...,
-    "chunk_start_step": ...,
-    "obs": ...,
-    "action_chunk": ...,
-    "success": ...,
-    "max_progress": ...,
-    "seed_success_rate": ...,
-    "chunk_weight": ...,
-}
+LCB = bootstrap_lcb(candidate_success) - mean(control_success)
 ```
 
-RLinf 在这里主要承担：
+只对 candidate（候选组）做 bootstrap（自助采样），control（对照组）的不确定性被忽略。
 
-* 并行 env rollout；
-* DP inference worker 调度；
-* 数据回传；
-* checkpoint 更新；
-* 多轮迭代。
-
-不需要第一版就实现 actor/critic 或 GRPO。RLinf 官方当前的 RoboTwin 示例主要面向 OpenVLA-OFT、π₀/π₀.₅ 等 VLA 的 PPO、GRPO 和 DAgger，但它的 env/rollout/data 解耦模式同样可以作为你的 DP 自训练流水线骨架。([rlinf.readthedocs.io][2])
-
----
-
-## 最终建议
-
-**用 DP 做，方向是对的。**
-
-而且第一版建议只做：
+更严重的是：每个 candidate（候选片段）只有 3 次 continuation（续跑）。如果结果为 3/3 成功，普通 bootstrap（自助采样）每次都只能抽到成功，于是：
 
 [
-\boxed{
-\text{Success-only DP}
-\quad\text{vs}\quad
-\text{Difficulty-balanced DP}
-}
+\operatorname{LCB}(\hat p_c)=1
 ]
 
-先证明成功过滤存在 easy-seed bias。
+但这不表示真实成功率的 90% 下界是 1。3/3 的单侧精确下界其实远低于 1。归档中大量 `lcb_advantage=1.0` 正是这个退化造成的。相关代码见 [collect_branches.py](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/collect_branches.py)。
 
-第二步再加入：
+正确做法是：
+
+* candidate（候选组）和 control（对照组）共同进入区间估计；
+* 使用相同 continuation seed（续跑随机种子）形成配对差值；
+* 以 env seed（环境随机种子）或 snapshot（快照）作为 cluster（聚类单位）；
+* 使用 cluster bootstrap（聚类自助法）、paired randomization test（配对随机化检验）或 Beta-Binomial model（贝塔二项模型）。
+
+### 3. 当前 control（对照动作）不是真正的同状态反事实
+
+现在的做法是：
+
+* 从成功轨迹恢复状态；
+* candidate（候选动作）来自这条成功轨迹；
+* control（对照动作）来自同一环境 seed（随机种子）下的失败轨迹、相同 chunk index（片段位置）；
+* 把失败轨迹动作移植到成功轨迹状态。
+
+这会混合两个效应：
 
 [
-\boxed{
-\text{Good-in-Failure Prefix}
-}
-]
-
-只有这两项成立后，再做昂贵的：
-
-[
-\boxed{
-\text{Matched-State Branch Rollout}
+\text{动作是否有价值}
 +
-\text{Chunk Advantage}
-}
+\text{动作是否与其原始观测状态匹配}
 ]
 
-这样最快，也最容易判断这个研究问题是真贡献，还是只在个别任务上的训练技巧。
+失败轨迹动作是在另一个状态上生成的，搬到成功状态后不适用并不奇怪。因此当前结果更像：
 
-[1]: https://github.com/RoboTwin-Platform/RoboTwin "GitHub - RoboTwin-Platform/RoboTwin: RoboTwin 2.0 Offical Repo · GitHub"
-[2]: https://rlinf.readthedocs.io/en/latest/rst_source/examples/embodied/robotwin.html "RL with RoboTwin Benchmark — RLinf  documentation"
+> 成功状态上的原生动作优于从不同状态移植过来的失败动作。
 
+更合适的 control（对照）是从完全相同的 (s_t) 出发：
 
-我感觉你这个实验看起来也不太用rlinf啊，我单开一个robotwin也不是不行
+* 用冻结 Base200（基础策略）更换扩散噪声，重新采样 (K) 个动作片段；
+* 或使用状态距离很近的片段；
+* 或使用动作幅度、似然、时间位置都匹配的扰动片段。
 
-对，你这个判断是对的。
+### 4. “random negative control（随机负对照）”实际上不随机
 
-**做第一版验证，完全没必要强行用 RLinf。**
-单独启动 RoboTwin，写一个 rollout–筛选–再训练循环，反而更快、更容易排查问题。
+代码先按成功/失败轨迹的关节差异排序，然后依次给前三个点贴上：
 
-你当前要验证的是一个**算法现象**：
+* `local_divergence_peak`
+* `first_persistent_divergence`
+* `random_negative_control`
+
+第三个只是排序后的第三名，并没有随机采样。这个标签会给读者错误的实验含义。
+
+### 5. 800 条轨迹实际上没有充分利用
+
+当前分支运行只分析了 10 个 pilot seed（先导随机种子），最终只有 3 个 seed（随机种子）同时具有成功和失败轨迹。每个 seed（随机种子）又只取排序后的第一条成功轨迹。
+
+因此“收集了 800 条轨迹”不等于 branch（分支）有效样本量是 800。你应该先扫描现有 800 条数据，找出所有 mixed-outcome seed（成功失败混合随机种子），不一定需要重新收集。
+
+## 二、anchor feasibility（锚定可行性）判定有概念错误
+
+### 1. 这个优化问题不可能是数学上的“不可行”
+
+因为初始化策略就是教师策略：
 
 [
-\text{成功轨迹再 SFT}
-\rightarrow
-\text{成功率提升是否只是容易样本强化}
+d_g(\theta_0)=0\le\varepsilon
 ]
 
-这个问题与分布式框架无关。论文贡献也不应该建立在“用了 RLinf”上，而应该建立在：
-
-* success filtering 为什么有效；
-* 它产生了什么偏差；
-* 你的校正方法是否改善长尾、覆盖率或泛化。
-
----
-
-## 最小实验直接这样做
-
-```text
-RoboTwin 单进程/少量并行环境
-        ↓
-加载 DP checkpoint
-        ↓
-固定 seed 多次 rollout
-        ↓
-记录 success、seed、trajectory
-        ↓
-生成 success-only / balanced 数据集
-        ↓
-调用原来的 DP SFT 脚本
-        ↓
-重新评估
-```
-
-甚至可以拆成三个普通脚本：
-
-```text
-collect_rollouts.py
-build_dataset.py
-train_dp.py
-```
-
-### collect_rollouts.py
-
-```python
-for env_seed in train_seeds:
-    for rollout_seed in range(num_rollouts):
-        env.reset(seed=env_seed)
-        trajectory = rollout(policy, env, rollout_seed)
-        save({
-            "env_seed": env_seed,
-            "rollout_seed": rollout_seed,
-            "success": trajectory.success,
-            "observations": trajectory.observations,
-            "actions": trajectory.actions,
-        })
-```
-
-### build_dataset.py
-
-统计每个环境配置的基础成功率：
+所以可行域至少包含 (\theta_0)，即：
 
 [
-\hat J(z)
-=========
-
-\frac{\text{该 seed 成功次数}}
-{\text{该 seed 总测试次数}}
+\theta_0\in\mathcal F
 ]
 
-然后分别构建：
+因此不能说“anchor mechanism infeasible（锚定机制不可行）”，只能说：
 
-```text
-dataset_success
-dataset_seed_balanced
-dataset_difficulty_weighted
-dataset_success_plus_failure_prefix
-```
+> 当前 stochastic primal-dual solver（随机原始—对偶求解器）没有在给定训练预算内返回满足约束的最终策略。
 
-### train_dp.py
+可能不存在“既显著适应又满足当前约束”的解，但这需要测量 Pareto frontier（帕累托前沿），不能由这 10 个 checkpoint（检查点）直接推出。
 
-只改 sampler 或 loss weight：
+### 2. 你测量的是训练路径，不是最终 checkpoint（检查点）
 
-```python
-loss_per_sample = diffusion_loss(
-    observations,
-    actions,
-    reduction="none",
-)
-
-loss = (
-    loss_per_sample * sample_weight
-).sum() / sample_weight.sum().clamp_min(1e-6)
-```
-
----
-
-# 为什么单开 RoboTwin 更适合现在
-
-## 1. 实验变量更少
-
-用 RLinf 后，你还要排除：
-
-* worker 间 checkpoint 是否同步；
-* rollout 模型和训练模型是否一致；
-* 数据是否重复或丢失；
-* env reset seed 是否正确传递；
-* 异步 rollout 是否来自旧策略；
-* 多 worker 是否影响可复现性。
-
-而你现在要研究的恰好是数据分布偏差。框架再引入异步和多 worker，会增加很多混淆变量。
-
----
-
-## 2. 更容易做严格的 seed 控制
-
-你的实验关键不是吞吐，而是：
-
-> 对同一个环境初始状态反复运行当前策略。
-
-需要严格区分：
-
-```text
-env_seed：
-决定物体位置、姿态、场景配置
-
-policy_seed：
-决定 DP diffusion noise
-
-train_seed：
-决定网络训练随机性
-```
-
-单独脚本非常容易保证：
-
-```python
-env.reset(seed=env_seed)
-action = policy.sample(obs, generator=policy_generator)
-```
-
-使用 RLinf 后要确保这些 seed 在不同 worker、不同进程间不冲突，第一版没有必要增加这个工作。
-
----
-
-## 3. DP 验证规模并不需要大集群
-
-例如：
-
-```text
-100 个环境 seed
-每个 seed 运行 8 次
-共 800 条轨迹
-```
-
-假设每条 episode 1 分钟，单环境确实慢，但开：
-
-```text
-8～16 个 RoboTwin env
-```
-
-就已经能明显提速。
-
-不一定需要完整 RLinf；可以直接：
-
-* Python multiprocessing；
-* 多个独立 Docker；
-* shell 脚本按 GPU 和 seed 分片；
-* RoboTwin 自身的并行环境能力。
-
-例如：
-
-```bash
-python collect.py --seed-start 0   --seed-end 24  --gpu 0 &
-python collect.py --seed-start 25  --seed-end 49  --gpu 1 &
-python collect.py --seed-start 50  --seed-end 74  --gpu 2 &
-python collect.py --seed-start 75  --seed-end 99  --gpu 3 &
-wait
-```
-
-这对于验证已经足够。
-
----
-
-# RLinf 什么时候才真正有价值
-
-当你的工作从“一轮离线自训练”变成下面这种闭环时：
-
-```text
-并行采样第 k 轮策略
-        ↓
-在线计算 success / advantage
-        ↓
-立即更新模型
-        ↓
-同步新 checkpoint
-        ↓
-继续第 k+1 轮采样
-```
-
-尤其是满足以下情况时，再用 RLinf：
-
-### 1. 需要很多任务和很多环境
-
-```text
-20 个 RoboTwin 任务
-× 1000 个 seed
-× 每 seed 8 次
-```
-
-这时 rollout 数量达到十几万，调度框架才开始明显有价值。
-
-### 2. 需要 branch rollout
-
-如果每条轨迹选择多个状态，每个状态执行多个候选 action chunk：
+理论定义是：
 
 [
-N_{\mathrm{rollout}}
-====================
-
-N_{\mathrm{episode}}
-\times
-N_{\mathrm{branch\ state}}
-\times
-N_{\mathrm{candidate}}
+d_g(\theta_{\text{final}})
 ]
 
-例如：
+但当前实现把整个训练过程所有 step（训练步）的 constraint（约束值）放在一起计算 mean（均值）、P90（90 分位数）和 violation fraction（超限比例），包括前几百步的 warm-up（预热）瞬态。[screen_gates.py](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/screen_gates.py) 明确这样实现。
+
+于是它回答的是：
+
+> 训练全过程是否一直没有远离教师？
+
+而不是：
+
+> 最终策略是否回到了可行域？
+
+主可行性指标应该只在最终 checkpoint（检查点）上，用冻结的 anchor probe set（锚定探针集）、冻结噪声和冻结 timestep（扩散时间步）重新估计。训练路径数据只能作为优化诊断。
+
+### 3. (10^{-4}) 本来只是 identity tolerance（同一性容差）
+
+源码注释明确写着：
+
+> identity epsilon（同一性阈值）是 implementation smoke tolerance（实现冒烟容差），preservation budget（能力保持预算）应另行校准。
+
+但后续协议又把同一个 (10^{-4}) 用成训练漂移预算。证据见 [锚定损失实现](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/policy/DP/diffusion_policy/workspace/robotworkspace.py)。
+
+扩散去噪 MSE（均方误差）的尺度会受到以下因素影响：
+
+* 动作归一化；
+* diffusion timestep（扩散时间步）分布；
+* 输出维数；
+* epsilon prediction（噪声预测）还是 sample prediction（样本预测）；
+* 执行动作与非执行 horizon（时间范围）的占比。
+
+所以 (10^{-4}) 没有天然的行为意义。
+
+最好的校准方法是做权重插值：
 
 [
-1000\times3\times8=24000
+\theta(\alpha)=\theta_0+\alpha(\theta_{\rm SFT}-\theta_0),
+\qquad
+\alpha\in{0,0.1,0.25,0.5,0.75,1}
 ]
 
-分支 rollout 数量增长很快，这时 Env Worker 和 Inference Worker 解耦才真正有意义。
+然后同时测量：
 
-### 3. 要和 PPO/GRPO 做统一对照
+* 最终 (d_g(\theta(\alpha)))；
+* Base200（基础策略）行为保持率；
+* 新数据适应率。
 
-如果论文中要比较：
+这样才能找到“内部漂移—行为遗忘”的经验关系，再冻结下一版 (\varepsilon)。
 
-```text
-Success-SFT
-Difficulty-balanced SFT
-Chunk-weighted SFT
-PPO
-GRPO
-```
+### 4. 训练约束 raw model（原始模型），却同时要求 EMA（指数移动平均）满足同一阈值
 
-使用同一套 RLinf rollout 基础设施，可以保证环境、模型、计算预算一致。
+EMA（指数移动平均）不是直接优化变量，它会滞后于 raw model（原始模型）。要求整个训练路径中两者都满足同一个极小阈值，比原始约束更强，却没有对应的优化保证。
 
-### 4. 需要异步训练
+如果部署使用 EMA（指数移动平均），应当：
 
-例如：
+* 最终行为主评估使用 EMA（指数移动平均）；
+* raw model（原始模型）约束作为训练手段；
+* 最终 EMA drift（指数移动平均漂移）作为独立 manipulation check（干预检查）。
 
-```text
-GPU 0～3：持续跑 RoboTwin
-GPU 4：DP inference
-GPU 5～7：持续 SFT
-```
+### 5. 对偶优化确实太弱，而且有配置没有真正生效
 
-环境不等训练，训练也不等环境，这才是 RLinf 的系统优势。
+代码中还存在具体问题：
 
----
+* `lambda_init` 配置没有在实际训练路径中初始化对偶变量；
+* `lambda_max` 虽然由更新函数支持，但调用更新时没有传入；
+* 使用非默认 `group_weights` 时，训练损失和对偶更新计算的 violation（违反量）不一致；
+* A1 最终 `anchor_to_sft_grad_ratio`（锚定梯度与监督微调梯度比）只有约 0.018，即锚定梯度约为 SFT（监督微调）梯度的 1.8%，很难充当“安全绳”。见 [A1 校准结果](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/archive/anchor_calibration_phase3a_20260803/A1/summary.json)。
 
-# 我建议你的实施顺序
+## 三、行为保持评估也有回归均值问题
 
-## 第一阶段：完全不用 RLinf
+Base（基础策略）通过 2/3 成功进入 preservation cohort（保持集合），新策略却要求 3/3 全成功才算保持。更换 policy seed offset（策略随机种子偏移）后，完全没有训练过的 Base fresh（重新评估基础策略）自身也有 7/60、即 11.7% 的“遗忘”。
 
-先做四个模型：
+这说明绝对零遗忘门主要测到了策略随机性和 regression to the mean（均值回归），而不全是参数遗忘。见 [v1.4.2 行为汇总](https://github.com/moqingx52/RoboTwin/blob/exp/dp-self-improvement/experiments/brace/archive/confirmatory_preservation_p1d_v142_20260806/h1_summary.json)。
 
-```text
-DP-Base
-DP-Success
-DP-Seed-Balanced
-DP-Difficulty-Weighted
-```
+应改成：
 
-验证：
+[
+\Delta_{\rm pres}
+=================
 
-1. Success-only 是否真的提升；
-2. 提升是否主要来自容易 seed；
-3. 平均成功率和 seed coverage 是否背离；
-4. 新 seed 和困难 seed 是否提升。
+\frac1{|S|}
+\sum_s
+\left[
+\hat p_{\theta}(s)-\hat p_{\theta_0}(s)
+\right]
+]
 
-这一步的目的只是判断论文假设是否成立。
+并让新策略和 Base（基础策略）使用相同 env seed（环境随机种子）和 policy seed（策略随机种子），形成 common random numbers（公共随机数）配对。每个状态最好不止 3 次重复。
 
----
+另外，5 个训练 seed（随机种子）里 4/5 同方向不是显著性证据。单侧 sign test（符号检验）中：
 
-## 第二阶段：仍然可以不用 RLinf
+* 5/5：(p=1/32=0.03125)；
+* 4/5：(p=6/32=0.1875)。
 
-加入：
+4/5 可以作为 development gate（开发门），不能写成 confirmatory significance（确认性显著）。
 
-```text
-失败轨迹正确前缀
-```
+## 四、最值得参考的相关工作
 
-或者少量关键状态 branch rollout。
+| 工作                                                                                               | 对你的直接启示                                                                                                                   |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| [SIME（模态级探索自改进）](https://arxiv.org/html/2505.01396)                                              | 用低成功率状态中的偶然成功做轨迹筛选，再用 IQL（隐式 Q 学习）估计片段价值；这是 branch verification（分支验证）必须超过的直接基线。                                           |
+| [ReGuide（引导式扩散策略自改进）](https://arxiv.org/abs/2606.28939)                                          | 对 recovery data（恢复数据）做 matched-data ablation（匹配数据消融），并比较 fine-tuning（微调）和 retraining from scratch（从头重训）；与你的 B1–N1 目标非常接近。 |
+| [RoboCat（自改进通用机器人策略）](https://arxiv.org/html/2306.11706)                                         | 把原数据和自生成数据共同重训。你需要加入“从 Base200（基础策略）重新训练旧数据+新片段”这一强基线。                                                                    |
+| [CLEAR（持续学习经验回放）](https://arxiv.org/abs/1811.11682)                                              | experience replay（经验回放）加 behavioral cloning（行为克隆）本身就是很强的防遗忘方法。                                                            |
+| [ContinualVLA（持续视觉语言动作学习）](https://arxiv.org/html/2605.26820)                                    | 新近实机结果也表明 replay ratio（回放比例）、replay frequency（回放频率）和 action normalization（动作归一化）非常关键。                                     |
+| [GEM（梯度情景记忆）](https://papers.nips.cc/paper/7225-gradient-episodic-memory-for-continual-learning) | 直接投影新任务梯度，防止旧记忆损失上升；比从零开始缓慢增长的对偶变量更接近你想要的“每步不破坏旧能力”。                                                                      |
 
-先在一个任务上做到方法有效。
+你当前每个 128 样本 batch（批次）里只有 16 个新片段样本，其余主要是旧专家数据，本身已经是非常强的 rehearsal（排练回放）。因此 anchor（锚定）能够额外改善的空间可能很小。必须把“普通旧数据回放”作为正式强基线，而不能把无 anchor（锚定）理解成完全没有保护。
 
----
+## 五、我建议的最小验证路线
 
-## 第三阶段：再迁入 RLinf
+不要立刻重跑完整 25 条训练。按下面顺序更省算力。
 
-只有在方法成立后，再把它包装成：
+1. 修 branch（分支）统计和 gate（门控）。
 
-```text
-Scalable Self-Improvement for Diffusion Policies
-```
+   * 先利用现有 800 条轨迹，扫描全部成功/失败混合 seed（随机种子）；
+   * 至少满足自己冻结的 10 seed（随机种子）/30 point（分支点）；
+   * 修复伪随机负对照；
+   * 使用同状态策略重采样作为 control（对照）；
+   * 对 (\Delta) 做双边不确定性和 seed-level cluster bootstrap（随机种子级聚类自助法）；
+   * 现有 5 个片段只能标成 pilot evidence（先导证据）。
 
-用 RLinf 做：
+2. 做 anchor positive control（锚定阳性对照）。
 
-* 多任务；
-* 大量并行 rollout；
-* 多轮在线迭代；
-* 和 RL 算法公平对比；
-* 吞吐和扩展性分析。
+   * 从 (\theta_0) 人为执行 20–100 步 SFT（监督微调）造成漂移；
+   * 停止新数据训练，只运行 anchor（锚定）；
+   * 检查它能否把最终 (d_g) 拉回来。
 
-这样 RLinf 是**扩展与系统验证工具**，而不是核心方法依赖。
+   如果连这个实验都拉不回来，说明是求解器或实现问题，不必跑行为评估。
 
----
+3. 比较四种稳定机制。
 
-## 一句话判断
+   * 旧专家 replay（回放）；
+   * fixed-beta distillation（固定权重蒸馏）；
+   * augmented Lagrangian（增广拉格朗日）并使用非零初始 (\lambda)；
+   * A-GEM/GEM（平均梯度情景记忆/梯度情景记忆）投影。
 
-**小验证：单开 RoboTwin 最合理。**
+   所有方法匹配旧数据量、新数据量、优化步数和反向传播计算量。
 
-**论文方法：不应依赖 RLinf。**
+4. 重新定义行为端点。
 
-**规模化、多任务、在线迭代和 PPO/GRPO 对比：再用 RLinf。**
+   * Base（基础策略）和新策略使用完全相同的随机数；
+   * 使用成功概率差，而不是 2/3 入组后要求 3/3；
+   * `boundary`（边界组）先作为 monitor-only（仅监测组）。Base（基础策略）在边界状态本来就不稳定，强行保持它可能是在保存失败行为。
 
-你现在最应该先验证的是：成功率从 50% 提高到 80% 时，究竟是更多 seed 被解决了，还是原来会做的 seed 被做得更稳定了。这个实验用单独 RoboTwin 脚本反而最干净。
+5. 最后才重跑 2×2 因子实验。
 
+   先回答两个独立问题：
 
+   [
+   B1-N1>0?
+   ]
 
+   [
+   \text{稳定机制}-\text{普通回放}>0?
+   ]
 
+   只有两者分别成立，再解释 B3（验证片段+稳定机制）的交互效应。
 
+最终判断矩阵应当是：
 
+| 最终内部约束 | 行为保持 | 结论                        |
+| ------ | ---- | ------------------------- |
+| 失败     | 失败   | 优化器或方法确实失败                |
+| 失败     | 通过   | (d_g) 或阈值没有行为意义           |
+| 通过     | 失败   | anchor set（锚定集合）或度量保护错了对象 |
+| 通过     | 通过   | 才能认为 anchor（锚定）机制有效       |
 
+目前你的结果更接近第一种，但 branch（分支）部分和行为基线仍有设计漏洞。因此我建议先把论文主张降为：
 
-总体判断：这版可以继续跑，分片结果是正确的。单进程与 8 分片 dry-run 对比，逐条结果及汇总完全一致。
+> “同状态反事实分支验证能否提高自生成数据的训练价值”
 
-  但有三个注意点：
-
-  1. 你前后使用了 /workspace/RoboTwin 和 /depot/rlinf/repos/RoboTwin。先确认它们是同一个挂载，否则 checkpoint、eval 输出和代码可能分散在两个目录：
-
-  readlink -f /workspace/RoboTwin
-  readlink -f /depot/rlinf/repos/RoboTwin
-
-  2. 当前评测是“8 个静态分片各占一张卡”，并非真正的空闲 GPU 动态领取任务。experiments/phase1/run_all_200.sh:85 能让八卡同时工作，但先完成的卡在尾段仍会闲置。现在不要设置 EVAL_SHARDS_PER_JOB>8，否则会同时
-     在一张卡启动多个进程。
-
-  3. experiments/phase1/merge_eval_shards.py:32 目前只检查“文件数量”，重复记录还会静默丢弃，未严格验证 shard ID、metadata 和预期总条数。正常运行没问题，但正式实验前建议补强。另外这个文件目前是 untracked，
-     提交代码时别漏掉：
-
-  ?? experiments/phase1/merge_eval_shards.py
-
-  按默认 100 个 train/eval seed，正确条数应为：
-
-  - 每个 base probe：800 episodes
-  - 每个最终模型：100×3 + 100×3 + 20×8 = 760
-  - 两个任务、每个任务 5 个模型：7600
-  - 加 probe 总计：9200
-
-  因此你贴出的 hard-seed 输出只表示 probe 完成；在那个时间点按 episode 数约完成 17%，后续才是主要评测。
-
-  下一步建议：
-
-  1. 先完成 seed 0 pilot，查看：
-
-  jq -r '
-  to_entries[] as $t |
-  $t.value | to_entries[] |
-  [$t.key, .key,
-   .value.id_heldout.mean_sr.mean,
-   .value.hard_20.mean_sr.mean,
-   .value.hard_20.solved_coverage.mean] | @tsv
-  ' experiments/phase1/eval_results_200/summary.json
-
-  重点判断：
-
-  - expert_only 是否已经解释了全部提升；
-  - success 是否只提高 ID；
-  - seed_balanced / difficulty_weighted 是否提高 hard_20 和 coverage。
-
-  2. 如果两个任务方向一致，再补训练 seed 1、2：
-
-  TASKS="place_container_plate dump_bin_bigbin" \
-  TRAIN_SEEDS="1 2" \
-  bash experiments/phase1/run_all_200.sh finetune 8
-
-  TASKS="place_container_plate dump_bin_bigbin" \
-  TRAIN_SEEDS="1 2" \
-  bash experiments/phase1/run_all_200.sh eval 8
-
-  然后重新聚合 0/1/2：
-
-  python experiments/phase1/aggregate_eval.py \
-    --eval-dir experiments/phase1/eval_results_200 \
-    --train-seeds 0 1 2 \
-    --tasks place_container_plate dump_bin_bigbin \
-    --variants base expert_only success seed_balanced difficulty_weighted \
-    --output experiments/phase1/eval_results_200/summary.json
-
-  3. 三 seed 成立后，再扩展另外两个任务。下一项算法实验优先做 success_plus_failure_prefix，暂时不必直接上更复杂的 RL/critic。
-
-  当前运行不用停。跑完后把 summary.json 发我，我可以直接判断结果是否支持 easy-seed bias，以及下一轮该扩任务还是先改方法。
+把防遗忘作为独立模块重新开发。这个方向仍有机会，而且比继续围绕 (10^{-4}) 调对偶学习率更值得做。
 

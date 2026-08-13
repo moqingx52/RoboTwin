@@ -29,6 +29,29 @@ from experiments.brace.validate_artifacts import run_validation
 
 
 class TrackCScaffoldTest(unittest.TestCase):
+    def test_line_a_aggregator_separates_anchor_and_verification_effects(self) -> None:
+        from experiments.brace._aggregate_place_base200_line_a import behavioral_preservation_go_no_go
+
+        cells = [{"method": "base", "seed": 0, "complete": True}]
+        values = {"N1": 0.0, "B1": 0.1, "B2": 0.2, "B3": 0.4}
+        for method, value in values.items():
+            for seed in range(1, 6):
+                cells.append(
+                    {
+                        "method": method,
+                        "seed": seed,
+                        "complete": True,
+                        "delta_pres": value,
+                        "endpoints": {"p_pres": value},
+                    }
+                )
+        result = behavioral_preservation_go_no_go({"cells": cells})
+        anchor = result["effects"]["delta_pres"]["anchor_effect"]
+        verification = result["effects"]["delta_pres"]["verification_effect"]
+        self.assertAlmostEqual(anchor["effect_point_estimate"], 0.25)
+        self.assertAlmostEqual(verification["effect_point_estimate"], 0.1)
+        self.assertEqual(anchor["one_sided_exact_sign_p"], 0.03125)
+
     def test_hydra_config_path_is_relative_to_script(self) -> None:
         script_dir = Path(__file__).resolve().parent
         config_dir = (script_dir / "../../policy/DP/diffusion_policy/config").resolve()
@@ -58,6 +81,27 @@ class TrackCScaffoldTest(unittest.TestCase):
         summary = evaluate_constraint_feasibility([], protocol)
         self.assertFalse(summary["passed"])
         self.assertEqual(summary["missing_groups"], ["base_solved", "boundary"])
+
+    def test_constraint_feasibility_prefers_training_epsilon_and_final_row(self) -> None:
+        protocol = {
+            "training": {"brace_anchor": {"epsilon": 0.1}},
+            "anchor_smoke": {"identity_epsilon": 1e-4},
+            "constraint_feasibility": {
+                "mean_tolerance_factor": 1.0,
+                "p90_max_factor": 1.0,
+                "violation_fraction_max": {"base_solved": 0.0, "boundary": 0.0},
+            },
+        }
+        rows = [
+            {"brace_constraint/base_solved": 1.0, "brace_constraint/boundary": 1.0},
+            {"brace_constraint/base_solved": 0.05, "brace_constraint/boundary": 0.05},
+        ]
+        path_result = evaluate_constraint_feasibility(rows, protocol)
+        final_result = evaluate_constraint_feasibility(rows, protocol, mode="final_checkpoint")
+        self.assertFalse(path_result["passed"])
+        self.assertTrue(final_result["passed"])
+        self.assertEqual(final_result["epsilon_source"], "training.brace_anchor.epsilon")
+        self.assertEqual(final_result["rows_evaluated"], 1)
 
     def test_preservation_group_batch_sampler_small_dataset(self) -> None:
         from experiments.brace.preservation_sampler import PreservationGroupBatchSampler

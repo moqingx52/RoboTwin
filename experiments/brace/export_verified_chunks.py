@@ -45,15 +45,58 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def exportable_point_types(protocol: dict[str, Any]) -> set[str]:
+    configured = (protocol.get("acceptance") or {}).get("accepted_point_types")
+    if configured is None:
+        configured = ["local_divergence_peak", "first_persistent_divergence"]
+    return {str(value) for value in configured}
+
+
 def accepted_points_from_summary(summary: dict[str, Any], task: str, checks: list[dict[str, Any]], protocol: dict[str, Any]) -> list[dict[str, Any]]:
-    task_summary = summary.get("tasks", {}).get(task, {})
-    points = task_summary.get("points")
-    if points:
-        return [point for point in points if point.get("accepted")]
+    # Always recompute: archived summaries may contain the pre-fix candidate-only LCB.
     alpha = float(protocol["acceptance"]["one_sided_alpha"])
     delta = float(protocol["acceptance"]["minimum_advantage_delta"])
     recomputed = summarize_branch_rows(checks, alpha=alpha, delta=delta)
-    return [point for point in recomputed.get("points", []) if point.get("accepted")]
+    allowed = exportable_point_types(protocol)
+    return [
+        point for point in recomputed.get("points", [])
+        if point.get("accepted") and str(point.get("point_type")) in allowed
+    ]
+
+
+def branch_confirm_completeness(points: list[dict[str, Any]], protocol: dict[str, Any]) -> dict[str, Any]:
+    gate = protocol.get("branch_confirm_gate") or {}
+    min_seeds = int(gate.get("min_seeds", 10))
+    min_points = int(gate.get("min_points", 30))
+    max_share_allowed = float(gate.get("max_seed_accepted_share", 0.2))
+    seeds = {int(point["env_seed"]) for point in points}
+    allowed = exportable_point_types(protocol)
+    accepted = [
+        point for point in points
+        if point.get("accepted") and str(point.get("point_type")) in allowed
+    ]
+    per_seed = Counter(int(point["env_seed"]) for point in accepted)
+    max_share = max(per_seed.values(), default=0) / max(1, len(accepted))
+    checks = {
+        "min_seeds": len(seeds) >= min_seeds,
+        "min_points": len(points) >= min_points,
+        "max_seed_accepted_share": max_share <= max_share_allowed,
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "observed": {
+            "unique_seeds": len(seeds),
+            "total_points": len(points),
+            "accepted_points": len(accepted),
+            "max_seed_accepted_share": max_share,
+        },
+        "required": {
+            "min_seeds": min_seeds,
+            "min_points": min_points,
+            "max_seed_accepted_share": max_share_allowed,
+        },
+    }
 
 
 def checkpoint_metadata(protocol: dict[str, Any], task: str) -> dict[str, Any]:
@@ -399,8 +442,16 @@ def export_datasets(
     alpha = float(protocol["acceptance"]["one_sided_alpha"])
     delta = float(protocol["acceptance"]["minimum_advantage_delta"])
     recomputed = summarize_branch_rows(checks, alpha=alpha, delta=delta)
+    completeness = branch_confirm_completeness(recomputed.get("points", []), protocol)
+    if not completeness["passed"]:
+        raise ValueError(
+            "branch confirm completeness NO-GO; refuse chunk export: "
+            + json.dumps(completeness, sort_keys=True)
+        )
 
     accepted_points = accepted_points_from_summary(summary, task, checks, protocol)
+    if not accepted_points:
+        raise ValueError("branch confirm has no exportable accepted scientific points")
     candidate_rows = _candidate_rows_by_point(checks)
     successes, _ = collect_candidates(task, rollout_dir)
     success_by_key = {(item.env_seed, item.rollout_id): item for item in successes if item.success}
@@ -439,6 +490,8 @@ def export_datasets(
         "indexed_success_trajectories": len(success_candidates),
         "export_workers": workers,
         "recomputed_accepted_points": recomputed["accepted_points"],
+        "exportable_point_types": sorted(exportable_point_types(protocol)),
+        "branch_confirm_completeness": completeness,
         "matching_audit": matching_audit,
         "records": {"B1": b1_records, "N1": n1_records},
     }

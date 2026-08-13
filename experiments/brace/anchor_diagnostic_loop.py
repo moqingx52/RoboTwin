@@ -40,6 +40,7 @@ from experiments.brace.anchor_training_smoke import (
 )
 from experiments.brace.replay_audit import git_commit, write_json_atomic
 from experiments.brace.screen_gates import (
+    constraint_epsilon,
     evaluate_constraint_feasibility,
     summarize_feasibility_trajectory,
 )
@@ -557,7 +558,7 @@ def run_anchor_diagnostic(
         if teacher_hash_before is not None
         else True
     )
-    epsilon = float(protocol.get("anchor_smoke", {}).get("identity_epsilon", 1e-4))
+    epsilon, epsilon_source = constraint_epsilon(protocol)
 
     trajectory_path = work_dir / "feasibility_trajectory.jsonl"
     with trajectory_path.open("w", encoding="utf-8") as handle:
@@ -598,8 +599,8 @@ def run_anchor_diagnostic(
         "trajectory_summary": trajectory_summary,
         "probe_summary": probe_summary,
         "gate_note": (
-            "screen.v1.2 still gates on full-trajectory train-batch constraints using identity_epsilon; "
-            "held-out probe tail summaries are forensic-only until a calibrated protocol is frozen."
+            "Training-path feasibility remains the frozen gate; held-out final-checkpoint probe "
+            f"summaries are forensic-only until a calibrated protocol is frozen. epsilon_source={epsilon_source}."
         ),
         "dataset_manifest_sha256": manifest_sha256,
         "anchor_manifest_sha256": anchor_manifest.get("manifest_sha256"),

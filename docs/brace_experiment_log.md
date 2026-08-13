@@ -153,6 +153,38 @@
 
 ---
 
+## 2026-08-13 — Base200 Line A 降级为 developmental pilot；forensic 代码修正
+
+本轮 joint gate 已由 constraint feasibility 挡住；method freeze、held-out BRACE
+和 25 checkpoint 重训均不启动。冻结 v1.2 归档保持不变，以下均为新增 forensic
+口径。
+
+- 聚合器分别报告 anchor effect `[(B2-N1)+(B3-B1)]/2` 与 verification
+  effect `B1-N1`，各自包含 3/3 `P_pres` 和相对 Base fresh 的连续
+  `delta_pres`。4/5 同向明确标注为 p=0.1875 的 development gate；5/5
+  才是 p=0.03125。
+- Feasibility 新增 `final_checkpoint` held-out fixed-probe 模式；全训练历史仍是
+  原冻结 gate，但只解释为优化路径诊断。epsilon 优先从
+  `training.brace_anchor.epsilon` 读取并记录来源。
+- Branch LCB 改为 continuation-seed 配对的 candidate-control 差，并加入小簇数
+  有界修正；分支点实现时序 persistent onset 和真 RNG random control。
+- Chunk export 默认排除 `random_negative_control`，并在导出前强制
+  10 seed / 30 point / 单 seed share ≤0.2。
+
+对 `archive/branches_place_base200_v2/checks.jsonl` 的只读重算结果为：3 seed、
+9 point、0 accepted，hard NO-GO；还缺 7 seed 和 21 point。原归档的 5
+accepted（其中 2 个 random negative controls）与 `GO` 不改写，只作为旧统计
+实现的 provenance evidence。
+
+**云端停止线：** adaptation 跑完后，可运行 Base fresh + 25 arms 的 26 个
+preservation jobs（同一 `policy_seed_offset=4000`、当前冻结 3 repeats），保存全部
+per-episode JSON 和 state；修正版 developmental summary 生成后停止自动 GPU
+pipeline。不要自动 method-freeze/promote、held-out 启动、B1/N1 导出、25 条重训、
+anchor 四机制比较或新 2×2。final-checkpoint probe、anchor positive control 与权重
+插值作为同步新代码并审阅产物后的独立 forensic jobs。
+
+---
+
 ## 文档索引
 
 | 文档 | 用途 |
