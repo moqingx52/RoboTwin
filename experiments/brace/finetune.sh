@@ -106,17 +106,40 @@ if [[ "${anchor}" == "true" ]]; then
   fi
   [[ -f "${protocol_path}" ]] || { echo "missing screen protocol: ${protocol_path}" >&2; exit 2; }
   feasibility_json="${checkpoint_dir}/${epochs}.feasibility.json"
-  log_path=""
-  while IFS= read -r candidate; do
-    [[ -f "${candidate}" ]] || continue
-    if grep -q "${checkpoint_name}" "$(dirname "${candidate}")/.hydra/config.yaml" 2>/dev/null; then
-      log_path="${candidate}"
-    fi
-  done < <(find "${dp_dir}/data/outputs" -type f -name logs.json.txt 2>/dev/null | sort)
-  if [[ -z "${log_path}" ]]; then
-    echo "missing training log for anchor feasibility: ${checkpoint_name}" >&2
+  # Match hydra log by checkpoint_name AND training.seed. Name-only matching can
+  # reuse another seed's log when multiple B2/B3 runs share the same checkpoint_name.
+  log_path="$(
+    PYTHONPATH="${repo_root}" python - "${dp_dir}" "${checkpoint_name}" "${train_seed}" <<'PY'
+import sys
+from pathlib import Path
+from omegaconf import OmegaConf
+
+outputs = Path(sys.argv[1]) / "data" / "outputs"
+checkpoint_name = sys.argv[2]
+train_seed = int(sys.argv[3])
+matches = []
+if outputs.is_dir():
+    for candidate in outputs.rglob("logs.json.txt"):
+        hydra_cfg = candidate.parent / ".hydra" / "config.yaml"
+        if not hydra_cfg.is_file() or candidate.stat().st_size <= 0:
+            continue
+        try:
+            cfg = OmegaConf.load(hydra_cfg)
+        except Exception:
+            continue
+        name = str(OmegaConf.select(cfg, "training.checkpoint_name", default="") or "")
+        seed = OmegaConf.select(cfg, "training.seed", default=None)
+        if name == checkpoint_name and seed is not None and int(seed) == train_seed:
+            matches.append((candidate.stat().st_mtime, candidate))
+if not matches:
+    raise SystemExit(1)
+matches.sort()
+print(matches[-1][1])
+PY
+  )" || {
+    echo "missing seed-matched training log for anchor feasibility: ${checkpoint_name} seed=${train_seed}" >&2
     exit 1
-  fi
+  }
   set +e
   PYTHONPATH="${repo_root}" python "${repo_root}/experiments/brace/anchor_feasibility_test.py" \
     --protocol "${protocol_path}" \

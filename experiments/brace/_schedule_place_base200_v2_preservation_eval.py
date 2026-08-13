@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Schedule place Base200 Line A *adaptation* eval (confirm_easy → confirm_hard).
+"""Independent Base200 Line A preservation eval scheduler.
 
-Each eval GPU runs one logical job at a time with 3 concurrent shards via
-run_eval_group.
+Requires a frozen, validated cohort. Creates a *new* state file
+(`preservation_eval_state.json`) and does not modify adaptation `eval_state.json`.
 
-Preservation is NOT auto-appended when a cohort later appears. Jobs and
-variants are fixed when eval_state.json is first created (cohort_path is
-usually null). After census freezes a cohort, launch the independent
-preservation scheduler `_schedule_place_base200_v2_preservation_eval.py`
-with a separate state file; do not rebuild this adaptation state in place.
+Jobs (26):
+  - Base × 1 preservation
+  - U0/N1/B1/B2/B3 × seeds 1–5 preservation
 """
 from __future__ import annotations
 
@@ -29,7 +27,8 @@ SEEDS = (1, 2, 3, 4, 5)
 CHECKPOINT_LABEL = "place_base200_v2"
 EPOCHS = 10
 WORKERS = 3
-DEFAULT_EVAL_GPUS = (2, 3, 4, 5, 6, 7)
+DEFAULT_EVAL_GPUS = (0, 1, 2, 3, 4, 5, 6, 7)
+STATE_NAME = "preservation_eval_state.json"
 
 
 def file_sha256(path: Path) -> str | None:
@@ -44,17 +43,33 @@ def file_sha256(path: Path) -> str | None:
     return digest.hexdigest()
 
 
-def cohort_path() -> Path | None:
+def resolve_cohort() -> tuple[Path, dict[str, Any]]:
     pointer = BRACE / "runs/LATEST_place_base200_line_a_preservation_cohort"
     if not pointer.is_file():
-        return None
+        raise SystemExit(f"missing cohort pointer: {pointer}")
     path = Path(pointer.read_text(encoding="utf-8").strip())
+    if not path.is_absolute():
+        path = REPO / path
     if not path.is_file():
-        return None
+        raise SystemExit(f"cohort missing: {path}")
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if not payload.get("frozen") or not payload.get("meets_min_untouched"):
-        return None
-    return path
+    if not payload.get("frozen"):
+        raise SystemExit(f"cohort not frozen: {path}")
+    if not payload.get("meets_min_untouched"):
+        raise SystemExit(f"cohort fails meets_min_untouched: {path}")
+    return path, payload
+
+
+def validate_cohort_cli(cohort_path: Path) -> None:
+    cmd = [
+        PY,
+        str(BRACE / "_validate_place_base200_line_a_cohort.py"),
+        "--cohort",
+        str(cohort_path),
+    ]
+    proc = subprocess.run(cmd, cwd=REPO)
+    if proc.returncode != 0:
+        raise SystemExit(f"cohort validation failed (exit={proc.returncode})")
 
 
 def checkpoint_dir(method: str, seed: int) -> Path:
@@ -62,7 +77,7 @@ def checkpoint_dir(method: str, seed: int) -> Path:
     return DP / "checkpoints" / f"{name}-{seed}"
 
 
-def checkpoint_ready(method: str, seed: int, *, record_hash: bool = False) -> tuple[bool, dict[str, Any]]:
+def checkpoint_ready(method: str, seed: int) -> tuple[bool, dict[str, Any]]:
     cdir = checkpoint_dir(method, seed)
     ckpt = cdir / f"{EPOCHS}.ckpt"
     complete = cdir / f"{EPOCHS}.ckpt.complete"
@@ -71,41 +86,13 @@ def checkpoint_ready(method: str, seed: int, *, record_hash: bool = False) -> tu
         return False, {**info, "reason": "missing_ckpt"}
     if not complete.is_file():
         return False, {**info, "reason": "missing_complete_marker"}
-    if record_hash:
-        info["checkpoint_sha256"] = file_sha256(ckpt)
+    info["checkpoint_sha256"] = file_sha256(ckpt)
     if method in ("B2", "B3"):
         feas = cdir / f"{EPOCHS}.feasibility.json"
         if not feas.is_file() or feas.stat().st_size <= 0:
             return False, {**info, "reason": "missing_feasibility"}
-        if record_hash:
-            info["feasibility_sha256"] = file_sha256(feas)
+        info["feasibility_sha256"] = file_sha256(feas)
     return True, info
-
-
-def build_adaptation_seeds(run_dir: Path) -> tuple[Path, Path]:
-    manifest = json.loads((BRACE / "seeds/multitask_v1/place_container_plate.json").read_text(encoding="utf-8"))
-    parts = manifest["partitions"]
-    seeds_dir = run_dir / "eval_seeds"
-    seeds_dir.mkdir(parents=True, exist_ok=True)
-    easy = {
-        "task": "place_container_plate",
-        "eval_id": [int(x) for x in parts["confirm_easy"]],
-        "train_rollout": [],
-        "split": "confirm_easy",
-        "task_config": "demo_clean",
-    }
-    hard = {
-        "task": "place_container_plate",
-        "eval_id": [int(x) for x in parts["confirm_hard"]],
-        "train_rollout": [],
-        "split": "confirm_hard",
-        "task_config": "demo_randomized",
-    }
-    easy_path = seeds_dir / "confirm_easy.json"
-    hard_path = seeds_dir / "confirm_hard.json"
-    easy_path.write_text(json.dumps(easy, indent=2) + "\n", encoding="utf-8")
-    hard_path.write_text(json.dumps(hard, indent=2) + "\n", encoding="utf-8")
-    return easy_path, hard_path
 
 
 def eval_complete(output_dir: Path, variant: str) -> bool:
@@ -125,9 +112,9 @@ def launch_eval(
     task_config: str,
     output_dir: Path,
     log_path: Path,
-    extra_splits_file: Path | None = None,
-    policy_seed_offset: int | None = None,
-    extra_split_repeats: int = 1,
+    extra_splits_file: Path,
+    policy_seed_offset: int,
+    extra_split_repeats: int,
 ) -> subprocess.Popen:
     leaf = [
         PY,
@@ -150,18 +137,13 @@ def launch_eval(
         "0",
         "--no-include-hard",
         "--resume",
+        "--extra-splits-file",
+        str(extra_splits_file),
+        "--extra-split-repeats",
+        str(extra_split_repeats),
+        "--policy-seed-offset",
+        str(policy_seed_offset),
     ]
-    if extra_splits_file is not None:
-        leaf.extend(
-            [
-                "--extra-splits-file",
-                str(extra_splits_file),
-                "--extra-split-repeats",
-                str(extra_split_repeats),
-            ]
-        )
-    if policy_seed_offset is not None:
-        leaf.extend(["--policy-seed-offset", str(policy_seed_offset)])
     cmd = [PY, str(BRACE / "run_eval_group.py"), "--workers", str(WORKERS), "--", *leaf]
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(gpu)
@@ -173,130 +155,78 @@ def launch_eval(
     return subprocess.Popen(cmd, cwd=str(REPO), env=env, stdout=handle, stderr=subprocess.STDOUT)
 
 
-def make_jobs(run_dir: Path) -> list[dict[str, Any]]:
-    easy_seeds, hard_seeds = build_adaptation_seeds(run_dir)
-    output_dir = run_dir / "eval"
-    cohort = cohort_path()
-    extra_splits = None
-    if cohort is not None:
-        cohort_payload = json.loads(cohort.read_text(encoding="utf-8"))
-        extra_splits = {
-            key: [int(seed) for seed in values]
-            for key, values in cohort_payload.get("cohorts", {}).items()
-            if key in {"untouched_preservation", "anchor_train", "anchor_probe", "boundary"}
-        }
-        extra_path = run_dir / "eval_seeds" / "preservation_extra_splits.json"
-        extra_path.write_text(json.dumps(extra_splits, indent=2) + "\n", encoding="utf-8")
+def make_jobs(run_dir: Path, cohort_path: Path, cohort: dict[str, Any]) -> list[dict[str, Any]]:
+    seeds_dir = run_dir / "preservation_eval_seeds"
+    seeds_dir.mkdir(parents=True, exist_ok=True)
+    extra_splits = {
+        key: [int(seed) for seed in values]
+        for key, values in (cohort.get("cohorts") or {}).items()
+        if key in {"untouched_preservation", "anchor_train", "anchor_probe", "boundary"}
+    }
+    extra_path = seeds_dir / "preservation_extra_splits.json"
+    extra_path.write_text(json.dumps(extra_splits, indent=2) + "\n", encoding="utf-8")
+    seeds_file = BRACE / "seeds/place_container_plate_base200_line_a_seeds.json"
     jobs: list[dict[str, Any]] = []
 
     base_ckpt = DP / "checkpoints/place_container_plate-demo_clean-200-0/600.ckpt"
-    if cohort is not None and base_ckpt.is_file():
-        jobs.append(
-            {
-                "id": "eval:base:preservation",
-                "kind": "preservation",
-                "method": "base",
-                "seed": 0,
-                "priority": 0,
-                "ckpt": str(base_ckpt),
-                "variants": [
-                    {
-                        "split": "preservation",
-                        "variant": "line_a_base_preservation",
-                        "seeds_file": str(BRACE / "seeds/place_container_plate_base200_line_a_seeds.json"),
-                        "task_config": "demo_clean",
-                        "extra_splits_file": str(run_dir / "eval_seeds/preservation_extra_splits.json"),
-                        "policy_seed_offset": 4000,
-                        "extra_split_repeats": 3,
-                    }
-                ],
-            }
-        )
-
-    wave = [
-        ("U0", 1),
-        ("N1", 1),
-        ("B1", 1),
-        ("B2", 1),
-        ("B3", 1),
-        ("U0", 2),
-        ("N1", 2),
-        ("B1", 2),
-        ("B2", 2),
-        ("B3", 2),
-        ("U0", 3),
-        ("N1", 3),
-        ("B1", 3),
-        ("B2", 3),
-        ("B3", 3),
-        ("U0", 4),
-        ("N1", 4),
-        ("B1", 4),
-        ("B2", 4),
-        ("B3", 4),
-        ("U0", 5),
-        ("N1", 5),
-        ("B1", 5),
-        ("B2", 5),
-        ("B3", 5),
-    ]
-    priority = 1
-    for method, seed in wave:
-        ready, info = checkpoint_ready(method, seed)
-        if not ready:
-            jobs.append(
-                {
-                    "id": f"eval:{method}:seed{seed}",
-                    "kind": "adaptation",
-                    "method": method,
-                    "seed": seed,
-                    "priority": priority,
-                    "status": "blocked",
-                    "blocked_reason": info.get("reason", "not_ready"),
-                }
-            )
-            priority += 1
-            continue
-        variants = [
-            {
-                "split": "confirm_easy",
-                "variant": f"line_a_{method}_seed{seed}_confirm_easy",
-                "seeds_file": str(easy_seeds),
-                "task_config": "demo_clean",
-            },
-            {
-                "split": "confirm_hard",
-                "variant": f"line_a_{method}_seed{seed}_confirm_hard",
-                "seeds_file": str(hard_seeds),
-                "task_config": "demo_randomized",
-            },
-        ]
-        if cohort is not None and extra_splits is not None:
-            variants.append(
+    if not base_ckpt.is_file():
+        raise SystemExit(f"missing Base200 checkpoint: {base_ckpt}")
+    jobs.append(
+        {
+            "id": "pres:base",
+            "kind": "preservation",
+            "method": "base",
+            "seed": 0,
+            "priority": 0,
+            "status": "pending",
+            "ckpt": str(base_ckpt),
+            "checkpoint_sha256": file_sha256(base_ckpt),
+            "variants": [
                 {
                     "split": "preservation",
-                    "variant": f"line_a_{method}_seed{seed}_preservation",
-                    "seeds_file": str(BRACE / "seeds/place_container_plate_base200_line_a_seeds.json"),
+                    "variant": "line_a_base_preservation",
+                    "seeds_file": str(seeds_file),
                     "task_config": "demo_clean",
-                    "extra_splits_file": str(run_dir / "eval_seeds/preservation_extra_splits.json"),
+                    "extra_splits_file": str(extra_path),
                     "policy_seed_offset": 4000,
                     "extra_split_repeats": 3,
                 }
-            )
-        jobs.append(
-            {
-                "id": f"eval:{method}:seed{seed}",
-                "kind": "adaptation",
+            ],
+        }
+    )
+
+    priority = 1
+    for method in METHODS:
+        for seed in SEEDS:
+            ready, info = checkpoint_ready(method, seed)
+            job: dict[str, Any] = {
+                "id": f"pres:{method}:seed{seed}",
+                "kind": "preservation",
                 "method": method,
                 "seed": seed,
                 "priority": priority,
-                "status": "pending",
-                "ckpt": str(checkpoint_dir(method, seed) / f"{EPOCHS}.ckpt"),
-                "checkpoint_sha256": info.get("checkpoint_sha256"),
-                "variants": variants,
             }
-        )
-        priority += 1
+            if not ready:
+                job["status"] = "blocked"
+                job["blocked_reason"] = info.get("reason", "not_ready")
+            else:
+                job["status"] = "pending"
+                job["ckpt"] = str(checkpoint_dir(method, seed) / f"{EPOCHS}.ckpt")
+                job["checkpoint_sha256"] = info.get("checkpoint_sha256")
+                job["feasibility_sha256"] = info.get("feasibility_sha256")
+                job["variants"] = [
+                    {
+                        "split": "preservation",
+                        "variant": f"line_a_{method}_seed{seed}_preservation",
+                        "seeds_file": str(seeds_file),
+                        "task_config": "demo_clean",
+                        "extra_splits_file": str(extra_path),
+                        "policy_seed_offset": 4000,
+                        "extra_split_repeats": 3,
+                    }
+                ]
+            jobs.append(job)
+            priority += 1
     return jobs
 
 
@@ -310,32 +240,49 @@ def main() -> int:
     os.chdir(REPO)
     run_ptr = BRACE / "runs/LATEST_place_base200_v2_line_a_pilot"
     run_dir = REPO / run_ptr.read_text(encoding="utf-8").strip()
-    state_path = run_dir / "eval_state.json"
-    logs = run_dir / "logs"
-    output_dir = run_dir / "eval"
+    state_path = run_dir / STATE_NAME
+    logs = run_dir / "logs_preservation"
+    output_dir = run_dir / "eval_preservation"
     gpu_ids = [int(x) for x in os.environ.get("BRACE_EVAL_GPU_IDS", " ".join(map(str, DEFAULT_EVAL_GPUS))).split()]
 
-    if state_path.is_file():
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-    else:
-        jobs = make_jobs(run_dir)
+    cohort_path, cohort = resolve_cohort()
+    if not state_path.is_file():
+        validate_cohort_cli(cohort_path)
+        jobs = make_jobs(run_dir, cohort_path, cohort)
         state = {
             "schema_version": 1,
+            "kind": "place_base200_v2_preservation_eval",
             "run_dir": str(run_dir),
             "output_dir": str(output_dir),
+            "adaptation_eval_state": str(run_dir / "eval_state.json"),
             "gpus": gpu_ids,
             "workers_per_gpu": WORKERS,
-            "cohort_path": str(cohort_path()) if cohort_path() else None,
+            "cohort_path": str(cohort_path),
+            "cohort_sha256": file_sha256(cohort_path),
             "jobs": jobs,
             "started_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": (
+                "Independent of adaptation eval_state.json. Launch only after census "
+                "cohort freeze + validation. Do not merge into adaptation jobs."
+            ),
         }
+    else:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        if state.get("cohort_path") != str(cohort_path):
+            raise SystemExit(
+                f"existing {STATE_NAME} cohort_path={state.get('cohort_path')} "
+                f"differs from current pointer {cohort_path}; refuse to continue"
+            )
 
     def save() -> None:
         state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     save()
     running: dict[int, dict[str, Any]] = {}
-    print(f"eval scheduler: {len(state['jobs'])} jobs on gpus={gpu_ids}", flush=True)
+    print(
+        f"preservation scheduler: {len(state['jobs'])} jobs on gpus={gpu_ids} cohort={cohort_path}",
+        flush=True,
+    )
 
     while True:
         for gpu, slot in list(running.items()):
@@ -366,10 +313,8 @@ def main() -> int:
                     task_config=next_variant["task_config"],
                     output_dir=output_dir,
                     log_path=log_path,
-                    extra_splits_file=Path(next_variant["extra_splits_file"])
-                    if next_variant.get("extra_splits_file")
-                    else None,
-                    policy_seed_offset=next_variant.get("policy_seed_offset"),
+                    extra_splits_file=Path(next_variant["extra_splits_file"]),
+                    policy_seed_offset=int(next_variant["policy_seed_offset"]),
                     extra_split_repeats=int(next_variant.get("extra_split_repeats", 1)),
                 )
                 running[gpu] = {"job": job, "variant_idx": next_idx, "pid": proc.pid}
@@ -380,9 +325,10 @@ def main() -> int:
             print(f"[completed] {job['id']}", flush=True)
             running.pop(gpu, None)
 
-        # Unblock jobs whose checkpoints became static after make_jobs.
         for job in state["jobs"]:
             if job.get("status") != "blocked":
+                continue
+            if job["method"] == "base":
                 continue
             ready, info = checkpoint_ready(job["method"], int(job["seed"]))
             if not ready:
@@ -390,18 +336,14 @@ def main() -> int:
                 continue
             job["status"] = "pending"
             job["ckpt"] = str(checkpoint_dir(job["method"], int(job["seed"])) / f"{EPOCHS}.ckpt")
+            job["checkpoint_sha256"] = info.get("checkpoint_sha256")
+            job["feasibility_sha256"] = info.get("feasibility_sha256")
             job.pop("blocked_reason", None)
-            # Ensure variants exist for jobs blocked before make_jobs filled them.
             if "variants" not in job:
-                rebuilt = {
-                    j["id"]: j
-                    for j in make_jobs(run_dir)
-                    if j.get("status") == "pending" and "variants" in j
-                }
+                rebuilt = {j["id"]: j for j in make_jobs(run_dir, cohort_path, cohort) if "variants" in j}
                 if job["id"] in rebuilt:
                     job["variants"] = rebuilt[job["id"]]["variants"]
-                    job["checkpoint_sha256"] = rebuilt[job["id"]].get("checkpoint_sha256")
-            print(f"[unblocked] {job['id']} reason_cleared={info.get('reason')}", flush=True)
+            print(f"[unblocked] {job['id']}", flush=True)
 
         pending = [j for j in state["jobs"] if j.get("status") == "pending" and "variants" in j]
         blocked = [j for j in state["jobs"] if j.get("status") == "blocked"]
@@ -417,7 +359,7 @@ def main() -> int:
                 time.sleep(30)
                 continue
             print(
-                f"eval done completed={len(completed)} failed={len(failed)} blocked={len(blocked)}",
+                f"preservation eval done completed={len(completed)} failed={len(failed)}",
                 flush=True,
             )
             return 0 if not failed else 1
@@ -427,7 +369,6 @@ def main() -> int:
             if not pending:
                 break
             job = pending[0]
-            # Skip variants already complete; start at first incomplete.
             start_idx = 0
             while start_idx < len(job["variants"]) and eval_complete(
                 output_dir, job["variants"][start_idx]["variant"]
@@ -448,8 +389,8 @@ def main() -> int:
                 task_config=variant["task_config"],
                 output_dir=output_dir,
                 log_path=log_path,
-                extra_splits_file=Path(variant["extra_splits_file"]) if variant.get("extra_splits_file") else None,
-                policy_seed_offset=variant.get("policy_seed_offset"),
+                extra_splits_file=Path(variant["extra_splits_file"]),
+                policy_seed_offset=int(variant["policy_seed_offset"]),
                 extra_split_repeats=int(variant.get("extra_split_repeats", 1)),
             )
             job["status"] = "running"

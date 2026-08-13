@@ -34,18 +34,35 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def find_hydra_log(checkpoint_name: str) -> Path | None:
+def find_hydra_log(checkpoint_name: str, *, train_seed: int | None = None) -> Path | None:
     outputs = DP / "data" / "outputs"
     if not outputs.is_dir():
         return None
-    matches: list[Path] = []
-    for candidate in sorted(outputs.rglob("logs.json.txt")):
+    matches: list[tuple[float, Path]] = []
+    for candidate in outputs.rglob("logs.json.txt"):
         hydra_cfg = candidate.parent / ".hydra" / "config.yaml"
         if not hydra_cfg.is_file():
             continue
-        if checkpoint_name in hydra_cfg.read_text(encoding="utf-8", errors="replace"):
-            matches.append(candidate)
-    return matches[-1] if matches else None
+        text = hydra_cfg.read_text(encoding="utf-8", errors="replace")
+        if checkpoint_name not in text:
+            continue
+        if train_seed is not None:
+            try:
+                from omegaconf import OmegaConf
+
+                cfg = OmegaConf.load(hydra_cfg)
+                seed = OmegaConf.select(cfg, "training.seed", default=None)
+                if seed is None or int(seed) != int(train_seed):
+                    continue
+            except Exception:
+                continue
+        if candidate.stat().st_size <= 0:
+            continue
+        matches.append((candidate.stat().st_mtime, candidate))
+    if not matches:
+        return None
+    matches.sort()
+    return matches[-1][1]
 
 
 def ensure_feasibility(
@@ -55,16 +72,26 @@ def ensure_feasibility(
     epochs: int,
     protocol_path: Path,
     checkpoint_name: str,
+    train_seed: int | None = None,
+    force: bool = False,
 ) -> tuple[Path | None, dict[str, Any]]:
     feasibility_path = checkpoint_dir / f"{epochs}.feasibility.json"
     if method not in ("B2", "B3"):
         return None, {"skipped": True, "reason": "not_anchor_method"}
-    if feasibility_path.is_file() and feasibility_path.stat().st_size > 0:
+    if (
+        not force
+        and feasibility_path.is_file()
+        and feasibility_path.stat().st_size > 0
+    ):
         payload = read_json(feasibility_path)
         return feasibility_path, {"existing": True, "passed": payload.get("passed"), "parseable": True}
-    log_path = find_hydra_log(checkpoint_name)
+    log_path = find_hydra_log(checkpoint_name, train_seed=train_seed)
     if log_path is None:
-        return None, {"error": "missing_hydra_training_log", "checkpoint_name": checkpoint_name}
+        return None, {
+            "error": "missing_hydra_training_log",
+            "checkpoint_name": checkpoint_name,
+            "train_seed": train_seed,
+        }
     cmd = [
         sys.executable,
         str(BRACE / "anchor_feasibility_test.py"),
@@ -81,6 +108,7 @@ def ensure_feasibility(
             "error": "feasibility_analyzer_failed",
             "exit_code": proc.returncode,
             "stderr_tail": proc.stderr[-2000:],
+            "log_path": str(log_path),
         }
     payload = read_json(feasibility_path)
     return feasibility_path, {
@@ -88,6 +116,8 @@ def ensure_feasibility(
         "passed": payload.get("passed"),
         "parseable": True,
         "exit_code": proc.returncode,
+        "log_path": str(log_path),
+        "train_seed": train_seed,
     }
 
 
@@ -157,6 +187,7 @@ def reconcile_one(
         epochs=epochs,
         protocol_path=protocol_path,
         checkpoint_name=checkpoint_name,
+        train_seed=seed,
     )
     report["feasibility"] = feas_info
     if method in ("B2", "B3"):
