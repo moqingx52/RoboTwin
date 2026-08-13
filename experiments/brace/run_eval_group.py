@@ -230,7 +230,7 @@ def with_shard(command: list[str], shard: int, workers: int) -> list[str]:
 
 def merge_command(command: list[str], workers: int) -> list[str]:
     return [
-        "python",
+        sys.executable,
         str(PHASE1_DIR / "merge_eval_shards.py"),
         "--task",
         option(command, "--task"),

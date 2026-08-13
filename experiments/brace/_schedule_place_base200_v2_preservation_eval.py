@@ -233,7 +233,42 @@ def make_jobs(run_dir: Path, cohort_path: Path, cohort: dict[str, Any]) -> list[
 def pid_alive(pid: int | None) -> bool:
     if not pid:
         return False
-    return Path(f"/proc/{pid}").exists()
+    proc = Path(f"/proc/{pid}")
+    if not proc.exists():
+        return False
+    try:
+        os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        pass
+    if not proc.exists():
+        return False
+    try:
+        raw = (proc / "stat").read_text()
+        state = raw.split(")")[-1].split()[0]
+        if state == "Z":
+            return False
+    except OSError:
+        return False
+    return True
+
+
+def reclaim_orphaned_running(state: dict[str, Any]) -> int:
+    """Jobs left status=running in a previous process are invisible to a fresh in-memory map."""
+    n = 0
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    for job in state.get("jobs") or []:
+        if job.get("status") != "running":
+            continue
+        job["status"] = "pending"
+        job.pop("pid", None)
+        job.pop("gpu", None)
+        job["recovery_note"] = {
+            "reclaimed_from": "running",
+            "at_utc": now,
+            "reason": "scheduler_restart_orphaned_running",
+        }
+        n += 1
+    return n
 
 
 def main() -> int:
@@ -268,6 +303,9 @@ def main() -> int:
         }
     else:
         state = json.loads(state_path.read_text(encoding="utf-8"))
+        reclaimed = reclaim_orphaned_running(state)
+        if reclaimed:
+            print(f"reclaimed {reclaimed} orphaned running jobs to pending", flush=True)
         if state.get("cohort_path") != str(cohort_path):
             raise SystemExit(
                 f"existing {STATE_NAME} cohort_path={state.get('cohort_path')} "
