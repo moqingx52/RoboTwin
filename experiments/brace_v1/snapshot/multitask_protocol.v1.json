@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "protocol_revision": "brace.multitask.v1",
+  "status": "design_frozen_method_pending",
+  "exploratory": false,
+  "preregistered_at": "2026-08-07",
+  "task_manifest": "experiments/brace/multitask_tasks.v1.json",
+  "leaderboard_snapshot": "experiments/brace/leaderboard_snapshot_20260807.json",
+  "method_freeze": "experiments/brace/multitask_method_freeze.v1.json",
+  "method_development_gate": {
+    "task": "place_container_plate",
+    "stage": "brace_v2_intervention_pilot",
+    "paired_seed_count": 5,
+    "effect_point_estimate_gt": 0.0,
+    "minimum_directional_wins": 4
+  },
+  "benchmark": {
+    "name": "RoboTwin 2.0",
+    "embodiment": "aloha-agilex",
+    "expert_demonstrations_per_task": 50,
+    "local_base_policy": "DP",
+    "external_context_policies": [
+      "RDT",
+      "Pi0",
+      "ACT",
+      "DP",
+      "DP3"
+    ]
+  },
+  "arms": {
+    "base": {
+      "continued_training": false,
+      "branch_verified": false,
+      "anchor_constraint": false
+    },
+    "u0": {
+      "continued_training": true,
+      "branch_verified": false,
+      "anchor_constraint": false,
+      "data": "expert_only"
+    },
+    "n1": {
+      "continued_training": true,
+      "branch_verified": false,
+      "anchor_constraint": false,
+      "data": "matched_random_chunks"
+    },
+    "b1": {
+      "continued_training": true,
+      "branch_verified": true,
+      "anchor_constraint": false,
+      "data": "verified_chunks"
+    },
+    "b2": {
+      "continued_training": true,
+      "branch_verified": false,
+      "anchor_constraint": true,
+      "data": "matched_random_chunks"
+    },
+    "b3": {
+      "continued_training": true,
+      "branch_verified": true,
+      "anchor_constraint": true,
+      "data": "verified_chunks"
+    }
+  },
+  "training": {
+    "training_seeds": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "match_optimizer_steps": true,
+    "match_nonexpert_examples": true,
+    "match_n1_b1_accepted_chunks": true,
+    "record_simulator_transitions": true,
+    "record_branch_queries": true
+  },
+  "seed_partitions": {
+    "start_seed": 100000,
+    "partition_stride": 10000,
+    "rollout_train_count": 100,
+    "anchor_candidate_count": 200,
+    "census_candidate_count": 200,
+    "confirm_easy_count": 100,
+    "confirm_hard_count": 100,
+    "policy_seed_offsets": {
+      "census": 3000,
+      "checkpoint_selection": 3500,
+      "confirmatory": 4000
+    },
+    "require_disjoint_env_seed_partitions": true,
+    "require_disjoint_policy_seed_offsets": true
+  },
+  "evaluation": {
+    "splits": {
+      "preservation": {
+        "task_config": "demo_clean",
+        "env_seed_count": 100,
+        "policy_repeats": 3,
+        "seed_manifest_partition": "census_candidate"
+      },
+      "confirm_easy": {
+        "task_config": "demo_clean",
+        "env_seed_count": 100,
+        "policy_repeats": 1,
+        "seed_manifest_partition": "confirm_easy"
+      },
+      "confirm_hard": {
+        "task_config": "demo_randomized",
+        "env_seed_count": 100,
+        "policy_repeats": 1,
+        "seed_manifest_partition": "confirm_hard"
+      }
+    },
+    "pair_on": [
+      "task",
+      "training_seed",
+      "env_seed",
+      "policy_seed",
+      "repeat"
+    ],
+    "base_stability_strata": [
+      "stable_3_of_3",
+      "marginal_2_of_3",
+      "other"
+    ],
+    "hard_must_not_affect_training_or_checkpoint_selection": true
+  },
+  "contrasts": {
+    "anchor_main_preservation": "mean(b2,b3)-mean(n1,b1)",
+    "credit_main_adaptation": "mean(b1,b3)-mean(n1,b2)",
+    "brace_preservation": "b3-b1",
+    "brace_adaptation": "b3-b1",
+    "interaction": "(b3-b2)-(b1-n1)",
+    "interaction_split": "confirm_easy"
+  },
+  "inference": {
+    "primary_tasks": "heldout_tasks_only",
+    "hierarchy": [
+      "task",
+      "training_seed",
+      "env_seed",
+      "policy_repeat"
+    ],
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 20260807,
+    "confidence_level": 0.95,
+    "adaptation_noninferiority_margin": -0.05,
+    "severe_adaptation_regression": -0.1,
+    "minimum_positive_heldout_tasks": 7,
+    "heldout_task_count": 10,
+    "sensitivity_base_easy_range": [
+      0.2,
+      0.8
+    ]
+  },
+  "hypotheses": {
+    "H_preservation": "pooled anchor_main_preservation lower_ci_gt_0",
+    "H_credit": "pooled credit_main_adaptation lower_ci_gt_0",
+    "H_pareto": "pooled brace_preservation lower_ci_gt_0 and pooled brace_adaptation lower_ci_gt_margin",
+    "H_generalization": "at_least_7_of_10_positive_brace_preservation and no_severe_task_adaptation_regression"
+  },
+  "launch_gates": {
+    "require_method_freeze": true,
+    "require_protocol_and_manifest_sha256": true,
+    "require_task_replay_audit": true,
+    "require_local_dp_reproduction": true,
+    "local_dp_reproduction_max_absolute_deviation": 0.1,
+    "fail_closed_on_missing_task": true,
+    "do_not_drop_failed_or_floor_tasks": true
+  },
+  "gpu_scheduling": {
+    "training_processes_per_gpu": 1,
+    "simulator_processes_per_gpu": 3,
+    "inspect_active_jobs_before_launch": true,
+    "do_not_colocate_training_and_simulator": true
+  },
+  "amendment": "experiments/brace/multitask_amendment.v1.1.json",
+  "notes": [
+    "Supplement backup pool introduced by brace.multitask.v1.1 amendment; seed manifests reserve expert_demo_supplement = task_base+700..+899 for all tasks."
+  ]
+}

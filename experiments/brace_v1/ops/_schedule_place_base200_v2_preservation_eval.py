@@ -31,13 +31,22 @@ DEFAULT_EVAL_GPUS = (0, 1, 2, 3, 4, 5, 6, 7)
 STATE_NAME = "preservation_eval_state.json"
 
 
-def file_sha256(path: Path) -> str | None:
+def file_sha256(path: Path, *, max_bytes: int = 16 * 1024 * 1024) -> str | None:
     if not path.is_file():
         return None
     import hashlib
 
     digest = hashlib.sha256()
+    size = path.stat().st_size
     with path.open("rb") as handle:
+        if size > max_bytes:
+            head = handle.read(max_bytes // 2)
+            handle.seek(max(0, size - max_bytes // 2))
+            tail = handle.read(max_bytes // 2)
+            digest.update(str(size).encode())
+            digest.update(head)
+            digest.update(tail)
+            return "partial:" + digest.hexdigest()
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()

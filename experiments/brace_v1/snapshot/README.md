@@ -2,11 +2,6 @@
 
 This directory is reserved for the revised B1--B3 experiments.
 
-One-off `_*.py` / `_*.sh` ops scaffolding has been moved to
-[`experiments/brace_v1/ops/`](../brace_v1/ops/). A frozen copy of tracked V1
-scripts and protocols is under [`experiments/brace_v1/snapshot/`](../brace_v1/snapshot/).
-Runtime data (`runs/`, `rollouts_*`, `logs/`) and evidence `archive/` stay here.
-
 Authoritative design:
 
 ```text

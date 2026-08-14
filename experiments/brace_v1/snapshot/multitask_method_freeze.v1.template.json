@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "freeze_id": "brace_v2_method.v1",
+  "status": "pending_place_development",
+  "frozen": false,
+  "development_task": "place_container_plate",
+  "source_run": null,
+  "source_summary_sha256": null,
+  "source_pilot_gate": null,
+  "method_config_path": null,
+  "method_config_sha256": null,
+  "anchor_construction": null,
+  "branch_acceptance": null,
+  "training": null,
+  "checkpoint_selection": null,
+  "notes": [
+    "Copy this template to multitask_method_freeze.v1.json only after BRACE-v2 development is complete.",
+    "Held-out scheduling rejects pending or unhashed method freezes."
+  ]
+}

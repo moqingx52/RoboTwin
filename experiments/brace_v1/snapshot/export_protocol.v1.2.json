@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "protocol_revision": "export.v1.2",
+  "description": "Unified export protocol for branch acceptance and strict B1/N1 credit matching.",
+  "acceptance": {
+    "one_sided_alpha": 0.1,
+    "minimum_advantage_delta": 0.15
+  },
+  "base_checkpoint_pattern": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
+  "credit_matching": {
+    "match_env_seed": true,
+    "match_trajectory_outcome": true,
+    "match_chunk_index": true,
+    "match_optimizer_budget": true,
+    "max_chunk_share_per_seed": 0.25,
+    "emit_matching_audit": true,
+    "fail_closed_on_env_seed_miss": true,
+    "exclude_b1_trajectory": true
+  },
+  "branch_confirm_gate": {
+    "min_seeds": 10,
+    "min_points": 30,
+    "max_seed_accepted_share": 0.2
+  }
+}

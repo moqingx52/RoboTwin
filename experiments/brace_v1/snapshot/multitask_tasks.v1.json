@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "manifest_id": "brace_multitask_tasks.v1",
+  "status": "frozen",
+  "frozen_at": "2026-08-07",
+  "benchmark": "RoboTwin 2.0",
+  "embodiment": "aloha-agilex",
+  "expert_demonstrations_per_task": 50,
+  "development_tasks": [
+    "place_container_plate",
+    "dump_bin_bigbin"
+  ],
+  "heldout_tasks": [
+    "beat_block_hammer",
+    "click_alarmclock",
+    "handover_mic",
+    "lift_pot",
+    "move_can_pot",
+    "open_laptop",
+    "place_burger_fries",
+    "put_object_cabinet",
+    "shake_bottle",
+    "stack_bowls_three"
+  ],
+  "tasks": {
+    "place_container_plate": {
+      "role": "development",
+      "skill_family": "single_object_pick_place",
+      "leaderboard_dp_easy": 0.41
+    },
+    "dump_bin_bigbin": {
+      "role": "development_diagnostic",
+      "skill_family": "pouring_dynamic_objects",
+      "leaderboard_dp_easy": 0.49
+    },
+    "beat_block_hammer": {
+      "role": "heldout",
+      "skill_family": "tool_use_contact",
+      "leaderboard_dp_easy": 0.42
+    },
+    "click_alarmclock": {
+      "role": "heldout",
+      "skill_family": "precision_press",
+      "leaderboard_dp_easy": 0.61
+    },
+    "handover_mic": {
+      "role": "heldout",
+      "skill_family": "bimanual_handover",
+      "leaderboard_dp_easy": 0.53
+    },
+    "lift_pot": {
+      "role": "heldout",
+      "skill_family": "bimanual_coordinated_grasp",
+      "leaderboard_dp_easy": 0.39
+    },
+    "move_can_pot": {
+      "role": "heldout",
+      "skill_family": "transport_container_interaction",
+      "leaderboard_dp_easy": 0.39
+    },
+    "open_laptop": {
+      "role": "heldout",
+      "skill_family": "articulation",
+      "leaderboard_dp_easy": 0.49
+    },
+    "place_burger_fries": {
+      "role": "heldout",
+      "skill_family": "multi_object_placement",
+      "leaderboard_dp_easy": 0.72
+    },
+    "put_object_cabinet": {
+      "role": "heldout",
+      "skill_family": "long_horizon_bimanual_articulation",
+      "leaderboard_dp_easy": 0.42
+    },
+    "shake_bottle": {
+      "role": "heldout",
+      "skill_family": "dynamic_manipulation",
+      "leaderboard_dp_easy": 0.65
+    },
+    "stack_bowls_three": {
+      "role": "heldout",
+      "skill_family": "long_horizon_precision_stacking",
+      "leaderboard_dp_easy": 0.63
+    }
+  },
+  "selection_rule": {
+    "source": "public_leaderboard_before_BRACE_v2_results",
+    "dp_easy_range": [0.2, 0.8],
+    "requirements": [
+      "include all prior BRACE development tasks",
+      "cover distinct manipulation skill families",
+      "do not remove tasks based on BRACE outcomes"
+    ]
+  }
+}

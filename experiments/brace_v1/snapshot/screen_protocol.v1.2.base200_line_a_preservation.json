@@ -1,0 +1,75 @@
+{
+  "schema_version": 3,
+  "protocol_revision": "screen.v1.2.base200_line_a_preservation",
+  "status": "frozen",
+  "frozen_on": "2026-08-12",
+  "exploratory": false,
+  "description": "Base200 Line A preservation/census protocol for place_container_plate. Uses multitask_v1 seed partitions and Base200 600.ckpt substrate; disjoint from traced rollout_train and Line A anchor/B1 inputs.",
+  "tasks": ["place_container_plate"],
+  "seeds_file": "experiments/brace/seeds/place_container_plate_base200_line_a_seeds.json",
+  "base_checkpoint_pattern": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
+  "training_seeds": [1, 2, 3, 4, 5],
+  "checkpoint_primary_epoch": 10,
+  "base_solved_enrollment": {
+    "rule": "min_success_count",
+    "min_successes": 2,
+    "repeats_required": 3,
+    "display_fraction": 0.6666666666666666
+  },
+  "preservation_eval": {
+    "rule": "all_repeats_success",
+    "repeats_required": 3
+  },
+  "census_eval": {
+    "census_candidate_id_count": 200,
+    "census_enrollment_split": "census_candidate_id",
+    "train_seed_count": 100,
+    "hard_seed_count": 0,
+    "id_repeats": 3,
+    "train_repeats": 3,
+    "hard_repeats": 0,
+    "policy_seed_offset": 3000,
+    "use_ema_deploy": true
+  },
+  "eval": {
+    "id_seed_count": 100,
+    "adaptation_split": "id_heldout",
+    "train_seed_count": 100,
+    "hard_seed_count": 0,
+    "id_repeats": 1,
+    "train_repeats": 1,
+    "hard_repeats": 0,
+    "extra_split_repeats": 3,
+    "policy_seed_offset": 4000,
+    "use_ema_deploy": true
+  },
+  "preservation_cohorts": {
+    "min_untouched_base_solved": 60,
+    "census_enrollment_split": "census_candidate_id",
+    "adaptation_split": "id_heldout",
+    "exclude_sources": [
+      "anchor_train",
+      "anchor_probe",
+      "sft_chunk",
+      "branch_pilot",
+      "branch_confirm",
+      "phase3c_behavior",
+      "rollout_train"
+    ],
+    "report_splits": [
+      "anchor_train",
+      "anchor_probe",
+      "untouched_preservation",
+      "boundary",
+      "id_heldout",
+      "train_seen"
+    ]
+  },
+  "adaptation_eval": {
+    "confirm_easy_partition": "confirm_easy",
+    "confirm_hard_partition": "confirm_hard",
+    "easy_task_config": "demo_clean",
+    "hard_task_config": "demo_randomized",
+    "repeats": 1
+  }
+}

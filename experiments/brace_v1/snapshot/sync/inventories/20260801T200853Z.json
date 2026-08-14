@@ -1,0 +1,460 @@
+{
+  "artifacts": [
+    {
+      "bundle_id": "place_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "line_count": 180,
+      "repo_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/checks.jsonl",
+      "required": true,
+      "sha256": "2b5e7e2b9772125f0db8e5a6f34ab9fd9ba3e331446d191fc3c582ed66213a04",
+      "size_bytes": 72667,
+      "source_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/checks.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "place_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",
+      "required": true,
+      "sha256": "8ef8d3585c23fcde6b53cce441e4ca8b939dab5038c65d5a968caf75f2266037",
+      "size_bytes": 7160,
+      "source_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "place_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/protocol.v2.3.json",
+      "required": true,
+      "sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+      "size_bytes": 2247,
+      "source_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/protocol.v2.3.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "place_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/source_run.json",
+      "required": false,
+      "sha256": "d8cb7747d89a9713ff8e33b27d78a4a0bc161cc3ff9eb9c9f15545cba736f4be",
+      "size_bytes": 358,
+      "source_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/source_run.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "place_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/analyzed_seeds.json",
+      "required": false,
+      "sha256": "e9fcae31f87a9222a2ec1b04291e1864a6dbea7742d01e694c4f78954756700b",
+      "size_bytes": 242,
+      "source_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/analyzed_seeds.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "place_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/MANIFEST.sha256",
+      "required": false,
+      "sha256": "404580f13ee4a33789f734b03628e4f3f66aff4b03e59c2cc61a1a5cc23cb8c6",
+      "size_bytes": 554,
+      "source_path": "experiments/brace/archive/branches_place_pilot_valid_v2.3/MANIFEST.sha256",
+      "status": "present"
+    },
+    {
+      "bundle_id": "dump_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "line_count": 144,
+      "repo_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/checks.jsonl",
+      "required": true,
+      "sha256": "2fa31e6e45fbd9dea531b02028035042a2fe157d864bf7b960666bdb914c5dac",
+      "size_bytes": 57743,
+      "source_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/checks.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "dump_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/summary.json",
+      "required": true,
+      "sha256": "19f0fd315df18c45d1c32b5474efb0e2e1d29798c31ff5710495cd7e9e24704e",
+      "size_bytes": 6044,
+      "source_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "dump_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/protocol.v2.3.json",
+      "required": true,
+      "sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+      "size_bytes": 2247,
+      "source_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/protocol.v2.3.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "dump_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/source_run.json",
+      "required": false,
+      "sha256": "80c07d5db93ce980788e07de3cad6acdb77a345cc33ed8f898b0dad5f47c06ef",
+      "size_bytes": 357,
+      "source_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/source_run.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "dump_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/analyzed_seeds.json",
+      "required": false,
+      "sha256": "54bd44302d339d582cafb2430330e64953661526872a00f0fb72eab27d5582f8",
+      "size_bytes": 347,
+      "source_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/analyzed_seeds.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "dump_pilot_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/MANIFEST.sha256",
+      "required": false,
+      "sha256": "b0ae5a804d79417d0c36c0abdae59ab88ff23ad0a5de462f441e2b9777ec6da4",
+      "size_bytes": 550,
+      "source_path": "experiments/brace/archive/branches_dump_pilot_valid_v2.3/MANIFEST.sha256",
+      "status": "present"
+    },
+    {
+      "bundle_id": "confirm_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_confirm_v2.3/summary.json",
+      "required": true,
+      "sha256": "fedefaadb29799aa529c981350b33ac46af6a14983c49606715c6fd687c47720",
+      "size_bytes": 2044,
+      "source_path": "experiments/brace/archive/branches_place_confirm_v2.3/summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "confirm_archive",
+      "exists": true,
+      "git_track": true,
+      "line_count": 36,
+      "repo_path": "experiments/brace/archive/branches_place_confirm_v2.3/checks.jsonl",
+      "required": true,
+      "sha256": "05c7262142b39d41f878a7936b8444937da60529f6dc644d408c362227c0f448",
+      "size_bytes": 14510,
+      "source_path": "experiments/brace/archive/branches_place_confirm_v2.3/checks.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "confirm_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_confirm_v2.3/merged_gate.json",
+      "required": true,
+      "sha256": "b8d109b5f41f13f2fc5aa56a3add8aff10811053fedf7060ed2bd4bb82f61712",
+      "size_bytes": 2081,
+      "source_path": "experiments/brace/archive/branches_place_confirm_v2.3/merged_gate.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "confirm_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_confirm_v2.3/protocol.v2.3.json",
+      "required": false,
+      "sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+      "size_bytes": 2247,
+      "source_path": "experiments/brace/archive/branches_place_confirm_v2.3/protocol.v2.3.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "confirm_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_confirm_v2.3/source_run.json",
+      "required": false,
+      "sha256": "9a3e72189b77e922956d575b205a1ce99a42cccf621cba1d920c6eb85ba5d172",
+      "size_bytes": 354,
+      "source_path": "experiments/brace/archive/branches_place_confirm_v2.3/source_run.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "confirm_archive",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/branches_place_confirm_v2.3/confirm_seeds.json",
+      "required": true,
+      "sha256": "c7fa8e5bab2cd963c3e6198220ce79da97dc9af175bbe1aa89c7a91fb6743358",
+      "size_bytes": 407,
+      "source_path": "experiments/brace/archive/branches_place_confirm_v2.3/confirm_seeds.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "datasets_b1n1",
+      "exists": true,
+      "git_track": true,
+      "line_count": 11,
+      "repo_path": "experiments/brace/datasets/place_pilot_v2.3_B1.jsonl",
+      "required": true,
+      "sha256": "5004dabf936f6f3f4287cdae7ce053b1bfb74b95e6b5e5f7da726548e082f82d",
+      "size_bytes": 8589,
+      "source_path": "experiments/brace/datasets/place_pilot_v2.3_B1.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "datasets_b1n1",
+      "exists": true,
+      "git_track": true,
+      "line_count": 11,
+      "repo_path": "experiments/brace/datasets/place_pilot_v2.3_N1.jsonl",
+      "required": true,
+      "sha256": "53acd528683eb52461d7b76efcb63ffd51075b81051f66dfbbad9da335540460",
+      "size_bytes": 6529,
+      "source_path": "experiments/brace/datasets/place_pilot_v2.3_N1.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "datasets_b1n1",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/datasets/place_pilot_v2.3_summary.json",
+      "required": true,
+      "sha256": "8b7a653b46595a61ab37ecb5766258a03f06070d1435072e0d60aa1f7595e237",
+      "size_bytes": 324,
+      "source_path": "experiments/brace/datasets/place_pilot_v2.3_summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "datasets_b1n1",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/datasets/place_pilot_v2.3_export_summary.json",
+      "required": false,
+      "source_path": "experiments/brace/datasets/place_pilot_v2.3_export_summary.json",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "datasets_b1n1",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/datasets/place_pilot_v2.3_source_run.json",
+      "required": false,
+      "source_path": "experiments/brace/datasets/place_pilot_v2.3_source_run.json",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "replay_gate_place",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/summary.json",
+      "required": true,
+      "sha256": "e5af1d777473c9eb9293b6da8d1f81aea1c9cfc38763f4161be11e4e3bf94667",
+      "size_bytes": 3324,
+      "source_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_place",
+      "exists": true,
+      "git_track": true,
+      "line_count": 120,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/checks.jsonl",
+      "required": true,
+      "sha256": "29d1afeba3fb3c3a968e133b6d7f03495fbb42f8b386f6c9b0f6dbf6c2ef58ec",
+      "size_bytes": 83812,
+      "source_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/checks.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_place",
+      "exists": true,
+      "git_track": true,
+      "line_count": 1,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/failures.jsonl",
+      "required": true,
+      "sha256": "e9d395a06d47d8398693dda3fbfdfd0de31ec4097614060eac9e35f0e907ebe3",
+      "size_bytes": 1039,
+      "source_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/failures.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_place",
+      "exists": true,
+      "git_track": true,
+      "line_count": 0,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/diagnostics.jsonl",
+      "required": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "source_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/diagnostics.jsonl",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_place",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/protocol.v2.3.json",
+      "required": true,
+      "sha256": "d1692a09b49fe9137918bb644f096d75593e15f1e63298f4f4d4bf0dc35e5d1d",
+      "size_bytes": 2247,
+      "source_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/protocol.v2.3.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_place",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/source_run.json",
+      "required": false,
+      "sha256": "b36517ad8ee96d361ada0cefdf0bc88809d79e03dd5d40bca1dcfcb54f525cde",
+      "size_bytes": 444,
+      "source_path": "experiments/brace/archive/replay_audit_v2_place_v2.3_gate/source_run.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_dump",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
+      "required": true,
+      "sha256": "0ae69b8a221bf8793cee8ad2234c4b9b0956d273af5a5714a4d26c5193eda0f3",
+      "size_bytes": 1969,
+      "source_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "replay_gate_dump",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/checks.jsonl",
+      "required": true,
+      "source_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/checks.jsonl",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "replay_gate_dump",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/failures.jsonl",
+      "required": true,
+      "source_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/failures.jsonl",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "replay_gate_dump",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/diagnostics.jsonl",
+      "required": true,
+      "source_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/diagnostics.jsonl",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "replay_gate_dump",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/protocol.v2.3.json",
+      "required": true,
+      "source_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/protocol.v2.3.json",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "replay_gate_dump",
+      "exists": false,
+      "git_track": true,
+      "repo_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/source_run.json",
+      "required": false,
+      "source_path": "experiments/brace/archive/replay_audit_v2_dump_v2.3_gate/source_run.json",
+      "status": "missing"
+    },
+    {
+      "bundle_id": "anchor_smoke",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/anchor_smoke/summary.json",
+      "required": false,
+      "sha256": "06ca5fc4e7bfbe79fde30dd7175f664c6790bf7981c84860d7b30f05fa7d0db3",
+      "size_bytes": 659,
+      "source_path": "experiments/brace/anchor_smoke/summary.json",
+      "status": "present"
+    },
+    {
+      "bundle_id": "seeds_confirm",
+      "exists": true,
+      "git_track": true,
+      "repo_path": "experiments/brace/seeds/place_container_plate_confirm_seeds.json",
+      "required": false,
+      "sha256": "c7fa8e5bab2cd963c3e6198220ce79da97dc9af175bbe1aa89c7a91fb6743358",
+      "size_bytes": 407,
+      "source_path": "experiments/brace/seeds/place_container_plate_confirm_seeds.json",
+      "status": "present"
+    }
+  ],
+  "bundle_summary": {
+    "anchor_smoke": {
+      "git_track": 1,
+      "missing": 0,
+      "present": 1,
+      "required": 0
+    },
+    "confirm_archive": {
+      "git_track": 6,
+      "missing": 0,
+      "present": 6,
+      "required": 4
+    },
+    "datasets_b1n1": {
+      "git_track": 5,
+      "missing": 0,
+      "present": 3,
+      "required": 3
+    },
+    "dump_pilot_archive": {
+      "git_track": 6,
+      "missing": 0,
+      "present": 6,
+      "required": 3
+    },
+    "place_pilot_archive": {
+      "git_track": 6,
+      "missing": 0,
+      "present": 6,
+      "required": 3
+    },
+    "replay_gate_dump": {
+      "git_track": 6,
+      "missing": 4,
+      "present": 1,
+      "required": 5
+    },
+    "replay_gate_place": {
+      "git_track": 6,
+      "missing": 0,
+      "present": 6,
+      "required": 5
+    },
+    "seeds_confirm": {
+      "git_track": 1,
+      "missing": 0,
+      "present": 1,
+      "required": 0
+    }
+  },
+  "generated_at": "2026-08-01T20:08:53Z",
+  "git_commit": "7335c3e17f9ce67cf070f3f553be6891521fec08",
+  "hostname": "gsy-ThinkStation-P3-Tower",
+  "protocol_revision": "2.3",
+  "schema_version": 2
+}

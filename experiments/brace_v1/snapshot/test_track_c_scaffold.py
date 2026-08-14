@@ -30,9 +30,7 @@ from experiments.brace.validate_artifacts import run_validation
 
 class TrackCScaffoldTest(unittest.TestCase):
     def test_line_a_aggregator_separates_anchor_and_verification_effects(self) -> None:
-        from experiments.brace_v1.ops._aggregate_place_base200_line_a import (
-            behavioral_preservation_go_no_go,
-        )
+        from experiments.brace._aggregate_place_base200_line_a import behavioral_preservation_go_no_go
 
         cells = [{"method": "base", "seed": 0, "complete": True}]
         values = {"N1": 0.0, "B1": 0.1, "B2": 0.2, "B3": 0.4}
