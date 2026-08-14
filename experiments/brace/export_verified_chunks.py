@@ -530,7 +530,7 @@ def main() -> int:
             f"Archive place pilot without checks.jsonl cannot export B1.\n"
             f"Fix on cloud:\n"
             f"  cp experiments/brace/branches/checks.jsonl {branch_dir}/\n"
-            f"  bash experiments/brace/archive_place_pilot.sh\n"
+            f"  bash experiments/brace_v1/ops/archive_place_pilot.sh\n"
             f"Or export from working copy:\n"
             f"  BRACE_BRANCH_DIR=experiments/brace/branches ... export-verified-chunks"
             + (f"\n(found fallback at {fallback})" if fallback.is_file() else "")

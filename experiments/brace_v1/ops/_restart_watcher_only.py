@@ -61,7 +61,7 @@ def main() -> None:
     )
     with LOG.open("a", encoding="utf-8") as handle:
         proc = subprocess.Popen(
-            [PY, "experiments/brace/watch_and_roll_base200_pipeline.py"],
+            [PY, "experiments/brace_v1/ops/watch_and_roll_base200_pipeline.py"],
             cwd=str(REPO),
             env=env,
             stdout=handle,

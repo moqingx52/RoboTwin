@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from experiments.brace.anchor_diagnostic_loop import DiagnosticJobConfig, run_anchor_diagnostic
+from experiments.brace_v2_legacy.anchor_diagnostic_loop import DiagnosticJobConfig, run_anchor_diagnostic
 
 
 def run_feasibility_diagnostic(

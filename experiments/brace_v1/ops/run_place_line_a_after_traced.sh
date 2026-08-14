@@ -5,7 +5,7 @@
 # Stages: promote existing audit (or re-run) → branch → export verified/matched chunks.
 # Do NOT call run_place_pilot.sh (that re-collects rollouts_traced_pilot).
 set -euo pipefail
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "${repo_root}"
 source /root/miniconda/etc/profile.d/conda.sh
 conda activate RoboTwin

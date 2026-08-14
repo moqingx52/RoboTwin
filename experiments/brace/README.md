@@ -5,6 +5,11 @@ This directory is reserved for the revised B1--B3 experiments.
 One-off `_*.py` / `_*.sh` ops scaffolding has been moved to
 [`experiments/brace_v1/ops/`](../brace_v1/ops/). A frozen copy of tracked V1
 scripts and protocols is under [`experiments/brace_v1/snapshot/`](../brace_v1/snapshot/).
+The V2 single-timestep anchor route (anchor smoke/feasibility/calibration/
+behavior-eval scripts) is archived under
+[`experiments/brace_v2_legacy/`](../brace_v2_legacy/) — superseded by the
+**BRACE-RW** plan (`BRACE_RW_PLAN.md`: return-weighted denoising loss, E0
+variance gate, trajectory-KL preservation).
 Runtime data (`runs/`, `rollouts_*`, `logs/`) and evidence `archive/` stay here.
 
 Authoritative design:

@@ -2,7 +2,7 @@
 # P0: freeze place pilot branch artifacts via promote-run.
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "${repo_root}"
 
 branch_run="${BRACE_PROMOTE_RUN:-}"

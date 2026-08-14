@@ -21,7 +21,7 @@ DP_DIR = REPO_ROOT / "policy" / "DP"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from experiments.brace.anchor_smoke import anchor_feasibility_gate_passed, anchor_gate_passed
+from experiments.brace_v2_legacy.anchor_smoke import anchor_feasibility_gate_passed, anchor_gate_passed
 from experiments.brace.replay_audit import git_commit, read_json, write_json_atomic
 from experiments.brace.screen_gates import (
     REQUIRED_ANCHOR_GROUPS,
@@ -264,7 +264,7 @@ def create_state(args, protocol: dict[str, Any], run_dir: Path) -> dict[str, Any
             "log": str(run_dir / "logs" / "prepare_anchor.log"),
             "command": [
                 "python",
-                str(BRACE_DIR / "build_anchor_replay_set.py"),
+                str(REPO_ROOT / "experiments" / "brace_v2_legacy" / "build_anchor_replay_set.py"),
                 "--task",
                 task,
                 "--rollout-dir",

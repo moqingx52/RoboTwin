@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from experiments.brace.anchor_unit_smoke import run_unit_anchor_smoke
+from experiments.brace_v2_legacy.anchor_unit_smoke import run_unit_anchor_smoke
 from experiments.brace.replay_audit import git_commit, read_json, repo_path, write_json_atomic
 
 
@@ -52,7 +52,7 @@ def run_anchor_smoke(
     unit_summary = run_unit_anchor_smoke(protocol)
     training_summary: dict[str, Any] | None = None
     if not skip_training_path and task and run_label and base_checkpoint and traced_root:
-        from experiments.brace.anchor_training_smoke import run_training_path_smoke
+        from experiments.brace_v2_legacy.anchor_training_smoke import run_training_path_smoke
 
         training_summary = run_training_path_smoke(
             protocol,

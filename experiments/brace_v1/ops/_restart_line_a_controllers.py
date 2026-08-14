@@ -49,8 +49,8 @@ def main() -> None:
     os.chdir(REPO)
     kill_needles(
         [
-            "experiments/brace/schedule_base200_place_traced.py",
-            "experiments/brace/watch_and_roll_base200_pipeline.py",
+            "experiments/brace_v1/ops/schedule_base200_place_traced.py",
+            "experiments/brace_v1/ops/watch_and_roll_base200_pipeline.py",
         ]
     )
     time.sleep(2)
@@ -69,7 +69,7 @@ def main() -> None:
         proc = subprocess.Popen(
             [
                 PY,
-                "experiments/brace/schedule_base200_place_traced.py",
+                "experiments/brace_v1/ops/schedule_base200_place_traced.py",
                 "--eval-run-dir",
                 "experiments/brace/runs/base200_frozen_eval_20260811T012027Z",
                 "--state",
@@ -99,7 +99,7 @@ def main() -> None:
 
     with LOG_WATCH.open("a", encoding="utf-8") as handle:
         proc = subprocess.Popen(
-            [PY, "experiments/brace/watch_and_roll_base200_pipeline.py"],
+            [PY, "experiments/brace_v1/ops/watch_and_roll_base200_pipeline.py"],
             cwd=str(REPO),
             env=env,
             stdout=handle,
@@ -111,7 +111,7 @@ def main() -> None:
     if not pids_for("trigger_place_line_a_after_traced.sh"):
         with LOG_TRIG.open("a", encoding="utf-8") as handle:
             proc = subprocess.Popen(
-                ["bash", "experiments/brace/trigger_place_line_a_after_traced.sh"],
+                ["bash", "experiments/brace_v1/ops/trigger_place_line_a_after_traced.sh"],
                 cwd=str(REPO),
                 env=env,
                 stdout=handle,

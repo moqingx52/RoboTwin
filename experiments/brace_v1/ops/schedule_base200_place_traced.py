@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_AMENDMENT = Path("experiments/brace/multitask_amendment.v2.1.json")
 DEFAULT_PROTOCOL = Path("experiments/brace/multitask_protocol.v2.json")
 IDLE_GPU_MEMORY_MIB = 400

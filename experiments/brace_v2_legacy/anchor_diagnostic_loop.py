@@ -15,20 +15,20 @@ from omegaconf import OmegaConf, open_dict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-from experiments.brace.anchor_grad_diagnostics import (
+from experiments.brace_v2_legacy.anchor_grad_diagnostics import (
     backward_accumulate_and_measure,
     estimate_warmstart_lambdas,
     flatten_grad_norm,
     measure_checkpoint_grad_metrics,
 )
-from experiments.brace.anchor_probe_eval import evaluate_probe_draws, materialize_probe_draws
-from experiments.brace.anchor_probe_split import (
+from experiments.brace_v2_legacy.anchor_probe_eval import evaluate_probe_draws, materialize_probe_draws
+from experiments.brace_v2_legacy.anchor_probe_split import (
     AnchorProbeSplit,
     build_anchor_probe_split,
     build_fixed_stratified_batch,
     sequence_indices_for_env_seeds,
 )
-from experiments.brace.anchor_training_smoke import (
+from experiments.brace_v2_legacy.anchor_training_smoke import (
     bootstrap_workspace,
     build_anchor_dataloader,
     build_sft_dataloader,

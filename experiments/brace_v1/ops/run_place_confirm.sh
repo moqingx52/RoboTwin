@@ -2,7 +2,7 @@
 # Track B: place held-out confirmatory Stage-2 branch (separate from pilot archive).
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "${repo_root}"
 
 export BRACE_PROTOCOL_V2_PATH="${BRACE_PROTOCOL_V2_PATH:-experiments/brace/protocol.v2.3.json}"
@@ -44,6 +44,6 @@ python experiments/brace/evaluate_confirmatory_gate.py \
   --confirm-summary "${confirm_dir}/summary.json" \
   --output "${confirm_dir}/merged_gate.json" || true
 
-bash experiments/brace/archive_place_confirm.sh
+bash experiments/brace_v1/ops/archive_place_confirm.sh
 
 echo "Place confirmatory branch complete: ${confirm_dir}/summary.json"

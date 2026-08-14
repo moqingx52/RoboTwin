@@ -1,0 +1,38 @@
+{
+  "protocol_revision": "brace_rw.e0.v1",
+  "frozen_utc": "2026-08-14T00:00:00Z",
+  "description": "BRACE-RW E0 variance gate: measure Var_a[Q0(s,a)] under the frozen DP policy before any weighted training. Gate decides whether return-weighted fine-tuning (w=(1+cG)/(1+cV)) has a detectable exact local improvement Delta_c = c*Var_a[Q0]/(1+c*V0).",
+  "tasks": ["place_container_plate"],
+  "task_config": "demo_brace_trace",
+  "policy": {
+    "ckpt_setting": "demo_clean",
+    "expert_data_num": 200,
+    "seed": 0,
+    "checkpoint_num": 600
+  },
+  "e0_variance_gate": {
+    "points_per_seed": 3,
+    "point_types": ["local_divergence_peak", "first_persistent_divergence", "random_negative_control"],
+    "actions_per_state": 8,
+    "continuations_per_action": 2,
+    "seeds_file": "experiments/brace/seeds/{task}_base200_line_a_seeds.json",
+    "seeds_key": "rollout_train",
+    "rollout_dir_note": "traced corpus: experiments/brace/rollouts_traced_base200_v2 (100 rollout_train seeds x 8 rollouts; only mixed-outcome seeds yield branch points, ~32 expected per inventory_traced_rollouts.py)",
+    "selection_seed": 20260814,
+    "bootstrap_seed": 20260814,
+    "seed_independence": "continuation seeds are derived per (task, env_seed, snapshot_id, action_index, continuation_index) via SHA-256; no common random numbers across actions, which would bias S2_between downward or upward",
+    "budget_note": "32 mixed seeds x 3 points x 8 actions x 2 continuations = 1536 rollouts per task",
+    "c_values": [1.0, 3.0],
+    "gate": {
+      "c": 3.0,
+      "min_mean_delta": 0.02,
+      "tarone_alpha": 0.05,
+      "decision": "PASS requires BOTH pooled mean Delta_hat_{c=3} >= 0.02 AND Tarone one-sided overdispersion p <= 0.05. PASS -> proceed to BRACE-RW training arms (B1'/B3'). FAIL -> Var_a[Q0] is too small for return weighting to matter at this snapshot; switch direction per BRACE_RW_PLAN.md section 'direction switch'."
+    },
+    "estimator": {
+      "sigma2_Q": "S2_between - S2_within / R (one-way random-effects ANOVA, unbiased for Var_a[Q])",
+      "delta_c": "c * max(sigma2_Q, 0) / (1 + c * V_hat)",
+      "confirmatory": "Tarone (1979) exact-moment Z test for extra-binomial variation, pooled over branch points with 0 < pooled p_hat < 1"
+    }
+  }
+}

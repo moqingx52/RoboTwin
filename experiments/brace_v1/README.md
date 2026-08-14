@@ -31,3 +31,16 @@ killed. Its argv path is stale after the move; the script itself is now
 
 The test helper `behavioral_preservation_go_no_go` now imports from
 `experiments.brace_v1.ops._aggregate_place_base200_line_a`.
+
+## 2026-08-14 addition (BRACE-RW switchover)
+
+Nine remaining V1 pipeline scripts moved from the live tree into `ops/`
+(unprefixed names): `plan_branch_confirm_collection.py`,
+`watch_and_roll_base200_pipeline.py`, `schedule_base200_place_traced.py`,
+`run_place_pilot.sh`, `run_place_confirm.sh`,
+`run_place_line_a_after_traced.sh`, `trigger_place_line_a_after_traced.sh`,
+`archive_place_pilot.sh`, `archive_place_confirm.sh`. Repo-root resolution
+was bumped one level (`parents[3]` / `../../..`) and intra-pair calls now use
+`experiments/brace_v1/ops/` paths; no live-tree code references them anymore.
+The live successor plan is
+[`experiments/brace/BRACE_RW_PLAN.md`](../brace/BRACE_RW_PLAN.md).

@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 RUN = REPO / "experiments/brace/runs/base200_frozen_eval_20260811T012027Z"
 LOG = REPO / "experiments/brace/logs/base200_frozen_eval"
 STATE = REPO / "experiments/brace/runs/base200_place_traced_15shard_20260811.state.json"

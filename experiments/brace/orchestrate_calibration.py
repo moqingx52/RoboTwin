@@ -49,7 +49,7 @@ def calibration_command(
 ) -> list[str]:
     return [
         "python",
-        str(BRACE_DIR / "anchor_calibration_runner.py"),
+        str(REPO_ROOT / "experiments" / "brace_v2_legacy" / "anchor_calibration_runner.py"),
         "--protocol",
         str(protocol),
         "--jobs",

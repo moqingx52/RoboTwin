@@ -17,7 +17,7 @@ BRACE_DIR = REPO_ROOT / "experiments" / "brace"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from experiments.brace.anchor_diagnostic_loop import DiagnosticJobConfig, run_anchor_diagnostic
+from experiments.brace_v2_legacy.anchor_diagnostic_loop import DiagnosticJobConfig, run_anchor_diagnostic
 from experiments.brace.build_screen_dataset import sha256 as file_sha256
 from experiments.brace.replay_audit import git_commit, read_json, repo_path, write_json_atomic
 

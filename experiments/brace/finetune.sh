@@ -141,7 +141,7 @@ PY
     exit 1
   }
   set +e
-  PYTHONPATH="${repo_root}" python "${repo_root}/experiments/brace/anchor_feasibility_test.py" \
+  PYTHONPATH="${repo_root}" python "${repo_root}/experiments/brace_v2_legacy/anchor_feasibility_test.py" \
     --protocol "${protocol_path}" \
     --log "${log_path}" \
     --output "${feasibility_json}"

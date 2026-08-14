@@ -12,8 +12,8 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments.brace.anchor_smoke import anchor_gate_passed
-from experiments.brace.anchor_unit_smoke import run_unit_anchor_smoke
+from experiments.brace_v2_legacy.anchor_smoke import anchor_gate_passed
+from experiments.brace_v2_legacy.anchor_unit_smoke import run_unit_anchor_smoke
 from experiments.brace.evaluate_confirmatory_gate import merge_task_points
 from experiments.brace.inventory_artifacts import build_inventory, inspect_artifact, ArtifactSpec
 from experiments.brace.inventory_traced_rollouts import inventory_task
@@ -235,7 +235,7 @@ class TrackCScaffoldTest(unittest.TestCase):
 
     def test_multi_draw_probe_aggregation(self) -> None:
         import torch
-        from experiments.brace.anchor_probe_eval import evaluate_probe_draws
+        from experiments.brace_v2_legacy.anchor_probe_eval import evaluate_probe_draws
 
         class _Student:
             def __init__(self, scale):
@@ -289,7 +289,7 @@ class TrackCScaffoldTest(unittest.TestCase):
             from omegaconf import OmegaConf
         except ImportError:
             self.skipTest("omegaconf not installed")
-        from experiments.brace.anchor_diagnostic_loop import DiagnosticJobConfig, apply_brace_anchor_overrides
+        from experiments.brace_v2_legacy.anchor_diagnostic_loop import DiagnosticJobConfig, apply_brace_anchor_overrides
 
         cfg = OmegaConf.create(
             {
@@ -1464,7 +1464,7 @@ class TrackCScaffoldTest(unittest.TestCase):
             self.assertCountEqual(migrated_rows, rows)
 
     def test_anchor_probe_split_disjoint_by_env_seed(self) -> None:
-        from experiments.brace.anchor_probe_split import build_anchor_probe_split
+        from experiments.brace_v2_legacy.anchor_probe_split import build_anchor_probe_split
 
         manifest = {
             "manifest_sha256": "abc123",
@@ -1484,7 +1484,7 @@ class TrackCScaffoldTest(unittest.TestCase):
         self.assertEqual(split.split_sha256, split.to_dict()["split_sha256"])
 
     def test_anchor_probe_split_filters_sampler_pools(self) -> None:
-        from experiments.brace.anchor_probe_split import sequence_indices_for_env_seeds
+        from experiments.brace_v2_legacy.anchor_probe_split import sequence_indices_for_env_seeds
         from experiments.brace.preservation_sampler import PreservationGroupBatchSampler
 
         groups = np.asarray([1, 1, 1, 1, 2, 2, 2, 2], dtype=np.int64)
@@ -1510,7 +1510,7 @@ class TrackCScaffoldTest(unittest.TestCase):
 
     def test_materialize_probe_draws_does_not_reset_global_rng(self) -> None:
         import torch
-        from experiments.brace.anchor_probe_eval import materialize_probe_draws
+        from experiments.brace_v2_legacy.anchor_probe_eval import materialize_probe_draws
 
         class _Teacher:
             noise_scheduler = type("NS", (), {"config": type("C", (), {"num_train_timesteps": 10})})()

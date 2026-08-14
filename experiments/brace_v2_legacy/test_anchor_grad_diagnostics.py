@@ -7,7 +7,7 @@ import unittest
 
 import torch
 
-from experiments.brace.anchor_grad_diagnostics import (
+from experiments.brace_v2_legacy.anchor_grad_diagnostics import (
     backward_accumulate_and_measure,
     flatten_grad_norm,
     measure_checkpoint_grad_metrics,

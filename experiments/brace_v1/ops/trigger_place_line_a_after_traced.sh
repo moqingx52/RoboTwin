@@ -1,7 +1,7 @@
 #!/bin/bash
 # Wait for place Base200 traced verify_done, then run audit→branch→place pilot.
 set -u
-cd /workspace/RoboTwin || cd "$(dirname "$0")/../.."
+cd /workspace/RoboTwin || cd "$(dirname "$0")/../../.."
 source /root/miniconda/etc/profile.d/conda.sh
 conda activate RoboTwin
 STATE=${BRACE_PLACE_TRACED_STATE:-experiments/brace/runs/base200_place_traced_15shard_20260811.state.json}
@@ -28,7 +28,7 @@ PY
     echo "TRIGGER_AFTER_TRACED $(date -u +%FT%TZ)" | tee -a "$LOG"
     export BRACE_GPU_IDS="${BRACE_GPU_IDS:-2 4 5 6 7}"
     export BRACE_TRACED_ROLLOUT_DIR="${BRACE_TRACED_ROLLOUT_DIR:-experiments/brace/rollouts_traced_base200_v2}"
-    bash experiments/brace/run_place_line_a_after_traced.sh >>"$LOG" 2>&1
+    bash experiments/brace_v1/ops/run_place_line_a_after_traced.sh >>"$LOG" 2>&1
     echo "AFTER_TRACED_DONE $(date -u +%FT%TZ)" | tee -a "$LOG"
     exit 0
   fi

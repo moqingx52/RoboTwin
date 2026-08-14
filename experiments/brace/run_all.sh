@@ -121,12 +121,6 @@ Stages:
   list-records         List recent stage metadata records (experiments/brace/records/).
   export-verified-chunks  Export B1/N1 chunk manifests from branch artifacts.
   prepare-hard-seeds   Base ID probe + select held-out hard eval seeds for screen.
-  anchor-smoke         Frozen-denoiser anchor smoke (unit + training-path gate).
-  anchor-feasibility   GPU diagnostic with pre-registered optimizer steps (not smoke).
-                       Writes feasibility_trajectory.jsonl + probe trajectory for forensics.
-                       screen.v1.2 gate remains fail-closed until calibrated protocol.
-  anchor-calibration   Phase 3A: 8-job optimizer calibration grid (1 DP job per GPU).
-  anchor-behavior-eval Phase 3C: behavior eval on selected calibration checkpoints.
   select-preservation-cohort  Build disjoint confirmatory preservation/boundary cohorts.
   confirmatory-base-census  P1a: base census at offset 3000 (ID+train only).
   confirmatory-preservation   P1c: frozen A1 vs SFT-only (5 training seeds, 10 jobs).
@@ -141,7 +135,7 @@ Stages:
   multitask-run  Run/resume a frozen explicit multitask job manifest.
   multitask-report  Aggregate the complete held-out artifact matrix.
   branch   Collect matched-continuation branches (requires passed replay audit v2).
-  screen   Run B1/B2/B3/N1 screen (requires branch and anchor smoke gates).
+  screen   Run B1/B2/B3/N1 screen (requires branch gate).
   full     Run preregistered Base/U1/U4/B1/B2/B3 full evaluation.
 
 Important:
@@ -784,76 +778,11 @@ emit_stage_record("prepare_hard_seeds", summary=aggregate, summary_path=stage_ru
 PY
     ;;
 
-  anchor-smoke)
-    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
-      anchor_output="${brace_dir}/anchor_smoke/summary.json"
-      anchor_run_dir="${brace_dir}/anchor_smoke"
-    else
-      anchor_run_dir="$(brace_stage_output_dir anchor_smoke anchor_smoke)"
-      anchor_output="${anchor_run_dir}/summary.json"
-    fi
-    python experiments/brace/anchor_smoke.py \
-      --protocol "${screen_protocol}" \
-      --output "${anchor_output}" \
-      --task "${tasks[0]}" \
-      --run-label "${dataset_run_label}" \
-      --checkpoint "policy/DP/checkpoints/${tasks[0]}-demo_clean-200-0/600.ckpt" \
-      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}"
-    ;;
-
-  anchor-feasibility)
-    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" == "1" ]]; then
-      feas_run_dir="${brace_dir}/anchor_feasibility"
-    else
-      feas_run_dir="$(brace_stage_output_dir anchor_feasibility anchor_feasibility)"
-    fi
-    feas_output="${feas_run_dir}/summary.json"
-    python experiments/brace/anchor_feasibility_runner.py \
-      --protocol "${screen_protocol}" \
-      --task "${tasks[0]}" \
-      --run-label "${dataset_run_label}" \
-      --checkpoint "policy/DP/checkpoints/${tasks[0]}-demo_clean-200-0/600.ckpt" \
-      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}" \
-      --output "${feas_output}"
-    if [[ "${BRACE_LEGACY_MUTABLE_OUTPUTS:-0}" != "1" ]]; then
-      echo "${feas_run_dir}" > "${brace_dir}/runs/LATEST_anchor_feasibility"
-    fi
-    ;;
-
-  anchor-calibration)
-    calib_run_dir="$(brace_stage_output_dir anchor_calibration anchor_calibration)"
-    python experiments/brace/orchestrate_calibration.py \
-      --protocol "${screen_protocol}" \
-      --jobs "${BRACE_CALIBRATION_JOBS:-${brace_dir}/calibration_jobs.place_container_plate.v1.json}" \
-      --task "${tasks[0]}" \
-      --run-label "${dataset_run_label}" \
-      --traced-rollout-dir "${BRACE_TRACED_ROLLOUT_DIR:-${traced_rollout_dir}}" \
-      --run-dir "${calib_run_dir}" \
-      --gpus ${BRACE_GPU_IDS:-0 1 2 3 4 5 6 7} \
-      --max-retries "${BRACE_CALIBRATION_MAX_RETRIES:-1}"
-    echo "${calib_run_dir}" > "${brace_dir}/runs/LATEST_anchor_calibration"
-    ;;
-
-  anchor-behavior-eval)
-    if [[ -z "${BRACE_CALIBRATION_RUN_DIR:-}" ]]; then
-      if [[ -f "${brace_dir}/runs/LATEST_anchor_calibration" ]]; then
-        BRACE_CALIBRATION_RUN_DIR="$(cat "${brace_dir}/runs/LATEST_anchor_calibration")"
-      else
-        echo "Set BRACE_CALIBRATION_RUN_DIR or run anchor-calibration first." >&2
-        exit 2
-      fi
-    fi
-    behavior_run_dir="$(brace_stage_output_dir anchor_behavior_eval anchor_behavior_eval)"
-    behavior_protocol=${BRACE_BEHAVIOR_PROTOCOL_PATH:-${brace_dir}/screen_protocol.v1.3.exploratory_calibration.json}
-    python experiments/brace/orchestrate_behavior_eval.py \
-      --task "${tasks[0]}" \
-      --calibration-run-dir "${BRACE_CALIBRATION_RUN_DIR}" \
-      --output "${behavior_run_dir}" \
-      --protocol "${behavior_protocol}" \
-      --seeds-file "${BRACE_BEHAVIOR_SEEDS_FILE:-experiments/phase1/seeds/${tasks[0]}_seeds.json}" \
-      --workers-per-gpu "${EVAL_WORKERS_PER_GPU:-3}" \
-      --gpus ${BRACE_BEHAVIOR_GPU_IDS:-0 1 2 3 4 5}
-    echo "${behavior_run_dir}" > "${brace_dir}/runs/LATEST_anchor_behavior_eval"
+  anchor-smoke|anchor-feasibility|anchor-calibration|anchor-behavior-eval)
+    echo "Stage '${stage}' is archived (BRACE-RW supersedes the single-timestep anchor route)." >&2
+    echo "Frozen scripts: experiments/brace_v2_legacy/ (see its README.md)." >&2
+    echo "Existing runs/ pointers and archive/ evidence are untouched." >&2
+    exit 2
     ;;
 
   select-preservation-cohort)
@@ -1063,52 +992,6 @@ PY
       exit 2
     fi
     require_gate "${branch_summary}" "Branch-quality gate has not passed"
-    anchor_summary="${brace_dir}/anchor_smoke/summary.json"
-    if [[ -f "${brace_dir}/runs/LATEST_anchor_smoke" ]]; then
-      anchor_run="$(cat "${brace_dir}/runs/LATEST_anchor_smoke")"
-      if [[ -s "${anchor_run}/summary.json" ]]; then
-        anchor_summary="${anchor_run}/summary.json"
-      fi
-    fi
-    require_gate "${anchor_summary}" "Frozen-denoiser anchor smoke gate has not passed"
-    if [[ "$(jq -r '.gate_level // ""' "${anchor_summary}")" != "training_path" ]]; then
-      echo "Anchor smoke gate_level must be training_path: ${anchor_summary}" >&2
-      exit 2
-    fi
-    if [[ "$(jq -r '.checks.training_path_smoke_passed // false' "${anchor_summary}")" != "true" ]]; then
-      echo "Training-path anchor smoke has not passed: ${anchor_summary}" >&2
-      exit 2
-    fi
-    if [[ "$(jq -r '.protocol_revision // ""' "${anchor_summary}")" != "$(jq -r '.protocol_revision' "${screen_protocol}")" ]]; then
-      echo "Anchor smoke protocol does not match screen protocol: ${anchor_summary}" >&2
-      exit 2
-    fi
-    if jq -e '((.active_methods // ["N1","B1","B2","B3"]) | any(. == "B2" or . == "B3"))' "${screen_protocol}" >/dev/null; then
-      feas_summary=""
-      if [[ -f "${brace_dir}/runs/LATEST_anchor_feasibility" ]]; then
-        feas_run="$(cat "${brace_dir}/runs/LATEST_anchor_feasibility")"
-        if [[ -s "${feas_run}/summary.json" ]]; then
-          feas_summary="${feas_run}/summary.json"
-        fi
-      fi
-      if [[ -z "${feas_summary}" ]]; then
-        echo "Anchor feasibility diagnostic has not been run (expected LATEST_anchor_feasibility)." >&2
-        exit 2
-      fi
-      require_gate "${feas_summary}" "Anchor feasibility diagnostic has not passed"
-      if [[ "$(jq -r '.stage // ""' "${feas_summary}")" != "anchor_feasibility" ]]; then
-        echo "Expected anchor_feasibility stage summary: ${feas_summary}" >&2
-        exit 2
-      fi
-      if [[ "$(jq -r '.protocol_revision // ""' "${feas_summary}")" != "$(jq -r '.protocol_revision' "${screen_protocol}")" ]]; then
-        echo "Anchor feasibility protocol does not match screen protocol: ${feas_summary}" >&2
-        exit 2
-      fi
-      if [[ "$(jq -r '.teacher_hash_stable // false' "${feas_summary}")" != "true" ]]; then
-        echo "Anchor feasibility teacher hash was not stable: ${feas_summary}" >&2
-        exit 2
-      fi
-    fi
     if [[ ! -f experiments/brace/orchestrate.py ]]; then
       echo "BRACE orchestrate.py is not implemented yet; screen cannot start." >&2
       exit 2

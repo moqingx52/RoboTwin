@@ -35,7 +35,7 @@ if str(REPO_ROOT) not in sys.path:
 if str(DP_DIR) not in sys.path:
     sys.path.insert(0, str(DP_DIR))
 
-from experiments.brace.build_anchor_replay_set import build_anchor_replay_set
+from experiments.brace_v2_legacy.build_anchor_replay_set import build_anchor_replay_set
 from experiments.brace.build_screen_dataset import build_dataset, sha256 as file_sha256
 from experiments.brace.replay_audit import git_commit, read_json, repo_path
 
