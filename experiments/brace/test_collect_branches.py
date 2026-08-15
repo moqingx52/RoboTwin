@@ -198,38 +198,110 @@ class CollectBranchesTest(unittest.TestCase):
         self.assertLess(lcb, 1.0)
         self.assertLessEqual(lcb, 0.15)
 
-    def test_select_branch_points_use_snapshots_only(self):
+    def test_select_branch_points_causal_before_divergence_growth(self):
+        # Snapshots sit at physics steps 1, 5, 9 (chunks 0, 1, 2). The failure
+        # tracks the success closely until step 9, where it jumps: consensus
+        # divergences at the snapshots are [0.1, 0.1, 5.0], so the largest
+        # growth is between snapshot 1 and snapshot 2 (k* = 1) and the causal
+        # point must branch one boundary earlier, at snapshot 0 (k* - 1).
         success_trace = _make_trace(chunk_sizes=(4, 4, 4, 4))
         failure_trace = _make_trace(chunk_sizes=(4, 4, 4, 4))
         for step in failure_trace["control_steps"]:
-            step["robot_state"]["joints"] = np.asarray([float(step["physics_step"]) + 0.5], dtype=np.float64)
+            offset = 0.1 if step["physics_step"] < 9 else 5.0
+            step["robot_state"]["joints"] = np.asarray(
+                [float(step["physics_step"]) + offset], dtype=np.float64
+            )
 
         success = Candidate("task", 1, 0, True, Path("success.hdf5"))
         failure = Candidate("task", 1, 1, False, Path("failure.hdf5"))
         rng = __import__("random").Random(0)
-        with mock.patch("experiments.brace.collect_branches.load_brace_trace") as loader:
-            loader.side_effect = [success_trace, failure_trace]
-            points = select_branch_points(
-                "task",
-                1,
-                success,
-                failure,
-                max_points=3,
-                rng=rng,
-                success_trace=success_trace,
-                failure_trace=failure_trace,
-            )
+        points = select_branch_points(
+            "task",
+            1,
+            success,
+            [failure],
+            max_points=2,
+            rng=rng,
+            success_trace=success_trace,
+            failure_traces=[failure_trace],
+        )
 
-        self.assertEqual(len(points), 3)
-        snapshot_ids = {point.snapshot_id for point in points}
-        self.assertEqual(len(snapshot_ids), 3)
-        for point in points:
-            self.assertNotEqual(point.physics_step, point.snapshot_physics_step)
-            self.assertGreater(point.branch_chunk_index, 0)
+        self.assertEqual(len(points), 2)
         self.assertEqual(
             {point.point_type for point in points},
-            {"local_divergence_peak", "first_persistent_divergence", "random_negative_control"},
+            {"pre_divergence_causal", "matched_random_control"},
         )
+        causal = next(p for p in points if p.point_type == "pre_divergence_causal")
+        control = next(p for p in points if p.point_type == "matched_random_control")
+        self.assertEqual(causal.snapshot_id, 0)
+        self.assertEqual(causal.branch_chunk_index, 1)
+        # With only 3 snapshots the growth window {k*-1, k*, k*+1} covers the
+        # whole pool, so the control falls back to any non-causal snapshot.
+        self.assertIn(control.snapshot_id, {1, 2})
+        for point in points:
+            self.assertGreater(point.physics_step, point.snapshot_physics_step)
+            self.assertGreater(point.branch_chunk_index, 0)
+            self.assertEqual(point.success_rollout_id, success.rollout_id)
+
+    def test_select_branch_points_uses_consensus_over_all_failures(self):
+        # Two failures with different divergence profiles: the selector must
+        # use the MEAN divergence over all failures, not just the first one.
+        chunk_sizes = (4, 4, 4, 4, 4)
+        success_trace = _make_trace(chunk_sizes=chunk_sizes)
+        # _make_trace only creates 3 snapshots; add a 4th at physics step 13
+        # (mid chunk 3) so the causal index can land off zero.
+        step_13 = success_trace["control_steps"][13]
+        success_trace["branch_snapshots"].append(
+            {
+                "snapshot_id": 3,
+                "physics_step": 13,
+                "control_trace_offset": 13,
+                "robot_state": step_13["robot_state"],
+                "observation_joint_vector": np.asarray(
+                    step_13["robot_state"]["joints"], dtype=np.float64
+                ),
+            }
+        )
+
+        def _failure(jump_step: float, jump: float) -> dict:
+            trace = _make_trace(chunk_sizes=chunk_sizes)
+            for step in trace["control_steps"]:
+                offset = 0.1 if step["physics_step"] < jump_step else jump
+                step["robot_state"]["joints"] = np.asarray(
+                    [float(step["physics_step"]) + offset], dtype=np.float64
+                )
+            return trace
+
+        # Snapshot steps are 1, 5, 9, 13.
+        # failure_b (listed FIRST) diverges at step 9: d_b = [0.1, 0.1, 3, 3]
+        #   -> alone it would put k* = 1 and the causal point at snapshot 0.
+        # failure_a diverges at step 13:              d_a = [0.1, 0.1, 0.1, 8]
+        # consensus mean = [0.1, 0.1, 1.55, 5.5], diffs [0, 1.45, 3.95]
+        #   -> k* = 2, causal = snapshot 1.
+        failure_b_trace = _failure(9, 3.0)
+        failure_a_trace = _failure(13, 8.0)
+
+        success = Candidate("task", 1, 0, True, Path("success.hdf5"))
+        failures = [
+            Candidate("task", 1, 1, False, Path("failure_b.hdf5")),
+            Candidate("task", 1, 2, False, Path("failure_a.hdf5")),
+        ]
+        points = select_branch_points(
+            "task",
+            1,
+            success,
+            failures,
+            max_points=2,
+            rng=__import__("random").Random(0),
+            success_trace=success_trace,
+            failure_traces=[failure_b_trace, failure_a_trace],
+        )
+
+        causal = next(p for p in points if p.point_type == "pre_divergence_causal")
+        self.assertEqual(causal.snapshot_id, 1)
+        # Growth window {1, 2, 3} leaves snapshot 0 as the only control.
+        control = next(p for p in points if p.point_type == "matched_random_control")
+        self.assertEqual(control.snapshot_id, 0)
 
     def test_control_same_chunk_different_rollouts(self):
         failures = [

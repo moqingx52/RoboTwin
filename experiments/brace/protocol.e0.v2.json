@@ -1,0 +1,43 @@
+{
+  "protocol_revision": "brace_rw.e0.v2",
+  "frozen_utc": "2026-08-15T00:00:00Z",
+  "description": "BRACE-RW E0 variance gate, corrected rerun authorized by BRACE_RW_PLAN.md direction-switch clause 2 (sigma2_Q ~= 0 with saturated bimodal V_hat under v1). Three corrections vs brace_rw.e0.v1: (1) branch points restore the policy's full n_obs_steps observation history (v1 measured pi~0(a|o_t,o_t,o_t) after reset_obs, since the DP runner repeat-fills missing frames); (2) snapshots at every policy-chunk boundary with a consensus-divergence causal selector (v1 had only 3 quartile snapshots relabeled post hoc); (3) unclipped Delta as the primary gate quantity with a seed-cluster bootstrap and an exact conditional state-stratified randomization test (v1 gated on clipped Delta, which is upward biased under the null, and on the asymptotic Tarone Z, which is miscalibrated at R=2).",
+  "tasks": ["place_container_plate"],
+  "task_config": "demo_brace_trace",
+  "policy": {
+    "ckpt_setting": "demo_clean",
+    "expert_data_num": 200,
+    "seed": 0,
+    "checkpoint_num": 600
+  },
+  "e0_variance_gate": {
+    "points_per_seed": 2,
+    "point_types": ["pre_divergence_causal", "matched_random_control"],
+    "point_selector": "Chunk-boundary snapshots over the success trace; consensus divergence d_k = mean over ALL failure rollouts of the seed of the joint-space distance to the success state at boundary k; k* = argmax_k (d_{k+1} - d_k); pre_divergence_causal branches into chunk k*-1 (before the divergence grows), matched_random_control is drawn uniformly from boundaries outside the growth window {k*-1, k*, k*+1}.",
+    "actions_per_state": 8,
+    "continuations_per_action": 3,
+    "obs_history": "Traced rollouts store the n_obs_steps encode_obs frames the policy consumed at each chunk boundary (branch_snapshots/obs_history, uint8-quantized cams, lossless for k/255 inputs). Branch and E0 harnesses restore this history into the DP runner deque before sampling/continuing, so sampled chunks follow pi0(a | o_{t-2}, o_{t-1}, o_t). Requires a traced corpus collected with --snapshot-mode chunk_boundary.",
+    "seeds_file": "experiments/brace/seeds/{task}_base200_line_a_seeds.json",
+    "seeds_key": "rollout_train",
+    "rollout_dir_note": "traced corpus must be re-collected with collect_traced_rollouts.py --snapshot-mode chunk_boundary (v1 corpus experiments/brace/rollouts_traced_base200_v2 lacks obs history and chunk-boundary snapshots); suggested dir: experiments/brace/rollouts_traced_base200_v3",
+    "selection_seed": 20260815,
+    "bootstrap_seed": 20260815,
+    "seed_independence": "continuation seeds are derived per (task, env_seed, snapshot_id, action_index, continuation_index) via SHA-256; no common random numbers across actions, which would bias S2_between downward or upward",
+    "budget_note": "32 mixed seeds x 2 points x 8 actions x 3 continuations = 1536 rollouts per task (same budget as v1)",
+    "c_values": [1.0, 3.0],
+    "gate": {
+      "c": 3.0,
+      "min_mean_delta": 0.02,
+      "exact_alpha": 0.05,
+      "exact_test_iterations": 20000,
+      "tarone_alpha": 0.05,
+      "decision": "PASS requires BOTH pooled mean UNCLIPPED Delta_hat_{c=3} >= 0.02 AND exact conditional state-stratified randomization one-sided p <= 0.05. Tarone Z is reported as a diagnostic only. PASS -> proceed to BRACE-RW training arms (B1'/B3'). FAIL -> Var_a[Q0] is genuinely too small at reachable branch states for return weighting to matter for this policy/task snapshot; the BRACE-RW line stops (this is the single authorized rerun under direction-switch clause 2; no further E0 reruns)."
+    },
+    "estimator": {
+      "sigma2_Q": "S2_between - S2_within / R (one-way random-effects ANOVA, unbiased for Var_a[Q])",
+      "delta_c": "c * sigma2_Q / (1 + c * V_hat), UNCLIPPED as primary (clipped variant reported as diagnostic; E[max(sigma2,0)] > 0 under sigma2 = 0 inflates the pooled mean in the null regime)",
+      "uncertainty": "seed-cluster bootstrap over env seeds (points within a seed share a trajectory and are not i.i.d.)",
+      "confirmatory": "exact conditional state-stratified randomization test: permute each point's A x R outcomes across actions conditioning on the point total; statistic = pooled Tarone S; exact at any R"
+    }
+  }
+}

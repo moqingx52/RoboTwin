@@ -10,15 +10,26 @@ Per branch point s (A actions x R continuations, one-way random effects):
   S2_between        = sum_a (p_hat_a - V_hat)^2 / (A - 1)
   S2_within         = mean_a x_a (R - x_a) / (R (R - 1))
   sigma2_Q_hat(s)   = S2_between - S2_within / R   (unbiased for Var_a[Q])
-  Delta_hat_c(s)    = c * max(sigma2_Q_hat, 0) / (1 + c * V_hat)
+  Delta_hat_c(s)    = c * sigma2_Q_hat / (1 + c * V_hat)   [UNCLIPPED, primary]
 
-Confirmatory: Tarone (1979) Z test for binomial overdispersion across the
-pooled per-action counts (H0: Q(s,a) constant in a for each s => no
-extra-binomial variation). One-sided; large Z => real action-level variance.
+The primary gate quantity uses the UNCLIPPED sigma2_Q_hat: clipping at zero
+(E[max(sigma2,0)] > 0 under sigma2 = 0) inflates the pooled mean exactly in
+the null regime the gate must resolve. The clipped delta is retained as a
+secondary diagnostic only. Uncertainty on pooled means uses a seed-cluster
+bootstrap (resample env seeds with replacement, keeping all points of each
+sampled seed together), since points within a seed share a trajectory.
+
+Confirmatory: exact conditional state-stratified randomization test. Within
+each branch point the A x R Bernoulli outcomes are permuted across actions
+(conditioning on the point's total success count); the statistic is the
+pooled Tarone S = sum_s sum_a (x_a - R p_s)^2 / (p_s (1 - p_s)). One-sided
+p = fraction of permuted statistics >= observed. This is exact at any R,
+unlike the asymptotic Tarone Z, which is miscalibrated at small R and is
+reported as a diagnostic only.
 
 Gate (pre-registered in the protocol's e0_variance_gate.gate block):
-  PASS if pooled mean Delta_hat_{c=c_gate} >= min_mean_delta
-       and Tarone one-sided p <= tarone_alpha.
+  PASS if pooled mean UNCLIPPED Delta_hat_{c=c_gate} >= min_mean_delta
+       and exact randomization one-sided p <= exact_alpha.
 """
 
 from __future__ import annotations
@@ -77,10 +88,14 @@ def analyze_point(action_successes: dict[int, list[bool]], c_values: list[float]
         s2_within = float("nan")
         sigma2_q = float("nan")
     sigma2_q_clipped = max(sigma2_q, 0.0) if not math.isnan(sigma2_q) else float("nan")
-    deltas = {
-        f"delta_c{c:g}": (c * sigma2_q_clipped / (1.0 + c * v_hat)) if not math.isnan(sigma2_q) else None
-        for c in c_values
-    }
+    deltas: dict[str, float | None] = {}
+    for c in c_values:
+        # Unclipped delta is the primary gate quantity (clipping is upward
+        # biased under sigma2_Q = 0); the clipped variant is diagnostic only.
+        deltas[f"delta_c{c:g}"] = (c * sigma2_q / (1.0 + c * v_hat)) if not math.isnan(sigma2_q) else None
+        deltas[f"delta_c{c:g}_clipped"] = (
+            (c * sigma2_q_clipped / (1.0 + c * v_hat)) if not math.isnan(sigma2_q) else None
+        )
     return {
         "actions": a_count,
         "replicates": r,
@@ -129,18 +144,112 @@ def tarone_z(groups: list[list[tuple[int, int]]]) -> dict[str, Any]:
     }
 
 
-def bootstrap_ci(values: list[float], *, iterations: int, seed: int, alpha: float = 0.05) -> dict[str, float] | None:
-    if not values:
+def exact_randomization_test(
+    groups: list[list[tuple[int, int]]], *, iterations: int, seed: int
+) -> dict[str, Any]:
+    """Exact conditional state-stratified randomization test for action-level variance.
+
+    Each group is one branch point: (x_a, n_a) per action. Under H0 (Q(s,a)
+    constant in a within each point), the point's successes are exchangeable
+    across its action slots. We permute each point's pooled outcome vector
+    across actions (conditioning on the point total, which makes the test
+    exact at any R) and use the pooled Tarone S statistic. One-sided
+    p = (1 + #{S_perm >= S_obs}) / (1 + iterations).
+    """
+
+    def group_statistic(counts: list[tuple[int, int]]) -> float | None:
+        x_sum = sum(x for x, _ in counts)
+        n_sum = sum(n for _, n in counts)
+        if n_sum == 0:
+            return None
+        p = x_sum / n_sum
+        if p <= 0.0 or p >= 1.0:
+            return None
+        return sum((x - n * p) ** 2 for x, n in counts) / (p * (1.0 - p))
+
+    informative: list[list[tuple[int, int]]] = []
+    observed = 0.0
+    for group in groups:
+        stat = group_statistic(group)
+        if stat is None:
+            continue
+        informative.append(group)
+        observed += stat
+
+    if not informative:
+        return {
+            "observed_statistic": None,
+            "p_one_sided": None,
+            "informative_points": 0,
+            "iterations": iterations,
+        }
+
+    rng = random.Random(seed)
+    exceed = 0
+    for _ in range(iterations):
+        total = 0.0
+        for group in informative:
+            outcomes = []
+            for x, n in group:
+                outcomes.extend([1] * x + [0] * (n - x))
+            rng.shuffle(outcomes)
+            permuted: list[tuple[int, int]] = []
+            offset = 0
+            for _, n in group:
+                permuted.append((sum(outcomes[offset : offset + n]), n))
+                offset += n
+            stat = group_statistic(permuted)
+            if stat is not None:
+                total += stat
+        if total >= observed - 1e-12:
+            exceed += 1
+    return {
+        "observed_statistic": observed,
+        "p_one_sided": (1 + exceed) / (1 + iterations),
+        "informative_points": len(informative),
+        "iterations": iterations,
+    }
+
+
+def seed_cluster_bootstrap_ci(
+    points: list[dict[str, Any]],
+    key: str,
+    *,
+    iterations: int,
+    seed: int,
+    alpha: float = 0.05,
+) -> dict[str, Any] | None:
+    """Bootstrap CI for the pooled mean of points[key], clustered by env_seed.
+
+    Env seeds are resampled with replacement and every point belonging to a
+    sampled seed is kept together, respecting the within-seed dependence that
+    an i.i.d. point bootstrap ignores.
+    """
+    clusters: dict[Any, list[float]] = defaultdict(list)
+    for point in points:
+        if point.get(key) is not None:
+            clusters[point.get("env_seed")].append(float(point[key]))
+    cluster_values = list(clusters.values())
+    if not cluster_values:
         return None
     rng = random.Random(seed)
     means = []
     for _ in range(iterations):
-        sample = [values[rng.randrange(len(values))] for _ in values]
+        sample: list[float] = []
+        for _ in cluster_values:
+            sample.extend(cluster_values[rng.randrange(len(cluster_values))])
         means.append(sum(sample) / len(sample))
     means.sort()
     lo = means[int(alpha / 2 * iterations)]
     hi = means[min(int((1 - alpha / 2) * iterations), iterations - 1)]
-    return {"lower": lo, "upper": hi, "alpha": alpha, "iterations": iterations}
+    return {
+        "lower": lo,
+        "upper": hi,
+        "alpha": alpha,
+        "iterations": iterations,
+        "clusters": len(cluster_values),
+        "method": "seed_cluster_bootstrap",
+    }
 
 
 def summarize(points: list[dict[str, Any]], c_values: list[float], *, bootstrap_seed: int) -> dict[str, Any]:
@@ -155,10 +264,11 @@ def summarize(points: list[dict[str, Any]], c_values: list[float], *, bootstrap_
         "mean_sigma2_q_hat_clipped": mean("sigma2_q_hat_clipped"),
     }
     for c in c_values:
-        key = f"delta_c{c:g}"
-        out[f"mean_{key}"] = mean(key)
-        vals = [p[key] for p in points if p.get(key) is not None]
-        out[f"mean_{key}_ci95"] = bootstrap_ci(vals, iterations=10000, seed=bootstrap_seed)
+        for key in (f"delta_c{c:g}", f"delta_c{c:g}_clipped"):
+            out[f"mean_{key}"] = mean(key)
+            out[f"mean_{key}_ci95"] = seed_cluster_bootstrap_ci(
+                points, key, iterations=10000, seed=bootstrap_seed
+            )
     return out
 
 
@@ -178,6 +288,8 @@ def main() -> int:
     c_gate = float(gate_cfg.get("c", 3.0))
     min_mean_delta = float(gate_cfg.get("min_mean_delta", 0.02))
     tarone_alpha = float(gate_cfg.get("tarone_alpha", 0.05))
+    exact_alpha = float(gate_cfg.get("exact_alpha", tarone_alpha))
+    exact_iterations = int(gate_cfg.get("exact_test_iterations", 20000))
     bootstrap_seed = int(e0.get("bootstrap_seed", 20260814))
 
     rows = read_jsonl(input_dir / "checks.jsonl")
@@ -212,16 +324,20 @@ def main() -> int:
         if p["balanced"]
     ]
     tarone = tarone_z(tarone_groups)
+    exact_test = exact_randomization_test(
+        tarone_groups, iterations=exact_iterations, seed=bootstrap_seed
+    )
 
     pooled = summarize(point_results, c_values, bootstrap_seed=bootstrap_seed)
     gate_key = f"mean_delta_c{c_gate:g}"
     gate_delta = pooled.get(gate_key)
     tarone_pass = tarone["p_one_sided"] is not None and tarone["p_one_sided"] <= tarone_alpha
+    exact_pass = exact_test["p_one_sided"] is not None and exact_test["p_one_sided"] <= exact_alpha
     delta_pass = gate_delta is not None and gate_delta >= min_mean_delta
-    gate_passed = bool(tarone_pass and delta_pass)
+    gate_passed = bool(exact_pass and delta_pass)
 
     analysis = {
-        "schema_version": 1,
+        "schema_version": 2,
         "stage": "e0_variance_gate_analysis",
         "protocol_revision": protocol.get("protocol_revision"),
         "protocol_path": str(protocol_path),
@@ -232,17 +348,23 @@ def main() -> int:
             "rollouts": len(rows),
             "points": len(point_results),
         },
-        "estimator": "sigma2_Q = S2_between - S2_within / R (one-way random effects, unbiased)",
+        "estimator": (
+            "sigma2_Q = S2_between - S2_within / R (one-way random effects, unbiased); "
+            "primary delta_c is UNCLIPPED (delta_c*_clipped is diagnostic); "
+            "CIs are seed-cluster bootstrap"
+        ),
         "pooled": pooled,
         "by_point_type": {name: summarize(pts, c_values, bootstrap_seed=bootstrap_seed) for name, pts in sorted(by_type.items())},
         "by_task": {name: summarize(pts, c_values, bootstrap_seed=bootstrap_seed) for name, pts in sorted(by_task.items())},
-        "tarone_overdispersion": {**tarone, "alpha": tarone_alpha, "passed": tarone_pass},
+        "exact_randomization_test": {**exact_test, "alpha": exact_alpha, "passed": exact_pass},
+        "tarone_overdispersion_diagnostic": {**tarone, "alpha": tarone_alpha, "passed": tarone_pass},
         "gate": {
             "c": c_gate,
             "min_mean_delta": min_mean_delta,
-            "observed_mean_delta": gate_delta,
+            "observed_mean_delta_unclipped": gate_delta,
             "delta_criterion_passed": delta_pass,
-            "tarone_criterion_passed": tarone_pass,
+            "exact_test_criterion_passed": exact_pass,
+            "tarone_diagnostic_passed": tarone_pass,
             "e0_gate_passed": gate_passed,
         },
         "points": point_results,
@@ -258,12 +380,22 @@ def main() -> int:
     for c in c_values:
         val = pooled.get(f"mean_delta_c{c:g}")
         ci = pooled.get(f"mean_delta_c{c:g}_ci95")
-        ci_str = f" (95% CI [{ci['lower']:.4f}, {ci['upper']:.4f}])" if ci else ""
-        print(f"  mean Delta_hat (c={c:g})  = {val:.4f}{ci_str}" if val is not None else f"  mean Delta_hat (c={c:g})  = n/a")
+        ci_str = f" (95% cluster CI [{ci['lower']:.4f}, {ci['upper']:.4f}])" if ci else ""
+        print(
+            f"  mean Delta_hat (c={c:g})  = {val:.4f}{ci_str} [unclipped]"
+            if val is not None
+            else f"  mean Delta_hat (c={c:g})  = n/a"
+        )
+    if exact_test["p_one_sided"] is not None:
+        print(
+            f"  exact randomization test: S = {exact_test['observed_statistic']:.3f}, "
+            f"one-sided p = {exact_test['p_one_sided']:.4f} "
+            f"({exact_test['informative_points']} informative points, {exact_test['iterations']} permutations)"
+        )
     if tarone["z"] is not None:
-        print(f"  Tarone Z = {tarone['z']:.3f}, one-sided p = {tarone['p_one_sided']:.2e}")
+        print(f"  Tarone Z (diagnostic) = {tarone['z']:.3f}, one-sided p = {tarone['p_one_sided']:.2e}")
     print(f"  E0 GATE: {'PASS' if gate_passed else 'FAIL'} "
-          f"(Delta_c{c_gate:g} >= {min_mean_delta}: {delta_pass}; Tarone p <= {tarone_alpha}: {tarone_pass})")
+          f"(unclipped Delta_c{c_gate:g} >= {min_mean_delta}: {delta_pass}; exact p <= {exact_alpha}: {exact_pass})")
     print(f"  analysis -> {output_path}")
     return 0
 

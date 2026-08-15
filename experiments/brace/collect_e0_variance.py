@@ -45,7 +45,11 @@ from experiments.brace.collect_branches import (
     _run_branch_episode,
     select_branch_points,
 )
-from experiments.brace.control_trace import build_branch_context, load_brace_trace
+from experiments.brace.control_trace import (
+    build_branch_context,
+    load_brace_trace,
+    restore_model_obs_history,
+)
 from experiments.brace.replay_audit import (
     collect_candidates,
     file_sha256,
@@ -106,10 +110,10 @@ def build_e0_jobs(
             )
             continue
         success = sorted(successes, key=lambda item: item.rollout_id)[0]
-        failure = sorted(failures, key=lambda item: item.rollout_id)[0]
+        failure_list = sorted(failures, key=lambda item: item.rollout_id)
         rng = random.Random(selection_seed + seed_index)
         points = select_branch_points(
-            task, env_seed, success, failure, max_points=max_points, rng=rng
+            task, env_seed, success, failure_list, max_points=max_points, rng=rng
         )
         for point in points:
             action_seeds = tuple(
@@ -152,11 +156,15 @@ def _sample_action_chunks(
 
     chunks = []
     for action_seed in action_seeds:
-        model.reset_obs()
+        # Restore the collection-time observation history before each sample so
+        # every chunk conditions on pi0(a | o_{t-2}, o_{t-1}, o_t) rather than
+        # the repeat-filled pi~0(a | o_t, o_t, o_t). Legacy traces without
+        # stored history fall back to the live boundary observation.
+        boundary_frame = restore_model_obs_history(model, snapshot.get("obs_history"))
         generator = torch.Generator(device="cuda:0")
         generator.manual_seed(int(action_seed))
         model.set_generator(generator)
-        actions = model.get_action(obs)
+        actions = model.get_action(boundary_frame if boundary_frame is not None else obs)
         chunks.append(np.asarray(actions, dtype=np.float64))
     return np.stack(chunks, axis=0)
 

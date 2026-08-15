@@ -92,8 +92,10 @@ def rollout_once(
     save_root,
     save_failures=False,
     snapshots_per_trajectory=3,
+    snapshot_mode="chunk_boundary",
     action_dim=14,
 ):
+    from experiments.brace.control_trace import capture_model_obs_history  # noqa: E402
     from policy.DP.deploy_policy import encode_obs
 
     episode_name = f"episode_{env_seed}_{rollout_id}"
@@ -133,7 +135,7 @@ def rollout_once(
             observation = env.get_obs()
             obs = encode_obs(observation)
             actions = model.get_action(obs)
-            env.record_policy_chunk(actions, chunk_index)
+            env.record_policy_chunk(actions, chunk_index, obs_history=capture_model_obs_history(model))
             for action in actions:
                 env.take_action(action)
                 observation = env.get_obs()
@@ -167,7 +169,11 @@ def rollout_once(
                 final_path = failure_path
 
         if final_path is not None:
-            env.finalize_brace_trace_to_hdf5(final_path, snapshots_per_trajectory=snapshots_per_trajectory)
+            env.finalize_brace_trace_to_hdf5(
+                final_path,
+                snapshots_per_trajectory=snapshots_per_trajectory,
+                snapshot_mode=snapshot_mode,
+            )
 
         return {
             "env_seed": int(env_seed),
@@ -262,6 +268,13 @@ def main():
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--save-failures", action="store_true", default=True)
     parser.add_argument("--snapshots-per-trajectory", type=int, default=3)
+    parser.add_argument(
+        "--snapshot-mode",
+        choices=["chunk_boundary", "quartile"],
+        default="chunk_boundary",
+        help="chunk_boundary: one snapshot per policy-chunk boundary with obs history (E0 v2); "
+        "quartile: legacy interior-quartile snapshots.",
+    )
     parser.add_argument("--max-trajectories", type=int, default=None, help="Optional cap for smoke collection.")
     parser.add_argument("--env-seeds", nargs="*", type=int, default=None, help="Optional explicit env seed allowlist.")
     parser.add_argument("--rollout-ids", nargs="*", type=int, default=None, help="Optional rollout id allowlist.")
@@ -360,6 +373,7 @@ def main():
             save_root,
             args.save_failures,
             snapshots_per_trajectory=args.snapshots_per_trajectory,
+            snapshot_mode=args.snapshot_mode,
             action_dim=args.action_dim,
         )
         if backfill_idx is not None:

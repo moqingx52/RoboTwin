@@ -29,6 +29,7 @@ from experiments.brace.control_trace import (
     build_branch_context,
     load_brace_trace,
     policy_chunk_actions,
+    restore_model_obs_history,
     trace_has_chunk_index,
 )
 from experiments.brace.replay_audit import (
@@ -78,20 +79,31 @@ def select_branch_points(
     task: str,
     env_seed: int,
     success: Candidate,
-    failure: Candidate,
+    failures: list[Candidate],
     *,
     max_points: int,
     rng: random.Random,
     success_trace: dict[str, Any] | None = None,
-    failure_trace: dict[str, Any] | None = None,
+    failure_traces: list[dict[str, Any]] | None = None,
 ) -> list[BranchPoint]:
+    """Select branch points from consensus divergence over all failure rollouts.
+
+    For every chunk-boundary snapshot of the success trace, the consensus
+    divergence d_k is the mean joint-space distance between the success state
+    and every failure rollout's state at the same physics step. The divergence
+    growth onset is k* = argmax_k (d_{k+1} - d_k); the causal branch point is
+    placed one boundary earlier (k* - 1), before the trajectories separate, and
+    a matched random control is drawn from boundaries outside the growth window
+    {k*-1, k*, k*+1}.
+    """
     if success_trace is None:
         success_trace = load_brace_trace(success.path)
-    if failure_trace is None:
-        failure_trace = load_brace_trace(failure.path)
+    failure_list = list(failures)
+    if failure_traces is None:
+        failure_traces = [load_brace_trace(failure.path) for failure in failure_list]
 
     success_steps = _steps_by_physics_step(success_trace)
-    failure_steps = _steps_by_physics_step(failure_trace)
+    failure_steps_list = [_steps_by_physics_step(trace) for trace in failure_traces]
 
     scored: list[tuple[float, dict[str, Any], BranchContext]] = []
     seen_snapshot_ids: set[int] = set()
@@ -100,48 +112,50 @@ def select_branch_points(
         if snapshot_id in seen_snapshot_ids:
             continue
         snapshot_physics_step = int(snapshot["physics_step"])
-        if snapshot_physics_step not in success_steps or snapshot_physics_step not in failure_steps:
+        if snapshot_physics_step not in success_steps:
+            continue
+        distances = [
+            _joint_distance(success_steps[snapshot_physics_step], failure_steps[snapshot_physics_step])
+            for failure_steps in failure_steps_list
+            if snapshot_physics_step in failure_steps
+        ]
+        if not distances:
             continue
         try:
             context = build_branch_context(success_trace, snapshot)
         except ValueError:
             continue
         seen_snapshot_ids.add(snapshot_id)
-        divergence = _joint_distance(success_steps[snapshot_physics_step], failure_steps[snapshot_physics_step])
-        scored.append((divergence, snapshot, context))
+        scored.append((float(np.mean(distances)), snapshot, context))
 
     if not scored:
         return []
 
     chronological = sorted(scored, key=lambda item: int(item[1]["physics_step"]))
-    peak = max(scored, key=lambda item: item[0])
-    selected: list[tuple[str, tuple[float, dict[str, Any], BranchContext]]] = [
-        ("local_divergence_peak", peak)
-    ]
-
-    # Operational definition for the developmental selector: onset is the first
-    # of two consecutive snapshots at or above 25% of the within-pair peak.
-    # Unlike the old rank label, this searches forward in time.
-    threshold = 0.25 * float(peak[0])
-    persistent = None
-    for index in range(max(0, len(chronological) - 1)):
-        window = chronological[index : index + 2]
-        if len(window) == 2 and all(float(item[0]) >= threshold for item in window):
-            if window[0][1]["snapshot_id"] != peak[1]["snapshot_id"]:
-                persistent = window[0]
-                break
-    if persistent is None:
-        persistent = next(
-            (item for item in chronological if item[1]["snapshot_id"] != peak[1]["snapshot_id"]),
-            None,
+    divergences = [item[0] for item in chronological]
+    if len(chronological) >= 2:
+        growth_index = max(
+            range(len(divergences) - 1),
+            key=lambda index: divergences[index + 1] - divergences[index],
         )
-    if persistent is not None:
-        selected.append(("first_persistent_divergence", persistent))
+        causal_index = max(0, growth_index - 1)
+    else:
+        growth_index = 0
+        causal_index = 0
 
-    used_ids = {int(item[1]["snapshot_id"]) for _, item in selected}
-    negative_pool = [item for item in chronological if int(item[1]["snapshot_id"]) not in used_ids]
-    if negative_pool:
-        selected.append(("random_negative_control", rng.choice(negative_pool)))
+    selected: list[tuple[str, tuple[float, dict[str, Any], BranchContext]]] = [
+        ("pre_divergence_causal", chronological[causal_index])
+    ]
+    growth_window = {causal_index, growth_index, growth_index + 1}
+    control_pool = [
+        chronological[index] for index in range(len(chronological)) if index not in growth_window
+    ]
+    if not control_pool:
+        control_pool = [
+            chronological[index] for index in range(len(chronological)) if index != causal_index
+        ]
+    if control_pool:
+        selected.append(("matched_random_control", rng.choice(control_pool)))
 
     points: list[BranchPoint] = []
     for point_type, (_divergence, snapshot, context) in selected[:max_points]:
@@ -289,16 +303,17 @@ def _build_seed_branch_jobs(
     seed_index, task, env_seed, success, failures, max_points, control_k, continuation_m, selection_seed = item
     rng = random.Random(selection_seed + seed_index)
     success_trace = load_brace_trace(success.path)
-    failure_trace = load_brace_trace(failures[0].path)
+    failure_list = list(failures)
+    failure_traces = [load_brace_trace(failure.path) for failure in failure_list]
     points = select_branch_points(
         task,
         env_seed,
         success,
-        failures[0],
+        failure_list,
         max_points=max_points,
         rng=rng,
         success_trace=success_trace,
-        failure_trace=failure_trace,
+        failure_traces=failure_traces,
     )
     jobs: list[BranchJob] = []
     if not points:
@@ -350,11 +365,17 @@ def _run_branch_episode(
         generator.manual_seed(int(continuation_seed))
         model.set_generator(generator)
 
-    model.reset_obs()
+    # Restore the observation frames the policy had consumed at this chunk
+    # boundary during collection (falls back to a bare reset for legacy traces
+    # without stored history). The boundary frame is re-appended to match the
+    # collection-time deque state right after get_action produced this chunk.
+    boundary_frame = restore_model_obs_history(model, snapshot.get("obs_history"))
     env.restore_branch_snapshot(snapshot)
     for step in replay_steps:
         env.replay_control_step(step)
     env.apply_branch_runtime_state(runtime_state)
+    if boundary_frame is not None:
+        model.update_obs(boundary_frame)
 
     observation = env.get_obs()
     obs = encode_obs(observation)
@@ -592,7 +613,8 @@ def summarize_branch_rows(rows: list[dict[str, Any]], *, alpha: float, delta: fl
     recovery_seeds = {
         row["env_seed"]
         for row in point_summaries
-        if row["point_type"] != "random_negative_control" and row["candidate_success_rate"] > 0
+        if row["point_type"] not in ("random_negative_control", "matched_random_control")
+        and row["candidate_success_rate"] > 0
     }
     mixed_outcome_seeds = {row["env_seed"] for row in rows}
     recovery_fraction = (

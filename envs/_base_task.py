@@ -533,7 +533,7 @@ class Base_Task(gym.Env):
         self._current_policy_chunk_index = -1
         self._policy_step_counter = 0
 
-    def record_policy_chunk(self, actions, chunk_index: int):
+    def record_policy_chunk(self, actions, chunk_index: int, obs_history=None):
         if not self.record_control_trace:
             return
         self._current_policy_chunk_index = int(chunk_index)
@@ -546,6 +546,7 @@ class Base_Task(gym.Env):
                 "policy_step": int(self._policy_step_counter),
                 "physics_step": int(self.physics_step),
                 "action": action_array,
+                "obs_history": obs_history,
             }
         )
         self._policy_step_counter += 1
@@ -619,15 +620,57 @@ class Base_Task(gym.Env):
             )
         return branch_snapshots
 
-    def finalize_brace_trace_to_hdf5(self, hdf5_path, snapshots_per_trajectory: int = 3):
+    def build_chunk_boundary_snapshots(self):
+        """One snapshot per policy-chunk boundary (branching into chunk k >= 1).
+
+        Snapshot snapshot_id=k-1 sits at the last control step of chunk k-1, so
+        build_branch_context yields branch_chunk_index=k with an empty replay
+        window. The obs history recorded with chunk k (what the policy actually
+        consumed when it produced chunk k) is attached to the snapshot.
+        """
+        from experiments.brace.control_trace import chunk_boundary_snapshot_indices
+
+        if not self._control_trace_steps:
+            return []
+        obs_history_by_chunk = {
+            int(chunk["chunk_index"]): chunk.get("obs_history") for chunk in self._policy_chunks
+        }
+        branch_snapshots = []
+        for snapshot_id, buffer_index in enumerate(chunk_boundary_snapshot_indices(self._control_trace_steps)):
+            step = self._control_trace_steps[buffer_index]
+            branch_chunk_index = int(self._control_trace_steps[buffer_index + 1]["policy_chunk_index"])
+            branch_snapshots.append(
+                {
+                    "snapshot_id": snapshot_id,
+                    "physics_step": int(step["physics_step"]),
+                    "control_trace_offset": int(step["physics_step"]),
+                    "robot_state": step["robot_state"],
+                    "observation_joint_vector": np.asarray(step["robot_state"]["joints"], dtype=np.float64),
+                    "obs_history": obs_history_by_chunk.get(branch_chunk_index),
+                }
+            )
+        return branch_snapshots
+
+    def finalize_brace_trace_to_hdf5(
+        self, hdf5_path, snapshots_per_trajectory: int = 3, snapshot_mode: str = "quartile"
+    ):
         from experiments.brace.control_trace import append_brace_trace_to_hdf5
 
         if not self.record_control_trace:
             return
-        branch_snapshots = self.build_branch_snapshots(snapshots_per_trajectory)
+        if snapshot_mode == "chunk_boundary":
+            branch_snapshots = self.build_chunk_boundary_snapshots()
+        elif snapshot_mode == "quartile":
+            branch_snapshots = self.build_branch_snapshots(snapshots_per_trajectory)
+        else:
+            raise ValueError(f"unknown snapshot_mode {snapshot_mode!r}")
+        policy_chunks = [
+            {key: value for key, value in chunk.items() if key != "obs_history"}
+            for chunk in self._policy_chunks
+        ]
         append_brace_trace_to_hdf5(
             Path(hdf5_path),
-            policy_chunks=self._policy_chunks,
+            policy_chunks=policy_chunks,
             control_steps=self._control_trace_steps,
             branch_snapshots=branch_snapshots,
             meta={
@@ -636,6 +679,7 @@ class Base_Task(gym.Env):
                 "save_freq": int(self.save_freq) if self.save_freq is not None else -1,
                 "n_action_steps": int(self._n_action_steps),
                 "physics_steps": int(self.physics_step),
+                "snapshot_mode": str(snapshot_mode),
             },
         )
 

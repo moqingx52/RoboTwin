@@ -36,6 +36,22 @@ def snapshot_indices(total_steps: int, count: int) -> list[int]:
     return indices
 
 
+def chunk_boundary_snapshot_indices(control_steps: list[dict[str, Any]]) -> list[int]:
+    """Buffer indices of the last control step of each policy chunk (except the final chunk).
+
+    A snapshot placed at the last step of chunk k-1 branches at the start of
+    chunk k with an empty replay window, so this yields one snapshot per
+    policy-chunk boundary.
+    """
+    indices: list[int] = []
+    for index in range(len(control_steps) - 1):
+        current_chunk = int(control_steps[index]["policy_chunk_index"])
+        next_chunk = int(control_steps[index + 1]["policy_chunk_index"])
+        if next_chunk != current_chunk:
+            indices.append(index)
+    return indices
+
+
 @dataclass
 class BranchContext:
     snapshot_id: int
@@ -258,6 +274,15 @@ def replay_control_step(env: Any, step: dict[str, Any]) -> None:
     env._update_render()
 
 
+def _quantize_cam(cam: Any) -> np.ndarray:
+    """Store encode_obs camera frames (float32 = uint8/255) losslessly as uint8."""
+    return np.round(np.asarray(cam, dtype=np.float64) * 255.0).astype(np.uint8)
+
+
+def _dequantize_cam(cam: Any) -> np.ndarray:
+    return (np.asarray(cam, dtype=np.float32) / 255.0).astype(np.float32)
+
+
 def append_brace_trace_to_hdf5(
     hdf5_path: Path,
     *,
@@ -385,6 +410,25 @@ def append_brace_trace_to_hdf5(
                     data=np.asarray([row["observation_joint_vector"] for row in branch_snapshots], dtype=np.float64),
                 )
 
+            if all(row.get("obs_history") is not None for row in branch_snapshots):
+                obs_group = snaps.create_group("obs_history")
+                for cam_key in ("head_cam", "left_cam", "right_cam"):
+                    obs_group.create_dataset(
+                        cam_key,
+                        data=np.asarray(
+                            [_quantize_cam(row["obs_history"][cam_key]) for row in branch_snapshots],
+                            dtype=np.uint8,
+                        ),
+                        compression="gzip",
+                        compression_opts=4,
+                    )
+                obs_group.create_dataset(
+                    "agent_pos",
+                    data=np.asarray(
+                        [row["obs_history"]["agent_pos"] for row in branch_snapshots], dtype=np.float64
+                    ),
+                )
+
 
 def load_brace_trace(hdf5_path: Path) -> dict[str, Any]:
     import h5py
@@ -466,6 +510,16 @@ def load_brace_trace(hdf5_path: Path) -> dict[str, Any]:
                             if "observation_joint_vector" in snaps
                             else None
                         ),
+                        "obs_history": (
+                            {
+                                "head_cam": _dequantize_cam(snaps["obs_history"]["head_cam"][index]),
+                                "left_cam": _dequantize_cam(snaps["obs_history"]["left_cam"][index]),
+                                "right_cam": _dequantize_cam(snaps["obs_history"]["right_cam"][index]),
+                                "agent_pos": np.asarray(snaps["obs_history"]["agent_pos"][index], dtype=np.float64),
+                            }
+                            if "obs_history" in snaps
+                            else None
+                        ),
                     }
                 )
 
@@ -495,6 +549,71 @@ def policy_chunk_actions(chunk_action: np.ndarray) -> np.ndarray:
     if action_array.ndim == 1:
         return action_array[None, :]
     return action_array
+
+
+def capture_model_obs_history(model: Any) -> dict[str, np.ndarray] | None:
+    """Capture the observation frames the policy just consumed in get_action.
+
+    Reads the DP runner's obs deque right after get_action: the last
+    n_obs_steps entries (fewer at episode start, when the runner repeat-fills
+    the earliest frame) are stacked oldest-to-newest into one array per key.
+    """
+    runner = getattr(model, "runner", None)
+    if runner is None or not getattr(runner, "obs", None):
+        return None
+    n_obs_steps = int(getattr(runner, "n_obs_steps", 3))
+    frames = list(runner.obs)[-n_obs_steps:]
+    # Repeat-fill the earliest frame to n_obs_steps, matching the runner's
+    # stack_last_n_obs padding: the stored history is exactly what the policy saw.
+    while len(frames) < n_obs_steps:
+        frames.insert(0, frames[0])
+    return {
+        "head_cam": np.stack([np.asarray(frame["head_cam"], dtype=np.float32) for frame in frames]),
+        "left_cam": np.stack([np.asarray(frame["left_cam"], dtype=np.float32) for frame in frames]),
+        "right_cam": np.stack([np.asarray(frame["right_cam"], dtype=np.float32) for frame in frames]),
+        "agent_pos": np.stack([np.asarray(frame["agent_pos"], dtype=np.float64) for frame in frames]),
+    }
+
+
+def obs_history_frames(obs_history: dict[str, Any]) -> list[dict[str, np.ndarray]]:
+    """Split a stored per-snapshot obs history into per-frame encode_obs-style dicts.
+
+    obs_history holds stacked arrays of shape [n_frames, ...] per key; the
+    frames are ordered oldest to newest, the last frame being the observation
+    at the chunk boundary itself.
+    """
+    n_frames = int(np.asarray(obs_history["agent_pos"]).shape[0])
+    frames = []
+    for frame_index in range(n_frames):
+        frames.append(
+            {
+                "head_cam": np.asarray(obs_history["head_cam"][frame_index], dtype=np.float32),
+                "left_cam": np.asarray(obs_history["left_cam"][frame_index], dtype=np.float32),
+                "right_cam": np.asarray(obs_history["right_cam"][frame_index], dtype=np.float32),
+                "agent_pos": np.asarray(obs_history["agent_pos"][frame_index], dtype=np.float64),
+            }
+        )
+    return frames
+
+
+def restore_model_obs_history(model: Any, obs_history: dict[str, Any] | None) -> dict[str, np.ndarray] | None:
+    """Restore the policy's observation deque from a stored snapshot history.
+
+    Feeds all frames except the newest into the model via update_obs and
+    returns the newest frame, which the caller passes to get_action (which
+    appends it) — exactly matching collection-time deque semantics. Returns
+    None (after a bare reset) when no history is stored, in which case the
+    caller falls back to the live boundary observation.
+    """
+    model.reset_obs()
+    if obs_history is None:
+        return None
+    frames = obs_history_frames(obs_history)
+    if not frames:
+        return None
+    for frame in frames[:-1]:
+        model.update_obs(frame)
+    return frames[-1]
 
 
 def validate_schema_v2(hdf5_path: Path) -> list[str]:
