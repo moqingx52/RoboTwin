@@ -87,6 +87,9 @@ experiments/brace/runs/
 experiments/brace/records/
 experiments/brace/sync/.cache/
 
+# Local stash of unused BRACE artifacts (inventory JSON lives inside; never track)
+/bak/
+
 # BRACE evidence chain JSON (track in git)
 !experiments/brace/archive/**/
 !experiments/brace/archive/**/*

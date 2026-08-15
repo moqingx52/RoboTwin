@@ -1,0 +1,23 @@
+{
+  "run_id": "20260814T154857Z",
+  "stage": "e0_variance_gate",
+  "task": "place_container_plate",
+  "source_run_dir": "experiments/brace/runs/20260814T154857Z_e0_variance",
+  "omitted": [
+    "chunks/*.npz",
+    "logs"
+  ],
+  "files": [
+    "analysis.json",
+    "summary.json",
+    "checks.jsonl"
+  ],
+  "gate": {
+    "c": 3.0,
+    "delta_criterion_passed": false,
+    "e0_gate_passed": false,
+    "min_mean_delta": 0.02,
+    "observed_mean_delta": 0.007312240735751269,
+    "tarone_criterion_passed": false
+  }
+}
