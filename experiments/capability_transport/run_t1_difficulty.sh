@@ -19,6 +19,8 @@ CT_DIR="${REPO_ROOT}/experiments/capability_transport"
 GPU_IDS=(${T1_GPU_IDS:-0 1 2 3 4 5 6 7})
 WORKERS_PER_GPU="${T1_WORKERS_PER_GPU:-3}"
 NUM_SHARDS=$(( ${#GPU_IDS[@]} * WORKERS_PER_GPU ))
+# Cloud container: /root/miniconda/envs/RoboTwin/bin/python
+PYTHON_BIN="${T1_PYTHON_BIN:-python}"
 
 CKPT="${REPO_ROOT}/policy/DP/checkpoints/${TASK}-demo_clean-200-0/600.ckpt"
 SPLITS_FILE="${CT_DIR}/seeds/${TASK}_t1_difficulty_splits.json"
@@ -67,7 +69,7 @@ for (( shard=0; shard<NUM_SHARDS; shard++ )); do
   gpu="${GPU_IDS[$(( shard / WORKERS_PER_GPU ))]}"
   log="${RUN_DIR}/shard_$(printf '%02d' "${shard}").log"
   CUDA_VISIBLE_DEVICES="${gpu}" \
-    python "${CT_DIR}/eval_per_seed.py" \
+    "${PYTHON_BIN}" "${CT_DIR}/eval_per_seed.py" \
       "${COMMON_ARGS[@]}" \
       --shard-id "${shard}" --num-shards "${NUM_SHARDS}" \
       --resume \
@@ -84,11 +86,11 @@ if [[ "${FAIL}" -ne 0 ]]; then
   exit 1
 fi
 
-python "${CT_DIR}/merge_eval_shards.py" \
+"${PYTHON_BIN}" "${CT_DIR}/merge_eval_shards.py" \
   --task "${TASK}" --task-config demo_clean \
   --variant "${VARIANT}" \
   --output-dir "${RUN_DIR}" \
   --num-shards "${NUM_SHARDS}"
 
-python "${CT_DIR}/eval_per_seed.py" "${COMMON_ARGS[@]}" --check-complete-result
+"${PYTHON_BIN}" "${CT_DIR}/eval_per_seed.py" "${COMMON_ARGS[@]}" --check-complete-result
 echo "T1b difficulty measurement complete: ${RUN_DIR}/${TASK}/${VARIANT}.json"
