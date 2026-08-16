@@ -1,0 +1,7 @@
+{
+  "eval_id": [],
+  "note": "capability_transport T1: core splits intentionally empty; all T1b work items come from the extra-splits file.",
+  "schema_version": 1,
+  "task": "dump_bin_bigbin",
+  "train_rollout": []
+}

@@ -1,0 +1,82 @@
+{
+  "protocol_revision": "capability_transport.t1.v1",
+  "schema_version": 1,
+  "created": "2026-08-16",
+  "branch": "exp/capability-transport",
+  "stage_scope": [
+    "t1b_frozen_difficulty",
+    "t1c_data_sources",
+    "t1d_dose_design"
+  ],
+  "development_tasks": [
+    "place_container_plate",
+    "dump_bin_bigbin"
+  ],
+  "base_policy": {
+    "family": "DP",
+    "ckpt_template": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
+    "ckpt_sha256": {
+      "place_container_plate": "8fd41687fda187f59355fe2928cac533e7d8ff053b4c4558ead4f75dc404fa02",
+      "dump_bin_bigbin": "402cda3cdeeebf864565959bb8c30768dc3c5d038a48b8257354b0e5d6d8af64"
+    },
+    "action_dim": 14,
+    "task_config": "demo_clean"
+  },
+  "t1b_frozen_difficulty": {
+    "seeds_per_task": 240,
+    "repeats": 8,
+    "episodes_per_task": 1920,
+    "policy_seed_offset": 5000,
+    "policy_seed_rule": "policy_seed = 5000 + repeat (repeat in 0..7); offset 5000 chosen to be disjoint from legacy census offset 3000 and phase1 offset 0",
+    "seed_partitions": {
+      "place_container_plate": {
+        "file": "seeds/place_container_plate_t1_difficulty_splits.json",
+        "sha256": "200331df48c1a9f6f814e8ec1a91cc48678d9aa31d6576c8ea12ec9e0b9fccca",
+        "t1_rollout_train": "100000-100099 (100 seeds)",
+        "t1_census_candidate": "100300-100439 (140 seeds)"
+      },
+      "dump_bin_bigbin": {
+        "file": "seeds/dump_bin_bigbin_t1_difficulty_splits.json",
+        "sha256": "d62af96540877b60b38e90e2425ff7dd22f1bbb1dc079435b16dc383cf6f97a8",
+        "t1_rollout_train": "110000-110099 (100 seeds)",
+        "t1_census_candidate": "110300-110439 (140 seeds)"
+      }
+    },
+    "disjointness": "The 240-seed pool never touches confirm_easy ({base}+500..599), confirm_hard ({base}+600..699), or expert_demo_supplement ({base}+700..899) of experiments/brace/seeds/multitask_v1/*.json. Those pools stay reserved for confirmation evaluation and D_Q respectively.",
+    "outputs": "runs/<utcstamp>_t1_difficulty_{task}/ ; JSON rows only, no hdf5, no chunk export",
+    "missingness_rule": "UnStableError episodes are recorded as operational missingness (evaluated=false) and excluded from the p0 denominator; the seed keeps its remaining repeats; seeds are never swapped.",
+    "ordering": "place_container_plate first, then dump_bin_bigbin",
+    "compute": "8x RTX 4090, 3 simulator shards per GPU = 24 shards per task; CUDA_VISIBLE_DEVICES set per shard by the launcher; every shard runs with --resume"
+  },
+  "difficulty_grouping": {
+    "model": "Beta-Binomial posterior p0 | s ~ Beta(1 + s, 1 + R - s), R = 8",
+    "grouping_statistic": "posterior mean (1 + s) / (2 + R)",
+    "groups": {
+      "easy": "posterior mean in [0.7, 1.0]",
+      "medium": "posterior mean in [0.3, 0.7)",
+      "hard": "posterior mean in [0.0, 0.3)",
+      "unsupported_tail": "s = 0 of 8 (subset of hard, flagged separately for the zero-support unidentifiability analysis)"
+    },
+    "freeze_rule": "difficulty_groups.v1.json + sha256 written once from the completed 240x8 run of pi0 ONLY; never re-derived from any post-treatment checkpoint (post-treatment grouping bias ban).",
+    "min_evaluated_repeats": 6,
+    "min_evaluated_repeats_rule": "A seed with fewer than 6 evaluated repeats (operational missingness) is excluded from grouping and listed explicitly in difficulty_groups.v1.json; it does not silently change any denominator."
+  },
+  "t1c_data_sources": {
+    "d_e_d_m_d_h": "stratified 100 seeds sampled from the frozen 240 (proportional to group sizes, deterministic rule recorded at freeze time); pi0 run 8x per seed; store ONLY complete successful trajectories; no action-chunk export; frozen Base200 expert set (200 demos) is never modified.",
+    "d_q": "expert-script success-first collection on expert_demo_supplement seeds ({base}+700..899); escalating budget Q in {5, 10, 20} per zero-support seed",
+    "per_sample_overuse_bound": "w = rho / q <= 3"
+  },
+  "t1d_dose_design": {
+    "design": "9-point D-optimal: 1 zero-dose optimizer-only point, 4 single-source vertices (D_E, D_M, D_H, D_Q), 3 two-source mixes, 1 double center point; +3 held-out mix points for prediction validation",
+    "training_seeds_per_point": 4,
+    "budget": "10-20% of a full fine-tune per point",
+    "freeze_rule": "dose points fixed only AFTER t1b grouping (they depend on the observed p0 distribution) and before any training run",
+    "gpu_rule": "DP fine-tuning exclusive, 1 process per GPU",
+    "tomography_gate": "Spearman(T_hat, held-out deltas) >= 0.6 with CI lower bound > 0; MAE <= 5pp; 90% PI empirical coverage in [80%, 100%]; quadratic term must not dominate linear within w <= 3"
+  },
+  "legacy_isolation": [
+    "No artifact from experiments/brace/ or bak/ enters any T1 computation.",
+    "BRACE-RW E0 remains stopped; its archives are read-only.",
+    "census v142 (R=3) and the bak 100x8 sketch appear only in the comparison appendix."
+  ]
+}

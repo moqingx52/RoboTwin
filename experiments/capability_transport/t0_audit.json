@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "stage": "t0_legacy_audit",
+  "created": "2026-08-16",
+  "branch": "exp/capability-transport",
+  "purpose": "Read-only audit of legacy BRACE evidence used as MOTIVATION ONLY for the capability-transport line. Nothing in this file enters the T1+ method chain: difficulty is frozen exclusively from the new 240x8 pi0 baseline measurement (protocol.t1.v1.json).",
+  "evidence": {
+    "e0_v2_variance_gate_fail": {
+      "archive": "experiments/brace/archive/e0_variance_place_20260815T160249Z/",
+      "protocol_revision": "brace_rw.e0.v2",
+      "git_commit": "7c203f6b67ae58f3ae3d27f503afec31f935a6f6",
+      "task": "place_container_plate",
+      "points": 64,
+      "rollouts": 1536,
+      "environment_transitions": 302628,
+      "pooled": {
+        "mean_v_hat": 0.4583333333333333,
+        "mean_sigma2_q_hat": 0.011904761904761904,
+        "mean_delta_c3_unclipped": 0.01555512820778625,
+        "mean_delta_c3_ci95": [0.0038766485939105, 0.030140233083069685],
+        "ci_method": "seed_cluster_bootstrap (32 clusters, 10000 iterations)"
+      },
+      "gate": {
+        "c": 3.0,
+        "min_mean_delta": 0.02,
+        "delta_criterion_passed": false,
+        "exact_test_criterion_passed": true,
+        "exact_test_p_one_sided": 4.999750012499375e-05,
+        "tarone_diagnostic_passed": true,
+        "tarone_z": 2.798793889051915,
+        "e0_gate_passed": false
+      },
+      "causal_vs_random_contrast": {
+        "pre_divergence_causal_mean_delta_c3": 0.011452976416030599,
+        "matched_random_control_mean_delta_c3": 0.019657279999541904,
+        "reading": "Within-state Q-variance is statistically real (exact p ~ 5e-5, Tarone z 2.80) but the causal points show SMALLER training-gain proxy than matched random controls. Variance does not identify useful data. This is the direct motivation for switching from value-variance selection to capability-transport tomography over difficulty groups."
+      },
+      "status": "FAILED per protocol; line permanently stopped; archive read-only, never rerun."
+    },
+    "e0_v1_fail": {
+      "archive": "experiments/brace/archive/e0_variance_place_20260814T154857Z/",
+      "role": "earlier FAIL of the same route; motivation only"
+    },
+    "census_v142_r3": {
+      "archive": "experiments/brace/archive/confirmatory_base_census_v142_20260804/",
+      "protocol_revision": "screen.v1.4.2.confirmatory_preservation",
+      "task": "place_container_plate",
+      "base_checkpoint": "policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+      "base_checkpoint_sha256": "8fd41687fda187f59355fe2928cac533e7d8ff053b4c4558ead4f75dc404fa02",
+      "policy_seed_offset": 3000,
+      "n_seeds": 200,
+      "repeats": 3,
+      "success_count_histogram_0_to_3": {"0": 73, "1": 16, "2": 11, "3": 100},
+      "mean_success_rate": 0.5633333333333334,
+      "reading": "Strongly bimodal p0(x): 36.5% of census seeds at 0/3 and 50% at 3/3. Consistent with the coverage-collapse premise (success-only replay re-weights toward already-supported regions). R=3 is a presketch only; it cannot define frozen soft groups.",
+      "limitation": "R=3 < R=8 required by the new protocol; seed set (100114-100352) partially overlaps the multitask_v1 anchor_candidate partition; NOT used for grouping."
+    },
+    "bak_100x8_rough_histogram": {
+      "location": "cloud /depot/rlinf/repos/RoboTwin/bak/e0_rollouts_base200_v3_place_container_plate/summary.json",
+      "source": "/depot/rlinf/repos/RoboTwin/experiments/brace/rollouts_traced_base200_v3/place_container_plate",
+      "task": "place_container_plate",
+      "n_env_seeds": 100,
+      "attempts_per_seed": 8,
+      "n_success": 563,
+      "n_failure": 237,
+      "mean_success_rate": 0.70375,
+      "success_count_histogram_0_to_8": {"0": 16, "1": 5, "2": 3, "3": 2, "4": 3, "5": 4, "6": 7, "7": 8, "8": 52},
+      "n_always_success_8_of_8": 52,
+      "n_mixed": 32,
+      "n_unsupported_tail_0_of_8": 16,
+      "unsupported_seeds": [100001, 100002, 100013, 100022, 100029, 100040, 100044, 100046, 100052, 100054, 100071, 100090, 100093, 100094, 100095, 100099],
+      "reading": "On the rollout_train pool (100000-100099) at R=8, p0(x) is again bimodal: 52% always-success, 16% zero-support, 32% mixed. The 16 unsupported seeds are candidate empirical instances of the zero-support unidentifiability result.",
+      "limitation": "Collected under the old E0 tracing path, not under the new frozen protocol; comparison appendix only. The same 100 seeds are re-measured inside the new 240x8 run, which supersedes this sketch."
+    },
+    "zero_support_tail_phase1": {
+      "file": "experiments/capability_transport/legacy_evidence/phase1_hard_eval_seeds_place_container_plate.json",
+      "task": "place_container_plate",
+      "n_seeds": 20,
+      "base_success_rates": "all 0.0",
+      "seeds": [100117, 100121, 100123, 100129, 100131, 100133, 100143, 100145, 100149, 100151, 100153, 100156, 100175, 100176, 100181, 100191, 100199, 100200, 100203, 100207],
+      "reading": "Independent earlier probe (phase1 base probe) already found a 20-seed set where pi0 never succeeds. Together with the 16/100 unsupported seeds in the 100x8 sketch and the 73/200 zero-count census seeds, the zero-support tail is robustly non-empty on this task."
+    },
+    "reference_only_not_in_method_chain": {
+      "b1_n1_datasets": "experiments/brace/datasets/place_*_{B1,N1}.jsonl - verified-fragment vs random-control chunk sets; violate the new w<=3 bound (historical w~99); cited only for the overuse discussion.",
+      "preservation_archives": "experiments/brace/archive/confirmatory_preservation_*, anchor_behavior_eval_phase3c_* - negative-transfer motivation.",
+      "note": "None of these artifacts are read by any T1+ script."
+    }
+  },
+  "conclusions": [
+    "Motivation established: within-state value variance is real but does not causally select useful training data (E0 v2 FAIL); the alternative is dose-response estimation of a capability-transport matrix over frozen difficulty groups.",
+    "p0(x) on the development task is strongly bimodal with a non-empty zero-support tail (16/100 at R=8; 73/200 at R=3; 20/20 in the phase1 probe), supporting both the coverage-collapse law and the zero-support unidentifiability target.",
+    "EXPLICIT: none of the legacy measurements defines frozen difficulty. The frozen difficulty definition still requires the new 240 seeds x R=8 pi0 baseline per development task under protocol.t1.v1.json (census R=3 and the 100x8 sketch remain comparison-appendix material only)."
+  ]
+}
