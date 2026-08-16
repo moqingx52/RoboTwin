@@ -76,6 +76,7 @@ policy/DP/data_phase3/
 experiments/brace/rollouts_traced/
 experiments/brace/rollouts_traced_pilot/
 experiments/brace/rollouts_traced_base200_v2/
+experiments/brace/rollouts_traced_base200_v3/
 experiments/brace/logs/
 experiments/brace/run_states/
 experiments/brace/inventory/

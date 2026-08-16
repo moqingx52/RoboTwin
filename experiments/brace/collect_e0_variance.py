@@ -28,6 +28,7 @@ import random
 import sys
 import time
 import traceback
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -79,6 +80,31 @@ def derive_seed(namespace: str, *parts: Any) -> int:
     return int.from_bytes(digest[:4], "big") % (2**31 - 1)
 
 
+def _build_seed_e0_jobs(
+    item: tuple[int, str, Any, tuple[Any, ...], int, int, int, int],
+) -> tuple[int, int, list[E0Job]]:
+    seed_index, task, success, failures, max_points, action_count, continuation_count, selection_seed = item
+    env_seed = int(success.env_seed)
+    rng = random.Random(selection_seed + seed_index)
+    points = select_branch_points(
+        task, env_seed, success, list(failures), max_points=max_points, rng=rng
+    )
+    jobs: list[E0Job] = []
+    for point in points:
+        action_seeds = tuple(
+            derive_seed("action", task, env_seed, point.snapshot_id, a) for a in range(action_count)
+        )
+        continuation_seeds = tuple(
+            tuple(
+                derive_seed("continuation", task, env_seed, point.snapshot_id, a, r)
+                for r in range(continuation_count)
+            )
+            for a in range(action_count)
+        )
+        jobs.append(E0Job(point=point, action_seeds=action_seeds, continuation_seeds=continuation_seeds))
+    return seed_index, env_seed, jobs
+
+
 def build_e0_jobs(
     task: str,
     rollout_dir: Path,
@@ -88,7 +114,9 @@ def build_e0_jobs(
     action_count: int,
     continuation_count: int,
     selection_seed: int,
+    prepare_workers: int = 1,
 ) -> list[E0Job]:
+    started_at = time.monotonic()
     candidates, errors = collect_candidates(task, rollout_dir)
     for error in errors:
         print(f"[e0 prepare] task={task} warning={error}", flush=True)
@@ -97,7 +125,7 @@ def build_e0_jobs(
     for candidate in candidates:
         by_seed.setdefault(candidate.env_seed, {}).setdefault(candidate.success, []).append(candidate)
 
-    jobs: list[E0Job] = []
+    seed_inputs: list[tuple[int, str, Any, tuple[Any, ...], int, int, int, int]] = []
     for seed_index, env_seed in enumerate(env_seeds):
         seed_candidates = by_seed.get(env_seed, {})
         successes = seed_candidates.get(True, [])
@@ -110,23 +138,58 @@ def build_e0_jobs(
             )
             continue
         success = sorted(successes, key=lambda item: item.rollout_id)[0]
-        failure_list = sorted(failures, key=lambda item: item.rollout_id)
-        rng = random.Random(selection_seed + seed_index)
-        points = select_branch_points(
-            task, env_seed, success, failure_list, max_points=max_points, rng=rng
+        failure_tuple = tuple(sorted(failures, key=lambda item: item.rollout_id))
+        seed_inputs.append(
+            (
+                seed_index,
+                task,
+                success,
+                failure_tuple,
+                max_points,
+                action_count,
+                continuation_count,
+                selection_seed,
+            )
         )
-        for point in points:
-            action_seeds = tuple(
-                derive_seed("action", task, env_seed, point.snapshot_id, a) for a in range(action_count)
+
+    if not seed_inputs:
+        return []
+
+    worker_count = min(max(prepare_workers, 1), len(seed_inputs))
+    print(
+        f"[e0 prepare] task={task} phase=trace-analysis status=starting "
+        f"seeds={len(seed_inputs)} workers={worker_count} elapsed={time.monotonic() - started_at:.1f}s",
+        flush=True,
+    )
+    jobs_by_seed_index: dict[int, list[E0Job]] = {}
+    if worker_count == 1:
+        results = map(_build_seed_e0_jobs, seed_inputs)
+        for completed_count, (seed_index, env_seed, seed_jobs) in enumerate(results, start=1):
+            jobs_by_seed_index[seed_index] = seed_jobs
+            print(
+                f"[e0 prepare] task={task} phase=trace-analysis progress={completed_count}/{len(seed_inputs)} "
+                f"seed={env_seed} jobs={len(seed_jobs)} elapsed={time.monotonic() - started_at:.1f}s",
+                flush=True,
             )
-            continuation_seeds = tuple(
-                tuple(
-                    derive_seed("continuation", task, env_seed, point.snapshot_id, a, r)
-                    for r in range(continuation_count)
+    else:
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=worker_count, mp_context=context) as pool:
+            futures = [pool.submit(_build_seed_e0_jobs, item) for item in seed_inputs]
+            for completed_count, future in enumerate(as_completed(futures), start=1):
+                seed_index, env_seed, seed_jobs = future.result()
+                jobs_by_seed_index[seed_index] = seed_jobs
+                print(
+                    f"[e0 prepare] task={task} phase=trace-analysis progress={completed_count}/{len(seed_inputs)} "
+                    f"seed={env_seed} jobs={len(seed_jobs)} elapsed={time.monotonic() - started_at:.1f}s",
+                    flush=True,
                 )
-                for a in range(action_count)
-            )
-            jobs.append(E0Job(point=point, action_seeds=action_seeds, continuation_seeds=continuation_seeds))
+
+    jobs = [job for seed_index in sorted(jobs_by_seed_index) for job in jobs_by_seed_index[seed_index]]
+    print(
+        f"[e0 prepare] task={task} phase=trace-analysis status=done "
+        f"seeds={len(seed_inputs)} jobs={len(jobs)} elapsed={time.monotonic() - started_at:.1f}s",
+        flush=True,
+    )
     return jobs
 
 
@@ -394,12 +457,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seeds-file", type=Path, default=None)
     parser.add_argument("--workers-per-gpu", type=int, default=3)
     parser.add_argument("--workers", type=int, default=None)
+    parser.add_argument(
+        "--prepare-workers",
+        type=int,
+        default=min(os.cpu_count() or 1, 96),
+        help="CPU processes used to read traces and select branch points; capped to mixed-outcome seeds.",
+    )
     parser.add_argument("--gpus", nargs="+", type=int, default=list(range(8)))
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.prepare_workers < 1:
+        raise SystemExit("--prepare-workers must be >= 1")
     protocol_path = repo_path(args.protocol)
     rollout_dir = repo_path(args.rollout_dir)
     output_dir = repo_path(args.output_dir)
@@ -440,6 +511,7 @@ def main() -> int:
             action_count=action_count,
             continuation_count=continuation_count,
             selection_seed=selection_seed,
+            prepare_workers=args.prepare_workers,
         )
         expected_rollouts = len(jobs) * action_count * continuation_count
         print(

@@ -1,0 +1,25 @@
+{
+  "actions_per_state": 8,
+  "artifacts": {
+    "analysis": "analysis.json",
+    "checks": "checks.jsonl",
+    "chunks": "chunks/"
+  },
+  "complete": true,
+  "continuations_per_action": 3,
+  "errors": [],
+  "git_commit": "7c203f6b67ae58f3ae3d27f503afec31f935a6f6",
+  "protocol_path": "/workspace/RoboTwin/experiments/brace/protocol.e0.v2.json",
+  "protocol_revision": "brace_rw.e0.v2",
+  "protocol_sha256": "d8a2b2c52f5e1f7092009c3774eff6f570f4457037e61361149b2e4bde677404",
+  "schema_version": 1,
+  "stage": "e0_variance_gate",
+  "tasks": {
+    "place_container_plate": {
+      "environment_transitions": 302628,
+      "expected_rollouts": 1536,
+      "points": 64,
+      "rollouts": 1536
+    }
+  }
+}
