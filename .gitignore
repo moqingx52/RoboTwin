@@ -88,6 +88,13 @@ experiments/brace/runs/
 experiments/brace/records/
 experiments/brace/sync/.cache/
 
+# Capability-transport runtime (in-progress shards, sapien logs, pids).
+# Freeze products (protocol JSON, difficulty_groups.v1.json, t0_audit.json)
+# live beside the scripts and stay tracked.
+experiments/capability_transport/runs/
+experiments/capability_transport/**/*.log
+experiments/capability_transport/**/*.pid
+
 # Local stash of unused BRACE artifacts (inventory JSON lives inside; never track)
 /bak/
 

@@ -16,9 +16,10 @@
     "family": "DP",
     "ckpt_template": "policy/DP/checkpoints/{task}-demo_clean-200-0/600.ckpt",
     "ckpt_sha256": {
-      "place_container_plate": "8fd41687fda187f59355fe2928cac533e7d8ff053b4c4558ead4f75dc404fa02",
+      "place_container_plate": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
       "dump_bin_bigbin": "402cda3cdeeebf864565959bb8c30768dc3c5d038a48b8257354b0e5d6d8af64"
     },
+    "ckpt_sha256_note": "place_container_plate lock is the live Base200 600.ckpt on disk (mtime 2026-08-10, brace_base200_provenance / Line A). The previously written 8fd41687 hash is the Aug-4 census file, which is no longer present; it must not be used for T1b.",
     "action_dim": 14,
     "task_config": "demo_clean"
   },
