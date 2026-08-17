@@ -6,14 +6,37 @@ Supersedes the BRACE-RW (Q)-variance route after its E0 v2 gate FAILED on
 exact randomization p = 0.000 passed — variance is real, but it does not
 predict a practically meaningful training gain).
 
-Core question:
+Core question (revised 2026-08-17; positioning frozen in
+`protocol.t1d.v1.1.json`):
 
-> Can a small-dose "tomography" of training-data sources estimate a
-> capability-transport matrix T_{gh} (effect of data source h on difficulty
-> group g), certify before full fine-tuning whether a Pareto-safe update
-> exists (hard-group improvement, easy/medium non-inferiority), and — when
-> infeasible — derive the minimum targeted expert data Q* that restores
-> feasibility?
+> Given a pretrained robot policy and heterogeneous self-generated
+> experience, can small controlled training interventions predict the
+> cross-region effects of candidate data sources BEFORE full post-training,
+> certify whether a Pareto-safe update exists (hard-region improvement,
+> easy/medium non-inferiority), and — when the available data cannot support
+> one — correctly abstain and name the minimum targeted expert data Q* that
+> restores feasibility?
+
+This is a data attribution / allocation paper, not a success-rate
+optimization paper. The estimand is the capability-transport response
+T_{gh} = ∂J_g/∂ρ_h over **baseline competence regions** g ∈ {E, M, H} —
+π₀ difficulty strata of the frozen T1b census, deliberately NOT claimed to
+be semantic skills. Primary results, in order: (1) predictiveness of T̂ on
+held-out mixtures, (2) validity of the robust-mixture decision ρ*,
+(3) correct rejection on support-degenerate tasks (dump_bin), (4)
+interaction/compute efficiency ledger. Final success rate only validates
+the decision; it is never the headline.
+
+Relation to adjacent lines: RL fine-tuning (DPPO / VLA-RL) finds a
+higher-reward θ assuming cheap online interaction, and cannot say before
+training whether an update breaks easy-region competence; we answer the
+data question upstream of the optimizer and hand ρ* to SFT (or, post-T3,
+to RL). DataMIL attributes per-sample influence on a scalar metric; we
+estimate per-source cross-region effects plus a feasibility decision with
+a dual certificate. SIME / ReGuide select or generate valuable
+trajectories; we decide how much of each source a safe update needs, or
+prove no such mixture exists. No RL baseline is on the T1 critical path
+(see `protocol.t1d.v1.1.json`, rl_baseline_policy).
 
 Three theory targets:
 
@@ -60,6 +83,13 @@ Status update 2026-08-17 (see `t1c_source_feasibility.v1.json` and
   success-first acquisition (candidate stream + budgets frozen, realized
   successful seeds are an outcome), replacing v1's proportional-100-seed
   rule. Population metrics still use true group prevalences as weights.
+- T1d amended (`protocol.t1d.v1.1.json`): matched gradient steps S* across
+  all 13 dose points (dose = sampling proportion, never training amount);
+  ρ_nat (0.9033/0.0855/0.0112, the natural success-only mixture from the
+  frozen census) added as 4th held-out point and doubles as the
+  Success-only SFT baseline; center point doubles as Difficulty-balanced
+  SFT; four primary-result gates preregistered, incl. the dump_bin
+  correct-rejection certificate schema and the efficiency ledger.
 
 Legacy BRACE evidence stays read-only under `../brace/` (archives, seeds,
 protocols, records). BRACE code was deleted from the working tree in this

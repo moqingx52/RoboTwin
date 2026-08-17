@@ -1,0 +1,66 @@
+{
+  "protocol_revision": "capability_transport.t1d.v1.1",
+  "schema_version": 1,
+  "created": "2026-08-17",
+  "amends": "protocol.t1.v1.json t1d_dose_design section (sha256 f56c8d34f55a4159232806577afac4035e7501d966107519669bbf072981bed8); composes with protocol.t1.v1.1.json (t1c amendment, sha256 37012927f531ba31c9dd04f3ebc24b7ec4c816366148d68b78bc95f6927a4543)",
+  "written_before": "any T1d training run. No dose-point checkpoint exists at freeze time.",
+  "positioning": "The estimand is the capability-transport response T_gh = dJ_g/d rho_h at rho=0 over baseline competence regions g in {E,M,H} (pi0 difficulty strata; no semantic-skill claim), plus curvature H_g within w<=3. The paper's primary results are (1) predictiveness, (2) decision validity, (3) correct rejection, (4) interaction/compute efficiency — NOT headline success rate.",
+
+  "matched_training_rule": {
+    "steps": "Every dose point, including the zero-dose optimizer-only point and all held-out validation points, trains for the SAME number of gradient steps S_star with identical batch size, learning-rate schedule, optimizer hyperparameters, and initialization (frozen Base200 600.ckpt).",
+    "s_star_rule": "S_star = round(0.15 * S_base200) where S_base200 is the gradient-step count of the Base200 training run, read from its training log; the resolved integer and the full launch config are written to t1d_launch_config.json + sha256 BEFORE the first dose-point run.",
+    "dose_semantics": "rho_h is the sampling proportion of source h in the training mixture; the remainder of every batch is the frozen Base200 expert set (rehearsal). Dose is implemented by sampling weights at fixed S_star, never by changing dataset size or step count, so T_gh is not confounded with training amount.",
+    "per_sample_overuse_bound": "w = rho/q <= 3 enforced per source (unchanged invariant)."
+  },
+
+  "dose_points": {
+    "training_design_9": "unchanged from v1: 1 zero-dose optimizer-only, 4 single-source vertices (D_E, D_M, D_H, D_Q), 3 two-source mixes, 1 double center point. Center point doubles as the Difficulty-balanced SFT baseline.",
+    "held_out_validation_4": {
+      "points": "the 3 held-out mix points of v1, PLUS rho_nat frozen here as the 4th",
+      "rho_nat": {
+        "definition": "the natural success-only self-training mixture: group shares of pi0 successes in the frozen T1b census (place_container_plate: 1215 easy / 115 medium / 15 hard of 1345 successes)",
+        "value_place": { "D_E": 0.9033, "D_M": 0.0855, "D_H": 0.0112, "D_Q": 0.0 },
+        "roles": "(a) Success-only SFT baseline (identical to Uniform self-training under success-only BC), (b) held-out prediction target far from the D-optimal support, (c) empirical instance of the coverage-collapse law (theory target 1)."
+      }
+    },
+    "training_seeds_per_point": 4,
+    "total_small_runs": "13 points x 4 training seeds = 52 runs per task passing the source-feasibility gate (currently: place_container_plate only)."
+  },
+
+  "preregistered_gates": {
+    "gate_1_predictiveness": {
+      "estimator": "Delta_hat_g(rho) = T_hat_g. rho + rho^T H_hat_g rho fit on the 9 training points only",
+      "criteria": [
+        "Spearman(Delta_hat_g, Delta_g_observed) over the 4 held-out points x 3 regions >= 0.6 with bootstrap 95% CI lower bound > 0",
+        "MAE <= 5pp over held-out point-regions",
+        "90% prediction-interval empirical coverage in [80%, 100%]",
+        "safe/unsafe classification: a point is 'safe' iff min{Delta_H-0.05, Delta_E+0.05, Delta_M+0.05} > 0; predicted-vs-observed agreement >= 3/4 held-out points"
+      ],
+      "role": "primary gate of the paper; failure here fails T2 freeze."
+    },
+    "gate_2_decision_validity": {
+      "procedure": "solve max_rho min_{T in U_T} [T rho]_H s.t. min_{T in U_T}[T rho]_E >= -0.05, min_{T in U_T}[T rho]_M >= -0.05, c^T rho <= B, w <= 3; U_T from the hierarchical posterior of the dose-point fits; then run rho_star as a 5th validation training (4 seeds)",
+      "criteria": "Gamma = min{Delta_H - 0.05, Delta_E + 0.05, Delta_M + 0.05} one-sided 95% lower confidence bound > 0 at rho_star; rho_star beats rho_nat on hard-group delta"
+    },
+    "gate_3_correct_rejection": {
+      "instance": "dump_bin_bigbin (source-feasibility FAIL frozen in t1c_source_feasibility.v1.json)",
+      "required_output_schema": {
+        "task": "string",
+        "feasible": false,
+        "binding_constraints": "list of the constraints active at the infeasibility certificate",
+        "missing_source": "one or more of D_M | D_H_supported | D_Q",
+        "q_star_lower_bound": "minimum additional expert trajectories (with target region) implied by the dual variables, or 'not_computable' with reason",
+        "evidence": "environment_validity, group_sizes, U_h, n_eff per source"
+      },
+      "criteria": "the pipeline, run end-to-end on dump_bin inputs, emits this certificate and NEVER emits a mixture recommendation; abstention is the correct output, scored as such."
+    },
+    "gate_4_efficiency_ledger": {
+      "rule": "every stage appends to efficiency_ledger.jsonl: {stage, task, episodes_simulated, successful_trajectories_stored, expert_demos_used, training_runs, gradient_steps, gpu_hours, wall_clock}. Comparison target: total cost of tomography+rho_star vs the counterfactual grid of full fine-tunes it replaces, and literature-reported interaction counts for RL fine-tuning (DPPO-class).",
+      "criteria": "descriptive (no pass/fail), but MUST be reported; omission fails T2 freeze."
+    }
+  },
+
+  "rl_baseline_policy": "No RL fine-tuning enters the T1 critical path. T1 compares against Success-only SFT (rho_nat), Difficulty-balanced SFT (center point), and zero-dose, all inside the matched-steps design. Tomography-guided RL vs uniform RL is a post-T3 optional extension on place_container_plate only, and its absence in T1 is not a gate failure.",
+
+  "dump_bin_deliverable": "For dump_bin_bigbin the T1d deliverable is the gate_3 certificate plus the support-degeneracy analysis (P(A=1)=46.7%, medium U=3, supported-hard U=8); no dose-point training is run on it under this revision."
+}
