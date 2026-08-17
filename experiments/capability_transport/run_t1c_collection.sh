@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # T1c source acquisition: round-robin success-first collection with pi0.
-# Protocol: experiments/capability_transport/protocol.t1.v1.1.json
+# Protocol: experiments/capability_transport/protocol.t1.v1.2.json
+# (D_E/D_M target mode; D_H fixed opportunity budget + joint gate G_H in --report)
 #
 # The frozen acquisition rule is strictly serial WITHIN a group (round-robin,
 # earliest-stop), so each group runs as one process; the three groups are

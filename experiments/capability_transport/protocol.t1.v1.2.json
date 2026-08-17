@@ -1,0 +1,79 @@
+{
+  "protocol_revision": "capability_transport.t1.v1.2",
+  "schema_version": 1,
+  "created": "2026-08-17",
+  "amends": "protocol.t1.v1.1.json (sha256 37012927f531ba31c9dd04f3ebc24b7ec4c816366148d68b78bc95f6927a4543), t1c D_H acquisition/stop/gate rules ONLY. D_E and D_M keep the v1.1 rules unchanged (N_target 90, U_min 20, stop at target). Candidate pools, traversal order, policy_seed rule (6000 + attempt_index), per-seed attempt caps, per-seed success cap, UnStableError x2 retirement, and the append-only manifest discipline are all UNCHANGED from v1.1.",
+  "written_before": "any real T1c acquisition attempt. At freeze time the only collector outputs in existence are dry-run simulations (posterior-mean mode); no manifest row from a real environment exists. This is a pre-acquisition design correction, not a relaxation applied after seeing real results. Baseline commit for the three-step v1.1 state: 16ab690.",
+
+  "diagnosis_of_v1_1": {
+    "flaw": "v1.1 conflated unique-seed feasibility with 90-success acquisition feasibility. t1c_source_feasibility.v1.json proves only that 15 supported-hard seeds EXIST; it says nothing about whether pi0 can harvest 90 successful hard trajectories from them.",
+    "numbers": "Every supported-hard seed of place_container_plate is 1/8 in the frozen census: posterior Beta(2,8), posterior mean 0.2, empirical p_hat = 0.125. Opportunity set = 15 seeds x 24 attempts = 360; success cap 9/seed makes 135 the physical maximum. Under p_hat = 0.125 the expected yield is 45 and P(M_H >= 90) ~ 4.5e-11; under the posterior predictive (p_s ~ Beta(2,8)) P(M_H >= 90) ~ 2.4e-2. N_target = 90 was statistically infeasible by construction, so v1.1 would have declared D_H source_infeasible with near-certainty as a design artifact, not as evidence about the task.",
+    "dry_run_caveat": "The posterior-MEAN dry run samples at 0.2 per hard seed (expected 72, realized 76/90) and therefore does NOT predict real collection; it is retained as a logic smoke test only. Predictive simulation uses the posterior-predictive Monte Carlo mode (dry_run_modes below)."
+  },
+
+  "d_h_acquisition_v1_2": {
+    "mode": "fixed_opportunity_budget",
+    "rule": "D_H has NO N_target. Collection runs until the frozen opportunity set is exhausted: every supported-hard seed is finished (attempts = 24, or successes = 9) or retired (UnStableError x 2). No early stop at any yield level, no seed swapping, no cap changes, no post-hoc budget extension. The realized yield M_H is an outcome, then judged by the joint gate G_H.",
+    "frozen_opportunity_set": "the 15 supported-hard seeds of difficulty_groups.place_container_plate.v1.json (hard minus the 0/8 unsupported tail), per-seed attempt cap 24, per-seed success cap 9 (frozen here as an ABSOLUTE number; historically ceil(0.10*90), kept even though N_target is removed), UnStableError x 2 retirement.",
+    "status_vocabulary": "collecting -> budget_exhausted (per-group terminal state). The admissibility verdict is NOT a per-group state: it is the joint gate G_H, evaluated in the merged report because part 4 needs M_E and M_M."
+  },
+
+  "joint_gate_G_H": {
+    "definition": "G_H = [U_H >= 10] AND [n_eff_H >= 10] AND [M_H >= M_H_min] AND [every frozen T1d dose point satisfies w_h = rho_h / q_h <= 3 for all h in {E,M,H}, evaluated with realized M_E, M_M, M_H]",
+    "part_1_coverage": "U_H = unique env seeds with >= 1 stored success; threshold 10 (unchanged from v1.1: census upper-bounds supported-hard at 15 unique seeds).",
+    "part_2_ess": "n_eff_H = (sum_s m_s)^2 / sum_s m_s^2 >= 10 (unchanged rule). Blocks a degenerate source concentrated on few seeds even when M_H is large.",
+    "part_3_volume": "M_H >= M_H_min = 36 (derivation below). Blocks the mirror degeneracy: wide coverage with too few trajectories to sustain any useful hard dose.",
+    "part_4_dose_feasibility": "With q_h = M_h / (M_E + M_M + M_H): (i) ceiling check rho_H_max / q_H <= 3 with rho_H_max = 0.5; (ii) every numerically frozen dose point at gate time -- currently rho_nat = (0.9033, 0.0855, 0.0112) from protocol.t1d.v1.1.json -- satisfies w_h <= 3 for all h with rho_h > 0. Note (ii) at M_E = M_M = 90 implies an UPPER bound M_H <= 118 via rho_nat's easy component (0.9033 * (180 + M_H) / 90 <= 3); this is a mechanical consequence of the frozen q definition and is part of the gate, not a separate rule. Dose points frozen later in t1d_launch_config.json must re-assert w <= 3 against the same realized q's before any training run; that assertion is a launch precondition, not a new gate.",
+    "outcomes": "G_H = 1 -> D_H is source-admissible and T1d proceeds (after D_Q). G_H = 0 -> the run emits the source-infeasibility certificate (schema: protocol.t1d.v1.1.json gate_3_correct_rejection.required_output_schema) and T1d HALTS for the task. No seeds, budgets, or dose points may be modified after the gate to rescue a failed G_H."
+  },
+
+  "q_definition_frozen": {
+    "formula": "q_h = M_h / (M_E + M_M + M_H) for h in {E, M, H}, where M_h = stored successful pi0 trajectories of T1c source h.",
+    "denominator_scope": "ONLY the three T1c pi0 source pools. The frozen Base200 expert set (rehearsal remainder of every training batch) and D_Q are EXCLUDED from this denominator and never enter it. D_Q's own overuse accounting is defined in its own pre-collection freeze and does not alter this formula.",
+    "consequence": "M_H_min = 36 is derived under this exact denominator. Any future revision that changes the denominator invalidates M_H_min and requires a new pre-training amendment; it may never be changed after real acquisition starts."
+  },
+
+  "m_h_min_derivation": {
+    "bound": "w_H = rho_H / q_H <= 3 at the maximum planned hard dose gives M_H >= rho_H_max / (3 - rho_H_max) * (M_E + M_M).",
+    "table_at_M_E_eq_M_M_eq_90": { "rho_H_max_0.5": 36, "rho_H_max_0.6": 45, "rho_H_max_0.75": 60 },
+    "decision": "The T1d dose region is compressed BEFORE training: rho_H_max = 0.5 for every T1d dose point (training design 9 and held-out 4; rho_nat's rho_H = 0.0112 complies). Therefore M_H_min = 36. This is allowed because protocol.t1.v1.json's t1d freeze_rule defers numeric dose values to after T1b and before training -- no dose grid was frozen at a higher hard dose, so nothing is being relaxed.",
+    "pass_probabilities_design_time": "Under the empirical model p_s = p_hat = 0.125 (15 seeds x 24 attempts, cap 9): joint-gate pass ~= 0.907 at M_H_min = 36 (0.950 at 31, 0.887 at 37, 0.518 at 45 -- a coin flip, rejected; 90 was ~4.5e-11, rejected). Under the posterior predictive p_s ~ Beta(2,8) the pass probability is higher. Verified by the Monte Carlo mode below; the MC record is stored as t1c_dh_mc_feasibility.v1.json.",
+    "explicit_rejections": "N_target = 45 for D_H: rejected (coin-flip pass probability disguises a design flaw as an acquisition accident). Keeping N_target = 90: rejected (statistically infeasible). Accepting exhaustion + n_eff >= 10 alone: rejected (admits a degenerate ~10-trajectory source)."
+  },
+
+  "rho_h_max_frozen": {
+    "D_H": 0.5,
+    "scope": "hard ceiling on rho_H for EVERY T1d dose point, training and held-out. E/M dose values remain deferred to t1d_launch_config.json but are bound by the same w <= 3 assertion against realized q at launch time."
+  },
+
+  "dry_run_modes": {
+    "posterior_mean_smoke_test": "the original --dry-run: deterministic hash draws at each seed's posterior MEAN. Logic/resume smoke test ONLY; for 1/8 seeds the posterior mean 0.2 overstates the empirical rate 0.125, so its yields are NOT predictive of real collection and are never quoted as forecasts.",
+    "posterior_predictive_mc": "--mc-feasibility: per replicate, draw p_s ~ Beta(1 + s_s, 1 + R - s_s) for every D_H seed from the frozen census counts (Beta(2,8) for 1/8 seeds), simulate the frozen acquisition (24 attempts, stop the seed at 9 successes), compute M_H, U_H, n_eff_H, and evaluate all four gate parts (parts 3-4 assume the D_E/D_M targets M_E = M_M = 90 are met). Reports per-part and joint pass rates. The empirical fixed-p_hat variant is reported alongside. Frozen MC seed: 20260817."
+  },
+
+  "paper_objective_clarification": "The paper never claims to beat RL on final success rate. The contribution is pre-training prediction of per-source / per-dose local effects on baseline competence regions under expensive, sparse terminal feedback and Pareto-safe constraints -- yielding a safe-update selection or an infeasibility certificate. RL is a downstream optimizer that can consume the certified mixture; raw success rate is reported as a decision outcome, never as the objective.",
+
+  "collector_rules": {
+    "note": "machine-readable mirror of the rules above; collect_t1c_sources.py reads THIS section. Any discrepancy with the prose is a bug in this file, to be fixed by a new amendment, never by editing after acquisition starts.",
+    "policy_seed_base": 6000,
+    "unstable_retire_count": 2,
+    "groups": {
+      "D_E": { "mode": "target", "n_target": 90, "u_min": 20, "attempt_cap": 4, "success_cap": 9 },
+      "D_M": { "mode": "target", "n_target": 90, "u_min": 20, "attempt_cap": 8, "success_cap": 9 },
+      "D_H": { "mode": "fixed_budget", "n_target": null, "u_min": 10, "attempt_cap": 24, "success_cap": 9 }
+    },
+    "joint_gate_G_H": {
+      "u_min_H": 10,
+      "n_eff_min_H": 10,
+      "m_h_min": 36,
+      "w_max": 3,
+      "rho_h_max": { "D_E": null, "D_M": null, "D_H": 0.5 },
+      "q_definition": "q_h = M_h / (M_E + M_M + M_H); Base200 and D_Q excluded from the denominator",
+      "frozen_dose_points": {
+        "rho_nat": { "D_E": 0.9033, "D_M": 0.0855, "D_H": 0.0112 }
+      }
+    },
+    "mc_seed": 20260817,
+    "mc_replicates_default": 20000
+  }
+}

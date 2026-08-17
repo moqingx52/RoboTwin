@@ -83,6 +83,22 @@ Status update 2026-08-17 (see `t1c_source_feasibility.v1.json` and
   success-first acquisition (candidate stream + budgets frozen, realized
   successful seeds are an outcome), replacing v1's proportional-100-seed
   rule. Population metrics still use true group prevalences as weights.
+- T1c v1.2 (`protocol.t1.v1.2.json`, frozen BEFORE any real acquisition):
+  v1.1's D_H target of 90 conflated unique-seed feasibility with acquisition
+  feasibility — all 15 supported-hard seeds are 1/8 (empirical p̂ = 0.125),
+  so P(M_H ≥ 90) ≈ 4.5e-11; the group would have been declared infeasible as
+  a design artifact. v1.2 switches D_H to a **fixed opportunity budget**
+  (run the frozen 15 × 24-attempt set dry; per-seed success cap 9,
+  UnStableError×2 retirement unchanged) judged by the four-part joint gate
+  G_H = [U_H ≥ 10] ∧ [n_eff ≥ 10] ∧ [M_H ≥ 36] ∧ [all frozen dose points
+  satisfy w = ρ/q ≤ 3], with q_h = M_h/(M_E+M_M+M_H) frozen over the three
+  T1c pools only (Base200 rehearsal and D_Q excluded). M_H_min = 36 derives
+  from compressing the T1d dose region to ρ_H,max = 0.5 before training.
+  G_H = 0 emits the source-infeasibility certificate and halts T1d.
+  Monte Carlo record `t1c_dh_mc_feasibility.place_container_plate.v1.json`:
+  joint pass 90.7% under empirical p̂, 78.2% under the posterior predictive
+  (the ESS part binds when sampled p_s concentrate successes). The old
+  posterior-mean dry run is retained as a logic smoke test only.
 - T1d amended (`protocol.t1d.v1.1.json`): matched gradient steps S* across
   all 13 dose points (dose = sampling proportion, never training amount);
   ρ_nat (0.9033/0.0855/0.0112, the natural success-only mixture from the

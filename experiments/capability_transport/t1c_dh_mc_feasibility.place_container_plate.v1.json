@@ -1,0 +1,68 @@
+{
+  "assumptions": {
+    "M_E": 90,
+    "M_M": 90,
+    "note": "parts 3-4 of G_H assume D_E/D_M reach their targets; D_H seeds simulated independently (valid: fixed_budget has no global stop)."
+  },
+  "d_h_pool": [
+    100002,
+    100022,
+    100058,
+    100063,
+    100071,
+    100075,
+    100090,
+    100092,
+    100346,
+    100348,
+    100360,
+    100378,
+    100399,
+    100408,
+    100417
+  ],
+  "empirical_fixed_p_hat": {
+    "M_H": {
+      "mean": 45.01,
+      "p05": 35,
+      "p50": 45,
+      "p95": 56
+    },
+    "pass_rates": {
+      "1_coverage": 1.0,
+      "2_ess": 0.955,
+      "3_volume": 0.9391,
+      "4_dose": 0.9391,
+      "joint": 0.9071
+    }
+  },
+  "mc_seed": 20260817,
+  "posterior_predictive_p_s_beta": {
+    "M_H": {
+      "mean": 67.6,
+      "p05": 49,
+      "p50": 68,
+      "p95": 86
+    },
+    "pass_rates": {
+      "1_coverage": 0.9998,
+      "2_ess": 0.7824,
+      "3_volume": 0.9991,
+      "4_dose": 0.9991,
+      "joint": 0.7823
+    }
+  },
+  "protocol_revision": "capability_transport.t1.v1.2",
+  "provenance": {
+    "ckpt_path": null,
+    "ckpt_sha256": null,
+    "groups_file": "/home/gsy/work/RoboTwin/experiments/capability_transport/difficulty_groups.place_container_plate.v1.json",
+    "groups_file_sha256": "36b9038d0d24fe39fdb05c336a011458a30504188a3bf64040384dc355f7d283",
+    "policy_seed_base": 6000,
+    "protocol_file": "/home/gsy/work/RoboTwin/experiments/capability_transport/protocol.t1.v1.2.json",
+    "protocol_sha256": "4bad769622da9c564aebd74e6008ee820cfb19da785eb9d6cebb390e6a5bcc58"
+  },
+  "record": "capability_transport.t1c_dh_mc_feasibility.place_container_plate.v1",
+  "replicates": 20000,
+  "task": "place_container_plate"
+}
