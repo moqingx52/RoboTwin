@@ -45,6 +45,22 @@ Key invariants carried over from the BRACE audit:
   lower confidence bound > 0; plus Ours vs Random-Q hard-group superiority,
   ≥ 8/10 tasks positive on hard, no task degrading E/M by > 10 pp.
 
+Status update 2026-08-17 (see `t1c_source_feasibility.v1.json` and
+`protocol.t1.v1.1.json`):
+
+- T1b π₀ difficulty measurement is complete and frozen (v1) for both tasks.
+- `dump_bin_bigbin` FAILED the pre-training source-feasibility gate:
+  environment validity 112/240 (128 seeds structurally fail setup with
+  UnStableError, 0/8 evaluable), medium group = 3 unique env seeds,
+  supported-hard = 8. The standard E/M/H tomography is not identifiable
+  there; the task is reassigned as the support-degenerate stress case for
+  theory target 2. v1 seeds/groups are never swapped or rerun.
+- `place_container_plate` PASSED (medium 31, supported-hard 15) and proceeds
+  under the v1.1 T1c amendment: group-balanced, frozen-budget round-robin
+  success-first acquisition (candidate stream + budgets frozen, realized
+  successful seeds are an outcome), replacing v1's proportional-100-seed
+  rule. Population metrics still use true group prevalences as weights.
+
 Legacy BRACE evidence stays read-only under `../brace/` (archives, seeds,
 protocols, records). BRACE code was deleted from the working tree in this
 branch; it remains available in git history (last full state at commit

@@ -1,0 +1,45 @@
+{
+  "record": "capability_transport.t1c_source_feasibility.v1",
+  "schema_version": 1,
+  "created": "2026-08-17",
+  "purpose": "Pre-training source-feasibility gate for the standard 3-layer (E/M/H) tomography. Evaluated ONLY from frozen pi0 T1b measurements (difficulty_groups.*.v1.json); no post-treatment information used.",
+  "gate_definition": {
+    "environment_validity": "A(s)=1 iff the env seed initializes without UnStableError at env.setup_demo(). The 0-of-8-evaluated pattern is treated as a structural, seed-determined event (initialization validity), NOT missing-at-random. Report P(A=1) alongside P_theta(success | A=1).",
+    "requirements": {
+      "unique_env_seeds_medium": ">= 20",
+      "unique_env_seeds_supported_hard": ">= 12",
+      "note": "supported_hard = hard group minus the 0/8 unsupported tail; pi0 success-first self-generation has zero expected yield on 0/8 seeds, so only supported-hard seeds can source D_H. Thresholds frozen 2026-08-17 before any T1c acquisition or T1d training; U_H threshold set to 12 (not 20) because the maximum attainable under the frozen 240-seed census is bounded by the supported-hard count itself."
+    }
+  },
+  "tasks": {
+    "place_container_plate": {
+      "source": "difficulty_groups.place_container_plate.v1.json",
+      "environment_validity": "239/240 evaluable (seed 100405 excluded, partial missingness only)",
+      "group_sizes": { "easy": 158, "medium": 31, "hard": 50 },
+      "unsupported_tail_0_of_8": 35,
+      "supported_hard": 15,
+      "checks": {
+        "unique_env_seeds_medium": "31 >= 20 PASS",
+        "unique_env_seeds_supported_hard": "15 >= 12 PASS"
+      },
+      "verdict": "PASS — proceed with T1c under protocol.t1.v1.1 group-balanced acquisition"
+    },
+    "dump_bin_bigbin": {
+      "source": "difficulty_groups.dump_bin_bigbin.v1.json",
+      "t1b_operational_complete": true,
+      "difficulty_measurement_frozen": true,
+      "environment_validity": "112/240 (46.7%); all-or-nothing: 112 seeds 8/8 evaluated, 128 seeds 0/8 (UnStableError at setup, e.g. 'unstable objects: garbage, ...')",
+      "group_sizes": { "easy": 56, "medium": 3, "hard": 53 },
+      "unsupported_tail_0_of_8": 45,
+      "supported_hard": 8,
+      "checks": {
+        "unique_env_seeds_medium": "3 < 20 FAIL",
+        "unique_env_seeds_supported_hard": "8 < 12 FAIL"
+      },
+      "failure_reason": "medium_unique_env_seeds = 3 AND supported_hard_unique_env_seeds = 8; environment-seed-level ESS for D_M is bounded by 3 regardless of trajectory count, so the D_M (and D_H) columns of the T1d design matrix cannot be reliably excited (X^T X near-singular).",
+      "verdict": "FAIL — standard 9-point E/M/H tomography is NOT identifiable for dump_bin_bigbin under the frozen 240-seed census. T1b v1 measurement stays frozen; the 128 UnStableError seeds stay in the record; seeds are NOT swapped and the run is NOT redone.",
+      "role_reassignment": "dump_bin_bigbin becomes the support-degenerate stress task: evidence for theory target 2 (zero-support unidentifiability) and for the method's obligation to report non-identifiability instead of fabricating a transport matrix. Any future enlarged seed pool must be published as difficulty_groups.dump_bin_bigbin v1.1/v2; v1 is never overwritten."
+    }
+  },
+  "replacement_task_rule": "If a second standard development task is added to replace dump_bin, it must be selected ONLY on pre-treatment criteria: (a) environment validity P(A=1) from a pi0-era screen, and (b) pi0 difficulty coverage (medium >= 20, supported-hard >= 12 projected). No fine-tuning result may inform the choice (no outcome-based task selection)."
+}

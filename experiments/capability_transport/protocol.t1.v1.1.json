@@ -1,0 +1,46 @@
+{
+  "protocol_revision": "capability_transport.t1.v1.1",
+  "schema_version": 1,
+  "created": "2026-08-17",
+  "amends": "protocol.t1.v1.json (sha256 f56c8d34f55a4159232806577afac4035e7501d966107519669bbf072981bed8)",
+  "amendment_scope": "t1c_data_sources only. t1b_frozen_difficulty, difficulty_grouping, base_policy, seed partitions and all frozen v1 artifacts are UNCHANGED and stay authoritative.",
+  "rationale": "v1's t1c rule ('stratified 100 seeds proportional to group sizes') conflated population prevalence with source identification: proportional sampling starves the medium/hard source columns of unique environment seeds, and it pre-froze WHICH seeds succeed instead of freezing the acquisition rule. This amendment adopts the repo-native success-first semantics (AGENTS.md): freeze the candidate stream, traversal order, budgets and acceptance rule; the realized successful seeds are an outcome, not a preregistration.",
+  "written_before": "any T1c acquisition run and any T1d training run; no fine-tuning result existed for this line at freeze time.",
+
+  "environment_validity": {
+    "definition": "A(s)=1 iff env.setup_demo() completes without UnStableError. Structural (seed-determined) event; the observed pattern is all-or-nothing per seed. Not missing-at-random.",
+    "reporting_rule": "Every task reports both P(A=1) (task-generator validity, e.g. dump_bin 112/240) and P_theta(success | A=1) (policy capability on valid scenes). The 128 dump_bin UnStableError seeds remain in the frozen v1 record permanently.",
+    "gate": "See t1c_source_feasibility.v1.json. place_container_plate PASS; dump_bin_bigbin FAIL (medium U=3, supported-hard U=8). dump_bin is reassigned to the support-degenerate stress role; its standard 9-point tomography is suspended, not rerun."
+  },
+
+  "t1c_data_sources_v1_1": {
+    "applies_to": "place_container_plate (and any future task that passes the source-feasibility gate)",
+    "candidate_pools": {
+      "D_E": "the 30 lowest-numbered easy-group seeds from difficulty_groups.place_container_plate.v1.json (deterministic, pre-registered ordering: ascending env seed id)",
+      "D_M": "all 31 medium-group seeds",
+      "D_H": "all 15 supported-hard seeds (hard group minus the 0/8 unsupported tail). The 0/8 tail is NEVER a D_H source; it is the target population for D_Q.",
+      "D_Q": "unchanged from v1: expert-script success-first collection on expert_demo_supplement seeds ({base}+700..899), escalating budget Q in {5,10,20} per zero-support seed"
+    },
+    "acquisition_rule": {
+      "method": "round-robin success-first collection with pi0 (frozen Base200 ckpt, hashes in v1)",
+      "traversal": "round r (r = 0,1,2,...): attempt each candidate seed of the group once, in ascending seed order, skipping seeds that are finished (hit per-seed cap) or retired (UnStableError twice)",
+      "policy_seed_rule": "policy_seed = 6000 + 16*r + position_in_round mod 16 is NOT used; instead policy_seed = 6000 + attempt_index_within_seed (attempt_index 0..per_seed_attempt_cap-1). Offset 6000 is disjoint from T1b's 5000..5007, legacy census 3000+, and phase1 0+.",
+      "acceptance": "store ONLY complete successful trajectories (full rollout, no action-chunk export); failures and UnStableErrors are logged in the attempt manifest and never deleted",
+      "per_seed_trajectory_cap": "m_s <= ceil(0.10 * N_target_group) (single-seed share <= 10% of the group's target)",
+      "per_seed_attempt_cap": { "D_E": 4, "D_M": 8, "D_H": 24 },
+      "stop_rule": "a group stops when it reaches N_target AND U_h >= U_min, or when every candidate seed has exhausted its attempt cap; in the latter case the group is declared source-infeasible and T1d for this task halts (no seed swapping, no cap raising after seeing results)"
+    },
+    "targets_and_gates": {
+      "N_target_per_source": 90,
+      "U_min": { "D_E": 20, "D_M": 20, "D_H": 10 },
+      "n_eff_rule": "n_eff = (sum_s m_s)^2 / sum_s m_s^2 must be >= U_min for each source before any T1d training uses it",
+      "note_on_D_H": "U_min for D_H is 10, not 20, because the frozen census upper-bounds supported-hard at 15 unique seeds; requiring 20 would be unsatisfiable by construction. This bound is frozen here, before acquisition."
+    },
+    "prevalence_vs_identification": "Source construction is group-balanced (this section). Population-level task metrics keep the TRUE frozen group prevalences (place: easy 158 / medium 31 / hard 50 of 239 evaluable) as weights. The two uses are never mixed.",
+    "per_sample_overuse_bound": "w = rho / q <= 3 (unchanged from v1)"
+  },
+
+  "t1d_note": "9-point dose design proceeds for place_container_plate only after all four sources pass their U_min / n_eff gates. For dump_bin_bigbin the deliverable is the non-identifiability report (theory target 2), not a transport matrix.",
+
+  "second_development_task": "If added to restore two-task development coverage, selection uses ONLY pre-treatment criteria: a pi0-era environment-validity screen and projected difficulty coverage (medium >= 20 valid seeds, supported-hard >= 12). Task choice may never condition on any fine-tuning outcome."
+}
