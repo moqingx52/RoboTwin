@@ -1,0 +1,456 @@
+{
+  "D_E": {
+    "attempt_cap_per_seed": 4,
+    "attempts": 97,
+    "ckpt_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "group": "D_E",
+    "mode": "target",
+    "n_eff": 28.521,
+    "n_eff_gate_pass": true,
+    "n_target": 90,
+    "per_seed": {
+      "100000": {
+        "attempts": 4,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100004": {
+        "attempts": 4,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100005": {
+        "attempts": 4,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100008": {
+        "attempts": 4,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100010": {
+        "attempts": 4,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100011": {
+        "attempts": 4,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100012": {
+        "attempts": 4,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100014": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100016": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100017": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100018": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100019": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100020": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100021": {
+        "attempts": 3,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100023": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100024": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100025": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100026": {
+        "attempts": 3,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100027": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100028": {
+        "attempts": 3,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100030": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100032": {
+        "attempts": 3,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100033": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100034": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100036": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100037": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100039": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100041": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100042": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100043": {
+        "attempts": 3,
+        "successes": 3,
+        "unstable_errors": 0
+      }
+    },
+    "per_seed_success_cap": 9,
+    "policy_seed_base": 6000,
+    "protocol_revision": "capability_transport.t1.v1.2",
+    "retired_seeds": [],
+    "status": "complete",
+    "successful_trajectories": 90,
+    "task": "place_container_plate",
+    "u_min": 20,
+    "unique_success_seeds": 30
+  },
+  "D_H": {
+    "attempt_cap_per_seed": 24,
+    "attempts": 341,
+    "ckpt_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "group": "D_H",
+    "mode": "fixed_budget",
+    "n_eff": 6.296,
+    "n_eff_gate_pass": false,
+    "n_target": null,
+    "per_seed": {
+      "100002": {
+        "attempts": 24,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100022": {
+        "attempts": 24,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100058": {
+        "attempts": 13,
+        "successes": 9,
+        "unstable_errors": 0
+      },
+      "100063": {
+        "attempts": 16,
+        "successes": 9,
+        "unstable_errors": 0
+      },
+      "100071": {
+        "attempts": 24,
+        "successes": 0,
+        "unstable_errors": 0
+      },
+      "100075": {
+        "attempts": 24,
+        "successes": 7,
+        "unstable_errors": 0
+      },
+      "100090": {
+        "attempts": 24,
+        "successes": 0,
+        "unstable_errors": 0
+      },
+      "100092": {
+        "attempts": 24,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100346": {
+        "attempts": 24,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100348": {
+        "attempts": 24,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100360": {
+        "attempts": 24,
+        "successes": 0,
+        "unstable_errors": 0
+      },
+      "100378": {
+        "attempts": 24,
+        "successes": 0,
+        "unstable_errors": 0
+      },
+      "100399": {
+        "attempts": 24,
+        "successes": 6,
+        "unstable_errors": 0
+      },
+      "100408": {
+        "attempts": 24,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100417": {
+        "attempts": 24,
+        "successes": 0,
+        "unstable_errors": 0
+      }
+    },
+    "per_seed_success_cap": 9,
+    "policy_seed_base": 6000,
+    "protocol_revision": "capability_transport.t1.v1.2",
+    "retired_seeds": [],
+    "status": "budget_exhausted",
+    "successful_trajectories": 41,
+    "task": "place_container_plate",
+    "u_min": 10,
+    "unique_success_seeds": 10
+  },
+  "D_M": {
+    "attempt_cap_per_seed": 8,
+    "attempts": 196,
+    "ckpt_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "group": "D_M",
+    "mode": "target",
+    "n_eff": 23.547,
+    "n_eff_gate_pass": true,
+    "n_target": 90,
+    "per_seed": {
+      "100003": {
+        "attempts": 7,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100006": {
+        "attempts": 7,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100007": {
+        "attempts": 7,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100009": {
+        "attempts": 7,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100015": {
+        "attempts": 7,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100035": {
+        "attempts": 7,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100038": {
+        "attempts": 7,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100048": {
+        "attempts": 7,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100049": {
+        "attempts": 7,
+        "successes": 5,
+        "unstable_errors": 0
+      },
+      "100064": {
+        "attempts": 7,
+        "successes": 6,
+        "unstable_errors": 0
+      },
+      "100066": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100069": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100070": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100088": {
+        "attempts": 6,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100307": {
+        "attempts": 6,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100318": {
+        "attempts": 6,
+        "successes": 5,
+        "unstable_errors": 0
+      },
+      "100319": {
+        "attempts": 6,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100324": {
+        "attempts": 6,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100335": {
+        "attempts": 6,
+        "successes": 5,
+        "unstable_errors": 0
+      },
+      "100368": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100374": {
+        "attempts": 6,
+        "successes": 5,
+        "unstable_errors": 0
+      },
+      "100385": {
+        "attempts": 6,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100395": {
+        "attempts": 6,
+        "successes": 6,
+        "unstable_errors": 0
+      },
+      "100404": {
+        "attempts": 6,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100407": {
+        "attempts": 6,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100415": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100416": {
+        "attempts": 6,
+        "successes": 4,
+        "unstable_errors": 0
+      },
+      "100419": {
+        "attempts": 6,
+        "successes": 2,
+        "unstable_errors": 0
+      },
+      "100421": {
+        "attempts": 6,
+        "successes": 3,
+        "unstable_errors": 0
+      },
+      "100434": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      },
+      "100438": {
+        "attempts": 6,
+        "successes": 1,
+        "unstable_errors": 0
+      }
+    },
+    "per_seed_success_cap": 9,
+    "policy_seed_base": 6000,
+    "protocol_revision": "capability_transport.t1.v1.2",
+    "retired_seeds": [],
+    "status": "complete",
+    "successful_trajectories": 90,
+    "task": "place_container_plate",
+    "u_min": 20,
+    "unique_success_seeds": 31
+  },
+  "provenance": {
+    "ckpt_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "ckpt_sha256": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
+    "groups_file": "/workspace/RoboTwin/experiments/capability_transport/difficulty_groups.place_container_plate.v1.json",
+    "groups_file_sha256": "36b9038d0d24fe39fdb05c336a011458a30504188a3bf64040384dc355f7d283",
+    "policy_seed_base": 6000,
+    "protocol_file": "/workspace/RoboTwin/experiments/capability_transport/protocol.t1.v1.2.json",
+    "protocol_sha256": "4bad769622da9c564aebd74e6008ee820cfb19da785eb9d6cebb390e6a5bcc58"
+  },
+  "record": "capability_transport.t1c_group_states.place_container_plate.v1",
+  "run_dir": "experiments/capability_transport/runs/20260817T060821Z_t1c_collection_place_container_plate"
+}

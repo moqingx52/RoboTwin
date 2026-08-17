@@ -1,0 +1,26 @@
+{
+  "record": "capability_transport.t1d.gate_3_correct_rejection.dump_bin_bigbin.v1",
+  "schema_version": 1,
+  "created": "2026-08-17",
+  "protocol_revision": "capability_transport.t1d.v1.1",
+  "source_feasibility": "experiments/capability_transport/t1c_source_feasibility.v1.json",
+  "difficulty_groups": "experiments/capability_transport/difficulty_groups.dump_bin_bigbin.v1.json",
+  "written_before": "any dump_bin T1c acquisition or T1d training; standard E/M/H tomography is not run on this task under protocol.t1d.v1.1.",
+  "task": "dump_bin_bigbin",
+  "feasible": false,
+  "binding_constraints": [
+    "unique_env_seeds_medium < 20",
+    "unique_env_seeds_supported_hard < 12"
+  ],
+  "missing_source": ["D_M", "D_H_supported"],
+  "q_star_lower_bound": "not_computable — no T1d dual variables because no dose-point training is run on dump_bin_bigbin; the binding constraints are unique-environment-seed coverage of D_M and supported-hard D_H under the frozen 240-seed census, not a missing expert count Q*.",
+  "evidence": {
+    "environment_validity": "112/240 (46.7%); 112 seeds 8/8 evaluated, 128 seeds 0/8 UnStableError at setup",
+    "group_sizes": {"easy": 56, "medium": 3, "hard": 53},
+    "unsupported_tail_0_of_8": 45,
+    "U_h": {"D_E": 56, "D_M": 3, "D_H_supported": 8},
+    "n_eff": "upper-bounded by unique env seeds (D_M <= 3, D_H_supported <= 8) regardless of trajectory count",
+    "t1c_source_feasibility_verdict": "FAIL — standard 9-point E/M/H tomography is NOT identifiable"
+  },
+  "pipeline_obligation": "emit this certificate and NEVER emit a mixture recommendation; abstention is the correct output."
+}

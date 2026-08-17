@@ -1,0 +1,118 @@
+{
+  "groups": {
+    "D_E": {
+      "attempts": 97,
+      "mode": "target",
+      "n_eff": 28.521,
+      "n_eff_gate_pass": true,
+      "n_target": 90,
+      "retired_seeds": [],
+      "status": "complete",
+      "successful_trajectories": 90,
+      "u_min": 20,
+      "unique_success_seeds": 30
+    },
+    "D_H": {
+      "attempts": 341,
+      "mode": "fixed_budget",
+      "n_eff": 6.296,
+      "n_eff_gate_pass": false,
+      "n_target": null,
+      "retired_seeds": [],
+      "status": "budget_exhausted",
+      "successful_trajectories": 41,
+      "u_min": 10,
+      "unique_success_seeds": 10
+    },
+    "D_M": {
+      "attempts": 196,
+      "mode": "target",
+      "n_eff": 23.547,
+      "n_eff_gate_pass": true,
+      "n_target": 90,
+      "retired_seeds": [],
+      "status": "complete",
+      "successful_trajectories": 90,
+      "u_min": 20,
+      "unique_success_seeds": 31
+    }
+  },
+  "infeasibility_certificate": {
+    "binding_constraints": [
+      "2_ess_n_eff_H"
+    ],
+    "evidence": {
+      "U_H": 10,
+      "group_sizes": {
+        "D_E": 90,
+        "D_H": 41,
+        "D_M": 90
+      },
+      "n_eff_H": 6.296,
+      "q": {
+        "D_E": 0.40724,
+        "D_H": 0.18552,
+        "D_M": 0.40724
+      }
+    },
+    "feasible": false,
+    "missing_source": "D_H_supported",
+    "q_star_lower_bound": "not_computable — requires the T1d dual variables; this certificate records the acquisition-stage gate failure per protocol.t1d.v1.1 gate_3 schema",
+    "task": "place_container_plate"
+  },
+  "joint_gate_G_H": {
+    "G_H": false,
+    "parts": {
+      "1_coverage_U_H": {
+        "min": 10,
+        "pass": true,
+        "value": 10
+      },
+      "2_ess_n_eff_H": {
+        "min": 10.0,
+        "pass": false,
+        "value": 6.296
+      },
+      "3_volume_M_H": {
+        "min": 36,
+        "pass": true,
+        "value": 41
+      },
+      "4_dose_feasibility": {
+        "ceiling_w_H_at_rho_H_max": 2.6951,
+        "frozen_dose_points": {
+          "rho_nat": {
+            "pass": true,
+            "w": {
+              "D_E": 2.2181,
+              "D_H": 0.0604,
+              "D_M": 0.21
+            }
+          }
+        },
+        "pass": true,
+        "rho_H_max": 0.5,
+        "w_max": 3.0
+      }
+    },
+    "q": {
+      "D_E": 0.40724,
+      "D_H": 0.18552,
+      "D_M": 0.40724
+    },
+    "q_definition": "q_h = M_h / (M_E + M_M + M_H); Base200 and D_Q excluded from the denominator"
+  },
+  "protocol_revision": "capability_transport.t1.v1.2",
+  "provenance": {
+    "ckpt_path": "/workspace/RoboTwin/policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "ckpt_sha256": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
+    "groups_file": "/workspace/RoboTwin/experiments/capability_transport/difficulty_groups.place_container_plate.v1.json",
+    "groups_file_sha256": "36b9038d0d24fe39fdb05c336a011458a30504188a3bf64040384dc355f7d283",
+    "policy_seed_base": 6000,
+    "protocol_file": "/workspace/RoboTwin/experiments/capability_transport/protocol.t1.v1.2.json",
+    "protocol_sha256": "4bad769622da9c564aebd74e6008ee820cfb19da785eb9d6cebb390e6a5bcc58"
+  },
+  "record": "capability_transport.t1c_collection.place_container_plate.v1_2",
+  "task": "place_container_plate",
+  "verdict": "FAIL — D_H joint gate G_H = 0: source-infeasibility certificate; T1d halts for this task (no post-hoc seeds/budget/dose changes)"
+}

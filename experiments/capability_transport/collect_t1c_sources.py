@@ -46,6 +46,7 @@ import argparse
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -280,32 +281,38 @@ def frozen_traversal(state: GroupState):
         round_index += 1
 
 
-def manifest_path(run_dir: Path, group: str) -> Path:
+def manifest_path(run_dir: Path, group: str, seed: int | None = None) -> Path:
+    if seed is not None:
+        return run_dir / f"manifest_{group}.seed_{int(seed)}.jsonl"
     return run_dir / f"manifest_{group}.jsonl"
 
 
-def state_path(run_dir: Path, group: str) -> Path:
+def state_path(run_dir: Path, group: str, seed: int | None = None) -> Path:
+    if seed is not None:
+        return run_dir / f"state_{group}.seed_{int(seed)}.json"
     return run_dir / f"state_{group}.json"
 
 
-def load_recorded_rows(run_dir: Path, group: str, pool, meta: dict) -> dict:
+def load_recorded_rows(path: Path, pool, meta: dict) -> dict:
     """Load the append-only manifest into a {(env_seed, attempt_index): row}
     lookup, validating meta and the frozen policy-seed rule per row."""
     pool_set = set(pool)
     recorded = {}
-    for index, row in enumerate(iter_jsonl(manifest_path(run_dir, group))):
+    if not path.exists():
+        return recorded
+    for index, row in enumerate(iter_jsonl(path)):
         for key, expected in meta.items():
             if row.get(key) != expected:
                 raise RuntimeError(
-                    f"Refusing to resume {manifest_path(run_dir, group)} row "
-                    f"{index}: {key} is {row.get(key)!r}, expected {expected!r}"
+                    f"Refusing to resume {path} row {index}: {key} is "
+                    f"{row.get(key)!r}, expected {expected!r}"
                 )
         env_seed = int(row["env_seed"])
         attempt_index = int(row["attempt_index"])
         if env_seed not in pool_set:
             raise RuntimeError(
-                f"Manifest row {index}: env_seed {env_seed} outside the frozen "
-                f"{group} pool; refusing to resume."
+                f"Manifest row {index} in {path}: env_seed {env_seed} outside "
+                f"the frozen pool; refusing to resume."
             )
         if int(row["policy_seed"]) != POLICY_SEED_BASE + attempt_index:
             raise RuntimeError(
@@ -553,22 +560,282 @@ def mc_feasibility(args, rules, groups_payload, provenance: dict):
     )
 
 
-def collect_group(args, rules, groups_payload, run_dir: Path):
+def _materialize_success(run_dir: Path, group: str, env_seed: int, attempt_index: int,
+                         result: dict):
+    hdf5_rel = None
+    video_rel = None
+    if result["success"] and result["raw_hdf5"] is not None:
+        if not Path(result["raw_hdf5"]).is_file():
+            raise RuntimeError(f"success reported but no hdf5 at {result['raw_hdf5']}")
+        success_dir = run_dir / "successes" / group
+        success_dir.mkdir(parents=True, exist_ok=True)
+        dest = success_dir / f"episode_{env_seed}_a{attempt_index}.hdf5"
+        shutil.move(str(result["raw_hdf5"]), str(dest))
+        hdf5_rel = str(dest.relative_to(run_dir))
+        if result["raw_video"] and Path(result["raw_video"]).is_file():
+            video_dir = run_dir / "videos" / group
+            video_dir.mkdir(parents=True, exist_ok=True)
+            vdest = video_dir / f"episode_{env_seed}_a{attempt_index}.mp4"
+            shutil.move(str(result["raw_video"]), str(vdest))
+            video_rel = str(vdest.relative_to(run_dir))
+    shutil.rmtree(
+        run_dir / ".tmp" / f"{group}_{env_seed}_a{attempt_index}",
+        ignore_errors=True,
+    )
+    return hdf5_rel, video_rel
+
+
+def replay_canonical(run_dir: Path, group: str, pool, rules, meta: dict):
+    state = GroupState(group, pool, rules)
+    recorded = load_recorded_rows(manifest_path(run_dir, group), pool, meta)
+    for round_index, env_seed, attempt_index in frozen_traversal(state):
+        key = (env_seed, attempt_index)
+        if key not in recorded:
+            break
+        row = recorded[key]
+        if int(row["round"]) != round_index:
+            raise RuntimeError(
+                f"[{group}] canonical {key} round {row['round']} != traversal {round_index}"
+            )
+        state.apply_row(row)
+    return state, recorded
+
+
+def current_round_pending(state: GroupState):
+    """Seeds that share the current round-robin wave (same attempt_index)."""
+    if state.status() != "collecting":
+        return None, []
+    unfinished = [
+        seed for seed in state.pool
+        if not state.seeds[seed].finished(state.attempt_cap, state.success_cap)
+    ]
+    if not unfinished:
+        return None, []
+    attempt_index = min(state.seeds[seed].attempts for seed in unfinished)
+    pending = [
+        seed for seed in state.pool
+        if not state.seeds[seed].finished(state.attempt_cap, state.success_cap)
+        and state.seeds[seed].attempts == attempt_index
+    ]
+    return attempt_index, pending
+
+
+def run_one_attempt(args, rules, groups_payload, run_dir: Path):
+    """Execute a single specified (seed, attempt_index). Used by round-parallel D_M."""
     group = args.group
+    env_seed = int(args.env_seed)
+    attempt_index = int(args.attempt_index)
+    round_index = int(args.round_index)
     pools = build_pools(groups_payload)
-    state = GroupState(group, pools[group], rules)
+    if env_seed not in pools[group]:
+        raise RuntimeError(f"env_seed {env_seed} not in frozen {group} pool")
     meta = {
         "task": args.task_name,
         "group": group,
         "protocol_revision": rules["protocol_revision"],
         "ckpt_path": str(args.ckpt_path),
     }
-    if manifest_path(run_dir, group).exists() and not args.resume:
+    man_path = manifest_path(run_dir, group, seed=env_seed)
+    recorded = load_recorded_rows(man_path, [env_seed], meta)
+    key = (env_seed, attempt_index)
+    if key in recorded:
+        print(f"[{group}] seed={env_seed} a{attempt_index} already in shard, skip")
+        return
+    policy_seed = POLICY_SEED_BASE + attempt_index
+    os.chdir(repo_path())
+    env_args = load_task_args(args.task_name, args.task_config)
+    model = load_dp_model(
+        args.ckpt_path, args.action_dim,
+        normalizer_zarr_path=args.normalizer_zarr,
+    )
+    tmp_dir = run_dir / ".tmp" / f"{group}_{env_seed}_a{attempt_index}"
+    started = time.time()
+    result = attempt_once(
+        args.task_name, env_args, model, env_seed, policy_seed, tmp_dir, clear_cache=True,
+    )
+    hdf5_rel, video_rel = _materialize_success(run_dir, group, env_seed, attempt_index, result)
+    row = {
+        **meta,
+        "round": round_index,
+        "env_seed": int(env_seed),
+        "attempt_index": int(attempt_index),
+        "policy_seed": int(policy_seed),
+        "evaluated": result["evaluated"],
+        "success": result["success"],
+        "steps": result["steps"],
+        "missingness_reason": result["missingness_reason"],
+        "missingness_detail": result["missingness_detail"],
+        "hdf5_path": hdf5_rel,
+        "video_path": video_rel,
+        "wall_seconds": round(time.time() - started, 2),
+    }
+    append_jsonl(man_path, row)
+    tag = (
+        "UNSTABLE"
+        if row["missingness_reason"] == "UnStableError"
+        else ("success" if row["success"] else "fail")
+    )
+    print(f"[{group}] r{round_index} seed={env_seed} a{attempt_index} {tag}")
+
+
+def parallel_target_rounds(args, rules, groups_payload, run_dir: Path):
+    """Round-parallel D_E/D_M: run one round-robin wave concurrently, commit in
+    frozen seed order, stop committing once N_target AND U_min are met.
+
+    Same official manifest as serial earliest-stop; extra in-flight attempts
+    after the stopping seed are not committed.
+    """
+    group = args.group
+    if rules["groups"][group]["mode"] != "target":
+        raise RuntimeError("--parallel-rounds is for target-mode groups (D_E/D_M)")
+    gpu_ids = [int(x) for x in str(args.gpu_ids).split()]
+    workers_per_gpu = int(args.workers_per_gpu)
+    max_workers = len(gpu_ids) * workers_per_gpu
+    pool = build_pools(groups_payload)[group]
+    meta = {
+        "task": args.task_name,
+        "group": group,
+        "protocol_revision": rules["protocol_revision"],
+        "ckpt_path": str(args.ckpt_path),
+    }
+    canonical = manifest_path(run_dir, group)
+    script = str(Path(__file__).resolve())
+    python = sys.executable
+
+    while True:
+        state, recorded = replay_canonical(run_dir, group, pool, rules, meta)
+        write_json_atomic(
+            state_path(run_dir, group),
+            {**meta, "policy_seed_base": POLICY_SEED_BASE, **state.summary()},
+        )
+        if state.status() != "collecting":
+            print(
+                f"[{group}] parallel-rounds done: {state.status()} "
+                f"M={state.total_successes()} U={state.unique_success_seeds()} "
+                f"n_eff={state.n_eff()}"
+            )
+            return
+        round_index, pending = current_round_pending(state)
+        print(
+            f"[{group}] wave r{round_index}: {len(pending)} seeds, "
+            f"M={state.total_successes()}/{state.n_target}, "
+            f"U={state.unique_success_seeds()}/{state.u_min}, "
+            f"workers<={max_workers}"
+        )
+        for wave_start in range(0, len(pending), max_workers):
+            state, recorded = replay_canonical(run_dir, group, pool, rules, meta)
+            if state.target_met():
+                break
+            wave = pending[wave_start:wave_start + max_workers]
+            procs = []
+            for i, seed in enumerate(wave):
+                gpu = gpu_ids[i // workers_per_gpu]
+                log_path = run_dir / f"{group}.seed_{seed}.a{round_index}.log"
+                env = os.environ.copy()
+                env["CUDA_VISIBLE_DEVICES"] = str(gpu)
+                env["OMP_NUM_THREADS"] = "1"
+                env["MKL_NUM_THREADS"] = "1"
+                env["PYTHONUNBUFFERED"] = "1"
+                cmd = [
+                    python, script,
+                    "--task", args.task_name,
+                    "--task-config", args.task_config,
+                    "--group", group,
+                    "--ckpt-path", str(args.ckpt_path),
+                    "--run-dir", str(run_dir),
+                    "--run-attempt",
+                    "--env-seed", str(seed),
+                    "--attempt-index", str(round_index),
+                    "--round-index", str(round_index),
+                ]
+                if args.normalizer_zarr:
+                    cmd.extend(["--normalizer-zarr", str(args.normalizer_zarr)])
+                log_f = open(log_path, "a", encoding="utf-8")
+                proc = subprocess.Popen(cmd, env=env, stdout=log_f, stderr=subprocess.STDOUT)
+                procs.append((proc, log_f, seed, gpu))
+                print(f"  GPU {gpu}: {group} seed={seed} a{round_index}")
+            fail = []
+            for proc, log_f, seed, gpu in procs:
+                rc = proc.wait()
+                log_f.close()
+                if rc != 0:
+                    fail.append((seed, rc))
+            if fail:
+                raise RuntimeError(f"[{group}] workers failed: {fail}; re-run to resume")
+            state, recorded = replay_canonical(run_dir, group, pool, rules, meta)
+            for seed in pending:
+                if state.target_met():
+                    print(
+                        f"[{group}] target met; not committing remaining r{round_index} "
+                        f"seed={seed}+ (matches serial earliest-stop)"
+                    )
+                    break
+                key = (seed, round_index)
+                if key in recorded:
+                    continue
+                shard = load_recorded_rows(
+                    manifest_path(run_dir, group, seed=seed), [seed], meta
+                )
+                if key not in shard:
+                    continue
+                row = shard[key]
+                append_jsonl(canonical, row)
+                state.apply_row(row)
+                recorded[key] = row
+                write_json_atomic(
+                    state_path(run_dir, group),
+                    {**meta, "policy_seed_base": POLICY_SEED_BASE, **state.summary()},
+                )
+                tag = "success" if row["success"] else "fail"
+                print(
+                    f"[{group}] commit r{round_index} seed={seed} a{round_index} {tag} "
+                    f"({state.total_successes()}/{state.n_target}, "
+                    f"U={state.unique_success_seeds()}/{state.u_min})"
+                )
+            if state.target_met():
+                break
+
+
+def collect_group(args, rules, groups_payload, run_dir: Path):
+    group = args.group
+    pools = build_pools(groups_payload)
+    frozen_pool = list(pools[group])
+    shard_seed = None
+    if args.only_seeds:
+        if group != "D_H":
+            raise RuntimeError(
+                "--only-seeds is only protocol-legal for D_H (fixed_budget, "
+                "seeds independent). D_E/D_M must stay serial because the "
+                "stop condition is evaluated before every attempt."
+            )
+        requested = [int(seed) for seed in args.only_seeds]
+        unknown = [seed for seed in requested if seed not in frozen_pool]
+        if unknown:
+            raise RuntimeError(
+                f"--only-seeds {unknown} are not in the frozen D_H pool {frozen_pool}"
+            )
+        if len(requested) != 1:
+            raise RuntimeError("--only-seeds currently accepts exactly one seed per worker")
+        shard_seed = requested[0]
+        pool = [shard_seed]
+    else:
+        pool = frozen_pool
+
+    state = GroupState(group, pool, rules)
+    meta = {
+        "task": args.task_name,
+        "group": group,
+        "protocol_revision": rules["protocol_revision"],
+        "ckpt_path": str(args.ckpt_path),
+    }
+    man_path = manifest_path(run_dir, group, seed=shard_seed)
+    st_path = state_path(run_dir, group, seed=shard_seed)
+    if man_path.exists() and not args.resume:
         raise RuntimeError(
-            f"{manifest_path(run_dir, group)} already exists; pass --resume to "
+            f"{man_path} already exists; pass --resume to "
             "continue it (manifests are append-only and never overwritten)."
         )
-    recorded = load_recorded_rows(run_dir, group, state.pool, meta)
+    recorded = load_recorded_rows(man_path, state.pool, meta)
     if recorded:
         print(f"[{group}] resuming with {len(recorded)} recorded attempts")
 
@@ -661,10 +928,10 @@ def collect_group(args, rules, groups_payload, run_dir: Path):
             "video_path": video_rel,
             "wall_seconds": round(time.time() - started, 2),
         }
-        append_jsonl(manifest_path(run_dir, group), row)
+        append_jsonl(man_path, row)
         state.apply_row(row)
         write_json_atomic(
-            state_path(run_dir, group),
+            st_path,
             {**meta, "policy_seed_base": POLICY_SEED_BASE, **state.summary()},
         )
         tag = (
@@ -691,7 +958,7 @@ def collect_group(args, rules, groups_payload, run_dir: Path):
         )
 
     final = {**meta, "policy_seed_base": POLICY_SEED_BASE, **state.summary()}
-    write_json_atomic(state_path(run_dir, group), final)
+    write_json_atomic(st_path, final)
     print(
         f"[{group}] final status: {final['status']} "
         f"({final['successful_trajectories']} trajectories, "
@@ -767,6 +1034,76 @@ def evaluate_joint_gate(gate_rules: dict, m: dict, u_h: int, n_eff_h) -> dict:
         },
         "G_H": part_1 and part_2 and part_3 and part_4,
     }
+
+
+def merge_dh_shards(args, rules, groups_payload, run_dir: Path) -> dict:
+    """Concatenate per-seed D_H manifests into the canonical group files.
+
+    Seed-parallel workers are protocol-equivalent to serial D_H: fixed_budget
+    has no global earliest-stop, and round r for seed s attempt k is k in both
+    the 1-seed shard traversal and the 15-seed group traversal.
+    """
+    pool = build_pools(groups_payload)["D_H"]
+    meta = {
+        "task": args.task_name,
+        "group": "D_H",
+        "protocol_revision": rules["protocol_revision"],
+        "ckpt_path": str(args.ckpt_path),
+    }
+    recorded = {}
+    missing = []
+    for seed in pool:
+        path = manifest_path(run_dir, "D_H", seed=seed)
+        if not path.exists():
+            missing.append(seed)
+            continue
+        recorded.update(load_recorded_rows(path, [seed], meta))
+    if missing:
+        raise RuntimeError(
+            f"D_H seed shards missing for {missing}; refusing to merge."
+        )
+    state = GroupState("D_H", pool, rules)
+    ordered = []
+    consumed = set()
+    for round_index, env_seed, attempt_index in frozen_traversal(state):
+        key = (env_seed, attempt_index)
+        if key not in recorded:
+            raise RuntimeError(
+                f"D_H merge: traversal requested {key} but no shard row exists"
+            )
+        row = recorded[key]
+        if int(row["round"]) != round_index:
+            raise RuntimeError(
+                f"D_H merge: shard row {key} has round {row['round']}, "
+                f"traversal round {round_index}"
+            )
+        ordered.append(row)
+        consumed.add(key)
+        state.apply_row(row)
+    leftover = set(recorded) - consumed
+    if leftover:
+        raise RuntimeError(
+            f"D_H merge leftover shard rows: {sorted(leftover)[:5]}"
+        )
+    if state.status() != "budget_exhausted":
+        raise RuntimeError(
+            f"D_H merge status {state.status()!r}, expected budget_exhausted"
+        )
+    merged_path = manifest_path(run_dir, "D_H")
+    tmp = merged_path.with_suffix(".jsonl.tmp")
+    if tmp.exists():
+        tmp.unlink()
+    for row in ordered:
+        append_jsonl(tmp, row)
+    tmp.replace(merged_path)
+    final = {**meta, "policy_seed_base": POLICY_SEED_BASE, **state.summary()}
+    write_json_atomic(state_path(run_dir, "D_H"), final)
+    print(
+        f"Merged {len(ordered)} D_H attempts from {len(pool)} seed shards -> "
+        f"{merged_path} (status={final['status']}, "
+        f"M_H={final['successful_trajectories']}, U={final['unique_success_seeds']})"
+    )
+    return final
 
 
 def write_report(args, rules, run_dir: Path, provenance: dict):
@@ -907,6 +1244,19 @@ def main():
     parser.add_argument("--run-dir", type=Path)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
+        "--only-seeds",
+        nargs="+",
+        type=int,
+        help="D_H only: collect a single frozen supported-hard seed in this "
+        "process (seed-parallel packing). Not legal for D_E/D_M.",
+    )
+    parser.add_argument(
+        "--merge-dh-shards",
+        action="store_true",
+        help="Merge per-seed D_H manifests into manifest_D_H.jsonl / "
+        "state_D_H.json after all seed workers finish.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Posterior-MEAN smoke test (logic/resume only; NOT predictive — "
@@ -926,6 +1276,30 @@ def main():
         action="store_true",
         help="Merge the three group states into t1c_collection_report.json, "
         "evaluate the joint gate G_H, and append the efficiency ledger entry.",
+    )
+    parser.add_argument(
+        "--run-attempt",
+        action="store_true",
+        help="Run a single (env_seed, attempt_index) for round-parallel D_E/D_M.",
+    )
+    parser.add_argument("--env-seed", type=int)
+    parser.add_argument("--attempt-index", type=int)
+    parser.add_argument("--round-index", type=int)
+    parser.add_argument(
+        "--parallel-rounds",
+        action="store_true",
+        help="D_E/D_M: parallelize each round-robin wave across GPUs, commit "
+        "in frozen seed order, stop at N_target (serial earliest-stop equivalent).",
+    )
+    parser.add_argument(
+        "--gpu-ids",
+        default=os.environ.get("T1_GPU_IDS", "0 1 2 3 4 5 6 7"),
+        help="Physical GPU ids for --parallel-rounds (space-separated).",
+    )
+    parser.add_argument(
+        "--workers-per-gpu",
+        type=int,
+        default=int(os.environ.get("T1_WORKERS_PER_GPU", "3")),
     )
     args = parser.parse_args()
 
@@ -968,11 +1342,24 @@ def main():
     args.run_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(args.run_dir / "provenance.json", provenance)
 
+    if args.merge_dh_shards:
+        merge_dh_shards(args, rules, groups_payload, args.run_dir)
+        return
     if args.report:
         write_report(args, rules, args.run_dir, provenance)
         return
+    if args.parallel_rounds:
+        if not args.group:
+            parser.error("--parallel-rounds requires --group")
+        parallel_target_rounds(args, rules, groups_payload, args.run_dir)
+        return
+    if args.run_attempt:
+        if args.group is None or args.env_seed is None or args.attempt_index is None or args.round_index is None:
+            parser.error("--run-attempt requires --group --env-seed --attempt-index --round-index")
+        run_one_attempt(args, rules, groups_payload, args.run_dir)
+        return
     if not args.group:
-        parser.error("--group is required unless --report is set")
+        parser.error("--group is required unless --report, --merge-dh-shards, --parallel-rounds, or --run-attempt is set")
     if not args.dry_run and not args.ckpt_path.is_file():
         raise RuntimeError(f"missing checkpoint: {args.ckpt_path}")
     collect_group(args, rules, groups_payload, args.run_dir)
