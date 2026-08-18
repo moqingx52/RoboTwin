@@ -1,0 +1,147 @@
+{
+  "protocol_revision": "capability_transport.t2_expert_audit.v1",
+  "schema_version": 1,
+  "created": "2026-08-18",
+  "task": "place_container_plate",
+  "written_before": "any expert motion-planner attempt on any hard seed of place_container_plate. At freeze time no expert trajectory for any of the 50 hard seeds exists anywhere in the project (Base200 was harvested from a disjoint candidate seed stream; the 50 hard seeds come from the frozen T1b census range). This protocol is frozen BEFORE experiments/capability_transport/capability_cells.place_container_plate.v1.json is built, and that cells file must itself be frozen (sha256 companion written) BEFORE the first real probe attempt. Baseline commit: a05a5ab.",
+
+  "depends_on": {
+    "difficulty_groups": {
+      "file": "experiments/capability_transport/difficulty_groups.place_container_plate.v1.json",
+      "sha256": "36b9038d0d24fe39fdb05c336a011458a30504188a3bf64040384dc355f7d283"
+    },
+    "t1c_collection_report": {
+      "file": "experiments/capability_transport/t1c_collection_report.place_container_plate.v1.json",
+      "sha256": "215411cd9d3dc6ce166484b712bcc613f3845f5d6508040c75bef1e6b99800df"
+    },
+    "t1c_group_states": {
+      "file": "experiments/capability_transport/t1c_group_states.place_container_plate.v1.json",
+      "sha256": "e6db6bc70cce5ba4816dc86306cf007365afd1b087a847ee80528ebc07079e57"
+    },
+    "protocol_t1_v1_2": {
+      "file": "experiments/capability_transport/protocol.t1.v1.2.json",
+      "sha256": "4bad769622da9c564aebd74e6008ee820cfb19da785eb9d6cebb390e6a5bcc58"
+    },
+    "protocol_t1d_v1_1": {
+      "file": "experiments/capability_transport/protocol.t1d.v1.1.json",
+      "sha256": "082655a16915317cafd0059da31948ba1068015df4560f6ec94217dd9c746106"
+    },
+    "task_config": {
+      "file": "task_config/demo_clean.yml",
+      "sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0"
+    }
+  },
+
+  "motivation": {
+    "trigger": "T1c joint gate G_H = 0 for place_container_plate: n_eff_H = 6.296 < 10 with parts 1/3/4 passing. Per protocol.t1.v1.2 the verdict is final; T1d halts. dump_bin_bigbin failed the T1c source-feasibility gate earlier. No task can enter T1d, so the project pivots to T2: targeted expert trajectory rescue of the hard region.",
+    "acquisition_collapse_evidence": "D_H realized per-seed successes (9,9,7,6,3,2,2,1,1,1,0,0,0,0,0): top-2 seeds hold 43.9% and top-4 hold 75.6% of the 41 successes, while 5 supported-hard seeds yielded 0 under identical census posteriors (all 1/8, posterior mean 0.2). Success-only self-sampling concentrates on modes the policy already occasionally executes; it cannot manufacture coverage where the policy has none. The rescue source must therefore be EXTERNAL to the policy: the scripted expert motion planner.",
+    "why_an_audit_first": "T1c's own failure mode was conflating 'seeds exist' with 'trajectories are harvestable' (protocol.t1.v1.2 diagnosis_of_v1_1). T2 must not repeat this with the expert source: whether the scripted planner can actually produce a verified trajectory on each hard seed is an empirical question (planning failure, execution failure, physics instability are all possible). This audit measures per-seed expert feasibility under a frozen budget BEFORE any T2 training design is numerically frozen."
+  },
+
+  "freeze_ordering": {
+    "order": [
+      "1. THIS protocol (frozen now, before any expert attempt on hard seeds).",
+      "2. capability_cells.place_container_plate.v1.json — deterministic geometry features, cell assignment, per-cell candidate ranking and fallback order for all 50 hard seeds. Frozen (sha256) before the first probe attempt; built offline from env instantiation only, zero training, zero expert attempts.",
+      "3. The probe run (probe_expert_feasibility.py) under the rules below; output expert_source_feasibility.place_container_plate.v1.json.",
+      "4. protocol.t2_training.v1.json — numeric training design, frozen only AFTER the probe result exists, treating it as an independent input. A DRAFT of the training protocol may exist before the probe (design commitments below are already binding), but every number that depends on realized feasibility (final seed selection, dose-curve truncation) is filled in only from the frozen probe output via the frozen selection rule."
+    ],
+    "anti_gaming_clause": "Cell definitions, candidate rankings, attempt caps, and fallback rules may NOT be modified after the first real probe attempt. The Cover-12 seed set is NOT frozen as 12 seed IDs in advance; it is the deterministic image of (cells file, probe output) under the frozen selection rule, so seeing probe results creates no selection freedom."
+  },
+
+  "candidate_set": {
+    "definition": "All 50 hard seeds of difficulty_groups.place_container_plate.v1.json: the 15 supported-hard seeds (census 1/8) AND the 35 unsupported-tail seeds (census 0/8). The probe audits ALL 50 — no ranking-dependent early stop — so per-cell feasibility is measured everywhere and the Q=20 dose point can draw from the full feasible set.",
+    "supported_hard_15": [100002, 100022, 100058, 100063, 100071, 100075, 100090, 100092, 100346, 100348, 100360, 100378, 100399, 100408, 100417],
+    "unsupported_tail_35": [100001, 100013, 100029, 100031, 100040, 100044, 100046, 100052, 100054, 100055, 100093, 100094, 100095, 100099, 100300, 100302, 100304, 100306, 100321, 100325, 100329, 100332, 100340, 100342, 100349, 100352, 100356, 100362, 100379, 100389, 100390, 100398, 100414, 100425, 100431],
+    "language_rule": "The 0/8 tail seeds are 'empirically unsupported' / 'not harvestable under the frozen T1c budget' — NEVER 'p0 = 0'. For zero-success records use the one-sided bound p_upper = 1 - 0.05^(1/n): 0/8 -> 0.312, 0/24 -> 0.117, and for this audit 0/5 -> 0.451."
+  },
+
+  "expert_attempt_protocol": {
+    "planner": "The scripted task expert: setup_demo(need_plan=True) then play_once() through envs/place_container_plate.py's grasp -> lift -> place -> retreat program, mplib RRT planning (envs/robot/planner.py MplibPlanner, plan_pose try_times=2 internal retries, plan_step_lim 2500).",
+    "attempt_cap_A_exp": 5,
+    "attempt_cap_rationale": "The scene per seed is deterministic (env seeds np.random and torch from the env seed at _init_task_env_), so repeated attempts differ ONLY through mplib RRT's internal stochasticity and its downstream execution consequences. If per-attempt success probability is >= 0.451, P(0 successes in 5) <= 0.05; a 0/5 seed is declared expert-infeasible under the frozen budget with p_upper = 0.451, not 'impossible'.",
+    "success_cap_per_seed": 1,
+    "success_cap_rationale": "T2's design is one-new-seed-per-trajectory (the ESS bound (41+Q)^2/(267+Q) >= 10 requires Q >= 12 DISTINCT new seeds; duplicating seeds re-creates the concentration T1c died of). One verified trajectory per seed is exactly what any arm can consume, so the audit stops a seed at its first full success.",
+    "success_definition": "ALL FOUR, in order, within one attempt: (1) plan_success is True after play_once(); (2) check_success() is True on the planned execution; (3) the joint trajectory is saved (save_traj_data); (4) the saved trajectory REPLAYS to success: a fresh setup_demo on the same env seed with need_plan=False, save_data=True, set_path_lst from the saved trajectory, play_once(), merge_pkl_to_hdf5_video() completes, and check_success() is True on the replay. A trajectory failing step 4 is a materialization failure; the attempt counts against the cap and the hdf5/cache partial outputs are deleted.",
+    "unstable_retire_count": 2,
+    "unstable_note": "UnStableError raised during an attempt or its replay is recorded as an attempt with error_type UnStableError; two occurrences on one seed retire that seed as env_unstable (consistent with T1c's rule).",
+    "no_policy_seed": "There is no policy seed for the scripted expert. Manifest rows are keyed by (env_seed, attempt_index) with attempt_index starting at 0. mplib exposes no RNG seed here; planner stochasticity is what retries sample over, and this is documented rather than pretended away."
+  },
+
+  "failure_taxonomy": {
+    "plan_failed": "plan_success False after play_once(): mplib returned no valid path for some stage (covers IK failure / collision-blocked / unreachable — mplib does not expose which; the recorded error_message and stage prints in the worker log are evidence, not classification).",
+    "execution_check_failed": "plan_success True but check_success() False: planned path executed but the container did not end within eps of the plate or a gripper stayed closed.",
+    "unstable": "UnStableError from check_stable() — physics instability; two per seed retire it.",
+    "materialization_failed": "Steps 1-3 passed but the replay/merge/check pipeline failed.",
+    "env_error": "Any other exception; recorded with error_type and error_message and counted against the cap."
+  },
+
+  "probe_trajectory_disposition": {
+    "rule": "PRE-DECLARED: every trajectory that passes the full success definition ENTERS the T2 expert pool D_X directly. Arms consume the probe-materialized hdf5s; there is no second collection pass, so the audit and the pool cannot diverge.",
+    "storage": "run_dir/trajectories/seed_<seed>/ containing episode0.hdf5 (+ video) from the replay materialization, exactly the T1c per-success layout."
+  },
+
+  "selection_rule_schema": {
+    "scope": "Frozen here as a RULE; the concrete cells, rankings, and fallback orders are frozen in capability_cells.place_container_plate.v1.json before the probe. Selection (select_cover12.py) is then a pure function of (cells file, probe output).",
+    "cell_source": "Cells are built from deterministic scene geometry reconstructed by instantiating the real env per seed (container type 002_bowl/021_cup, container_id, container pose, plate pose, arm side, container-plate displacement) joined with T1b census counts and T1c attempts/successes. Geometry MUST come from real env instantiation, not a reimplementation of load_actors: np.random draws before load_actors (crazy_random_light coin, table_z_bias) shift the RNG stream.",
+    "ranking_within_cell": "Frozen in the cells file per cell: candidates ordered by (T1c realized successes ascending — zero-yield first, i.e. least self-harvestable and most informative), then census posterior mean ascending, then seed ID ascending. The cells file may not deviate from this ordering rule.",
+    "fallback": "If the top-ranked candidate of a cell is expert-infeasible in the probe (cap exhausted, retired, or 0 successes), selection moves down that cell's frozen ranking. If a cell has NO expert-feasible member, the cell is declared expert-infeasible; its slot falls to the cell's frozen fallback-neighbor list in the cells file, and the certificate below records the shrinkage."
+  },
+
+  "infeasibility_outcomes": {
+    "cover_12": "If fewer than 12 cells have at least one expert-feasible member AND the fallback-completed selection still yields fewer than 12 distinct feasible seeds, Cover-12 is infeasible: the probe output carries an infeasibility certificate (schema mirrors protocol.t1d.v1.1 gate_3) and T2 training does NOT launch under this design. No cap increases or re-probes to rescue the failure.",
+    "dose_curve": "Q = 20 requires >= 20 distinct expert-feasible seeds; if 12 <= feasible < 20 the Q = 20 point is DROPPED (recorded, not substituted) and the dose curve runs {6, 12}. Q = 12 arms require >= 12; below that see cover_12. Q = 6 exists only as a dose point, never as the sole surviving design.",
+    "ess_check_at_selection": "The frozen ESS bound is re-asserted at selection time with realized numbers: n_eff over (D_H's 41 self successes + Q expert trajectories, one per new seed) = (41+Q)^2 / (267+Q) must be >= 10 for the arm to be labeled an ESS rescue; Q = 12 gives 10.06. Rescuing only the 5 zero-yield supported seeds gives 46^2/272 = 7.78 — pre-computed proof that >= 7 unsupported-tail seeds must be among any Q = 12 selection; the selection output must verify this arithmetic."
+  },
+
+  "t2_design_commitments": {
+    "note": "Binding design decisions that do NOT depend on probe results, committed here so they cannot drift after seeing feasibility. Elaborated (with training hyperparameters inherited from protocol.t1d.v1.1 matched-training rules) in protocol.t2_training.v1.json AFTER the probe.",
+    "arms": ["Zero", "Self-Diverse-12", "Expert-Random-12", "Expert-Cover-12"],
+    "arms_note": "Self-Redundant-12 dropped. Self-Diverse-12 = 12 T1c self-trajectories maximizing seed diversity under a frozen rule; Expert-Random-12 = 12 expert trajectories drawn uniformly from the feasible set with a frozen RNG seed; Expert-Cover-12 = the cell-covering selection.",
+    "primary_contrasts": ["Expert-Cover-12 vs Zero", "Expert-Cover-12 vs Self-Diverse-12"],
+    "secondary_contrasts": ["Expert-Cover-12 vs Expert-Random-12 — secondary at Q=12; MUST be adequately powered before the paper may claim cover > random."],
+    "paired_training_seeds": "All arms share identical training seeds; inference is on per-seed differences D_k. Floor: >= 6 paired seeds, final count set by the power analysis in the training protocol.",
+    "exposure_constraints": {
+      "rho_expert": 0.15,
+      "w_traj_definition": "w_traj = (rho/Q) / ((1-rho)/200) = 200*rho / (Q*(1-rho)) — per-trajectory exposure of one expert trajectory relative to one Base200 trajectory.",
+      "w_traj_max": 3,
+      "derivation": "w_traj <= 3 at Q = 12 requires rho <= 3Q/(200+3Q) = 0.1525; frozen rho = 0.15 gives w_traj = 2.94. BOTH w_source (T1-style pool-level) and w_traj are reported for every arm; w_traj is the binding constraint because a single small new pool makes w_source unconstraining rather than explosive."
+    },
+    "evaluation": "Within-cell vs cross-cell Delta_H split with the interpretation table frozen in the training protocol BEFORE training: within-only / within+related / broad / train-seed-only(= memorization). Eval seed -> cell mapping comes from the frozen cells file."
+  },
+
+  "explicit_rejections": {
+    "probe_top_12_only": "Rejected: probing only a ranked prefix couples the audited set to the ranking and leaves Q=20 unpowered; auditing all 50 costs <= 250 planner attempts (no NN inference) and decouples audit from selection.",
+    "attempt_cap_2": "Rejected: under planner stochasticity P(0/2) <= 0.05 requires per-attempt p >= 0.78 — too strict to separate 'planner luck' from geometric infeasibility.",
+    "success_without_replay": "Rejected: T1c stored only fully materialized hdf5 successes; an expert trajectory that plans but does not replay to success is not consumable by training and must not count as feasible.",
+    "reusing_script_collect_data": "Rejected: script/collect_data.py at HEAD imports the deleted experiments.brace.premotion_retry and implements a success-first CANDIDATE STREAM (any seed until quota) — the opposite of a fixed-seed audit. The probe is standalone in experiments/capability_transport/, on common.py only.",
+    "fixed_12_seed_prefreeze": "Rejected: freezing 12 seed IDs before the probe either wastes the audit or forces post-hoc swaps; freezing the selection FUNCTION achieves preregistration without pretending to know feasibility."
+  },
+
+  "collector_rules": {
+    "note": "machine-readable mirror; probe_expert_feasibility.py validates THIS section against its code constants and refuses to run on mismatch. Discrepancy with prose = bug fixed by amendment, never by post-acquisition edit.",
+    "task": "place_container_plate",
+    "task_config": "demo_clean",
+    "candidate_pool": "all_hard_50",
+    "candidate_pool_size": 50,
+    "attempt_cap": 5,
+    "success_cap": 1,
+    "unstable_retire_count": 2,
+    "probe_all_candidates": true,
+    "materialization_required": true,
+    "manifest_schema_version": 1,
+    "manifest_stage": "t2_expert_probe",
+    "error_types": ["plan_failed", "execution_check_failed", "UnStableError", "materialization_failed", "env_error"],
+    "cells_file": "experiments/capability_transport/capability_cells.place_container_plate.v1.json",
+    "cells_file_required_before_first_attempt": true,
+    "output_file": "experiments/capability_transport/expert_source_feasibility.place_container_plate.v1.json",
+    "probe_trajectories_enter_pool": true,
+    "min_feasible_for_cover": 12,
+    "q_dose_points": [6, 12, 20],
+    "rho_expert": 0.15,
+    "w_traj_max": 3,
+    "ess_bound": "n_eff = (41+Q)^2/(267+Q) >= 10 using frozen T1c D_H sums (Sigma=41, Sigma_sq=267)",
+    "t1c_dh_sum": 41,
+    "t1c_dh_sumsq": 267,
+    "n_eff_min": 10
+  }
+}
