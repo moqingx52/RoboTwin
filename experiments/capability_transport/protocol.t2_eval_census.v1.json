@@ -1,0 +1,150 @@
+{
+  "protocol_revision": "capability_transport.t2_eval_census.v1",
+  "schema_version": 1,
+  "created": "2026-08-18",
+  "task": "place_container_plate",
+  "written_before": "any T2 training run and before unblinding any post-training eval. This protocol freezes the independent π₀ baseline census that defines the ONLY main-eval panels for T2. It is a prerequisite of the later training-protocol freeze (protocol.t2_training.v1.json) and does NOT amend the frozen audit freeze_ordering in protocol.t2_expert_audit.v1.json. Baseline commit at freeze: 1eb5f17.",
+
+  "depends_on": {
+    "protocol.t1.v1.json": {
+      "sha256": "f56c8d34f55a4159232806577afac4035e7501d966107519669bbf072981bed8",
+      "role": "base policy, Beta-Binomial grouping model, disjointness reservation"
+    },
+    "protocol.t2_expert_audit.v1.json": {
+      "sha256": "2438e0788e432f2c9836e7f0fac38f1093c40829ea80c1e3eaf43ee10c28a7d9",
+      "role": "frozen cell geometry rule (arm × container × y-band); probe facts referenced for identifiability floors"
+    },
+    "capability_cells.place_container_plate.v1.json": {
+      "sha256": "d28b0bb6ce5c801162fb1f9c2aaabae12f81d2583f2d3ae3fae0adc6be7caf28",
+      "role": "frozen cell_rule only; eval census builds a fresh seed→cell map on the 200-seed pool and does NOT copy rankings or fallback orders from the 50-seed file"
+    },
+    "t2_selection.place_container_plate.v1.json": {
+      "sha256": "f57f784bc1e7e9b245c34c4b1bf6f4f81b3829a9decddf0622ec5467cfe4b229",
+      "role": "Cover-12 occupied source cells for within/cross-cell panel definition"
+    },
+    "task_config": {
+      "file": "task_config/demo_clean.yml",
+      "sha256": "7bace4a557d3cf5c7ce4ba0951f8685cb4e1fb557e3b1078c50239b6f1c920c0"
+    }
+  },
+
+  "motivation": {
+    "problem": "The union of all six T2 training-point trajectory sources covers 28/50 original hard seeds. The remaining 22 non-overlapping hard seeds are all cup cells; no right-bowl seed remains on the original 50-hard panel. Using those 50 seeds as the main Δ_H panel would confound capability transport on the dominant right|002_bowl region with memorization on training-adjacent seeds.",
+    "solution": "Run an independent π₀ census on 200 reserved env seeds (100500–100699), freeze E/M/H and cell-stratified hard panels from that census alone, and restrict primary Δ_H and Γ to those panels. The original 50 hard seeds become a memorization diagnostic only."
+  },
+
+  "frozen_probe_facts": {
+    "note": "Recorded here for identifiability panel definition; do not reopen probe or selection.",
+    "feasible_expert_seeds": 25,
+    "right_arm_feasible": 22,
+    "left_arm_feasible": 1,
+    "cover12_fallback_slots": 7,
+    "cover12_occupied_source_cells": [
+      "left|021_cup|y2",
+      "right|002_bowl|y0",
+      "right|002_bowl|y1",
+      "right|002_bowl|y2",
+      "right|021_cup|y1"
+    ],
+    "cover12_random_intersection": 7,
+    "feasible_in_right_bowl_y1_y2": 18,
+    "ess_at_selection": {
+      "6": { "n_eff_realized": 7.4881, "ess_rescue": false },
+      "12": { "n_eff_realized": 9.3322, "ess_rescue": false },
+      "20": { "n_eff_realized": 12.0421, "ess_rescue": true }
+    }
+  },
+
+  "seed_pool": {
+    "env_seeds": "100500–100699 inclusive (200 seeds)",
+    "split_name": "t2_eval_census",
+    "manifest_reference": "experiments/brace/seeds/multitask_v1/place_container_plate.json partitions confirm_easy (100500–100599) and confirm_hard (100600–100699)",
+    "manifest_status_warning": "That multitask manifest remains candidate_unvalidated; seed IDs do NOT guarantee difficulty. Difficulty is assigned ONLY from this census result via Beta-Binomial posterior mean.",
+    "splits_file": "experiments/capability_transport/seeds/place_container_plate_t2_eval_census_splits.json",
+    "disjoint_from": {
+      "t1b_rollout_train": "100000–100099",
+      "t1b_census_candidate": "100300–100439",
+      "t2_trajectory_source_union": "28 env seeds drawn from the frozen t2_selection.place_container_plate.v1.json arms (Cover/Random/Self-Diverse and dose-20 extensions); exact list is the set union of all trajectory env_seed fields in that file",
+      "expert_demo_supplement_d_q": "100700–100899",
+      "note": "This census CONSUMES the T1-reserved confirmation band for place T2. T3 confirmatory eval on place must not reuse 100500–100699."
+    }
+  },
+
+  "measurement": {
+    "policy": "frozen Base200 π₀",
+    "ckpt": "policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "ckpt_sha256": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
+    "repeats": 8,
+    "episodes_total": 1600,
+    "policy_seed_rule": "policy_seed = 7000 + repeat (repeat in 0..7); disjoint from T1b offset 5000 and T1c offset 6000",
+    "task_config": "demo_clean",
+    "missingness_rule": "UnStableError episodes are operational missingness (evaluated=false); excluded from the p0 denominator; seeds are never swapped",
+    "min_evaluated_repeats": 6,
+    "outputs": "runs/<utcstamp>_t2_eval_census_place_container_plate/ ; JSON rows only, no hdf5"
+  },
+
+  "difficulty_grouping": {
+    "inherit": "protocol.t1.v1.json t1b_frozen_difficulty.difficulty_grouping verbatim",
+    "model": "Beta-Binomial posterior p0 | s ~ Beta(1 + s, 1 + R_eval - s), R_eval = evaluated repeats per seed",
+    "grouping_statistic": "posterior mean (1 + s) / (2 + R_eval)",
+    "groups": {
+      "easy": "posterior mean in [0.7, 1.0]",
+      "medium": "posterior mean in [0.3, 0.7)",
+      "hard": "posterior mean in [0.0, 0.3)",
+      "unsupported_tail": "s = 0 of R_eval evaluated repeats (subset of hard, flagged separately)"
+    },
+    "freeze_rule": "t2_eval_panels.place_container_plate.v1.json (+ sha256) written once from the completed census ONLY; never regrouped from any post-treatment checkpoint",
+    "tooling": "make_t2_eval_panels.py after merge_eval_shards.py"
+  },
+
+  "capability_cells": {
+    "rule_source": "capability_cells.place_container_plate.v1.json cell_rule (frozen geometry axes and y-bands)",
+    "implementation": "make_capability_cells.extract_geometry + cell_key on each census seed via real env setup_demo",
+    "scope": "seed → cell mapping for eval stratification only; no rankings, no fallback orders, no probe coupling"
+  },
+
+  "eval_panel_roles": {
+    "primary_delta_h_and_gamma": "independent hard panel from this census ONLY",
+    "regression_panels": "independent easy and medium panels from this census for Δ_E and Δ_M non-inferiority",
+    "within_cell_hard": "hard-panel seeds whose cell is one of the five Cover-12 occupied source cells listed in frozen_probe_facts",
+    "cross_cell_hard": "hard-panel seeds whose cell is NOT in that five-cell union",
+    "dominant_transport_target": "hard-panel seeds in right|002_bowl|y1 OR right|002_bowl|y2",
+    "memorization_diagnostic": "the 50 original T1b hard seeds (difficulty_groups.place_container_plate.v1.json groups.hard); EXCLUDED from primary Δ_H, Γ₁₂, and Γ₂₀; reported separately as train-seed overlap diagnostic"
+  },
+
+  "identifiability_floors": {
+    "note": "Frozen BEFORE seeing census results. Failure emits t2_eval_unidentifiable.place_container_plate.v1.json and blocks T2 training launch. No seed swapping, no pool widening, no borrowing T1b leftovers.",
+    "floors": {
+      "easy_panel_min_seeds": 20,
+      "medium_panel_min_seeds": 20,
+      "hard_panel_min_seeds": 20,
+      "min_evaluated_repeats_per_seed": 6,
+      "cover12_within_cell_hard_min": 8,
+      "cover12_cross_cell_hard_min": 8,
+      "right_bowl_y1_y2_hard_min": 4
+    }
+  },
+
+  "infeasibility_outcome": {
+    "certificate_file": "experiments/capability_transport/t2_eval_unidentifiable.place_container_plate.v1.json",
+    "action": "Do NOT freeze protocol.t2_training.v1.json or launch the 72 training jobs. Report which floor(s) failed."
+  },
+
+  "collector_rules": {
+    "note": "machine-readable mirror; run_t2_eval_census.sh and eval_per_seed.py must match.",
+    "task": "place_container_plate",
+    "task_config": "demo_clean",
+    "variant": "t2_eval_census_v1",
+    "split_name": "t2_eval_census",
+    "seed_count": 200,
+    "seed_range": [100500, 100699],
+    "repeats": 8,
+    "policy_seed_offset": 7000,
+    "ckpt_sha256": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
+    "min_evaluated_repeats": 6,
+    "gpu_packing": "8 GPUs × 3 simulator workers = 24 shards; CUDA_VISIBLE_DEVICES set per shard",
+    "splits_file": "experiments/capability_transport/seeds/place_container_plate_t2_eval_census_splits.json",
+    "output_panels": "experiments/capability_transport/t2_eval_panels.place_container_plate.v1.json",
+    "efficiency_ledger": "experiments/capability_transport/efficiency_ledger.jsonl"
+  }
+}

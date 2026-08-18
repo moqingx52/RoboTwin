@@ -1,0 +1,141 @@
+{
+  "record": "capability_transport.t2_launch_config.place_container_plate.v1",
+  "schema_version": 1,
+  "created": "2026-08-18",
+  "status": "FROZEN before any T2 training job. Do not edit after the first arm starts.",
+  "task": "place_container_plate",
+  "task_config": "demo_clean",
+  "protocol": "experiments/capability_transport/protocol.t2_training.v1.json",
+  "depends_on": {
+    "protocol.t2_training.v1.json": "5c6c774b2c26d272146d8d724bf19366de2641866929dbdad42266d13dd5b34e",
+    "t2_selection.place_container_plate.v1.json": "f57f784bc1e7e9b245c34c4b1bf6f4f81b3829a9decddf0622ec5467cfe4b229",
+    "t2_eval_panels.place_container_plate.v1.json": "8ebc5868f894ce89ff578c3067780049ae6d5c489476862c07f7c0757d501f31",
+    "protocol.t2_eval_census.v1.json": "e0edc7eadf562d830fe9f5c741ffe915a8c16beb87f379fc70d1f373e37b4086"
+  },
+  "base_policy": {
+    "ckpt": "policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "ckpt_sha256": "c225b1875bfc92409e00a6b545d663e034244a7da274e9f51f0f88000e7f0063",
+    "zarr": "policy/DP/data/place_container_plate-demo_clean-200.zarr",
+    "action_dim": 14,
+    "config_name": "robot_dp_14"
+  },
+  "matched_training": {
+    "s_base200": 147599,
+    "s_base200_source": "600.ckpt pickles.global_step; epoch=599 of training.num_epochs=600. No logs.json.txt found for the Base200 run.",
+    "s_star": 22140,
+    "s_star_rule": "round(0.15 * 147599) = 22140",
+    "resume_from_ckpt": "policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt",
+    "resume_mode": "weights_only: exclude optimizer; reset global_step=0 and epoch=0",
+    "batch_size": 128,
+    "optimizer": {
+      "_target_": "torch.optim.AdamW",
+      "lr": 0.0001,
+      "betas": [0.95, 0.999],
+      "eps": 1e-8,
+      "weight_decay": 1e-6
+    },
+    "lr_scheduler": "cosine",
+    "lr_warmup_steps": 500,
+    "implementation": {
+      "dataloader.num_batches": 22140,
+      "training.num_epochs": 1,
+      "note": "One epoch of 22140 optimizer batches equals S_star. Cosine is scheduled over S_star steps. Warmup 500 is inherited from Base200 cfg, not rescaled."
+    },
+    "normalizer_source": "checkpoint"
+  },
+  "training_grid": {
+    "points": [
+      "Zero",
+      "Self-Diverse-12",
+      "Expert-Random-12",
+      "Expert-Cover-6",
+      "Expert-Cover-12",
+      "Expert-Cover-20"
+    ],
+    "paired_training_seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    "n_jobs": 72,
+    "gpu_rule": "DP fine-tuning exclusive: 1 trainer per GPU; do not colocate simulator workers on a training GPU",
+    "packing": "8 GPUs → 8 concurrent jobs; 9 waves"
+  },
+  "mixtures": {
+    "Zero": {
+      "rho": 0.0,
+      "Q": 0,
+      "w_traj": null,
+      "new_source_hdf5": [],
+      "rehearsal": "policy/DP/data/place_container_plate-demo_clean-200.zarr"
+    },
+    "Self-Diverse-12": {
+      "rho": 0.15,
+      "Q": 12,
+      "w_traj": 2.941,
+      "source_run_dir": "experiments/capability_transport/runs/20260817T060821Z_t1c_collection_place_container_plate",
+      "new_source_hdf5": [
+        "successes/D_H/episode_100002_a23.hdf5",
+        "successes/D_H/episode_100022_a15.hdf5",
+        "successes/D_H/episode_100058_a0.hdf5",
+        "successes/D_H/episode_100063_a2.hdf5",
+        "successes/D_H/episode_100075_a1.hdf5",
+        "successes/D_H/episode_100092_a3.hdf5",
+        "successes/D_H/episode_100346_a3.hdf5",
+        "successes/D_H/episode_100348_a1.hdf5",
+        "successes/D_H/episode_100399_a2.hdf5",
+        "successes/D_H/episode_100408_a3.hdf5",
+        "successes/D_H/episode_100022_a21.hdf5",
+        "successes/D_H/episode_100058_a1.hdf5"
+      ],
+      "rehearsal": "policy/DP/data/place_container_plate-demo_clean-200.zarr"
+    },
+    "Expert-Random-12": {
+      "rho": 0.15,
+      "Q": 12,
+      "w_traj": 2.941,
+      "source_run_dir": "experiments/capability_transport/runs/20260818T011407Z_t2_probe_place_container_plate",
+      "new_source_seeds": [100058, 100075, 100090, 100099, 100302, 100306, 100321, 100346, 100348, 100352, 100356, 100362],
+      "new_source_hdf5_pattern": "trajectories/seed_{seed}/episode0.hdf5",
+      "rehearsal": "policy/DP/data/place_container_plate-demo_clean-200.zarr"
+    },
+    "Expert-Cover-6": {
+      "rho": 0.0826,
+      "Q": 6,
+      "w_traj": 3.0,
+      "source_run_dir": "experiments/capability_transport/runs/20260818T011407Z_t2_probe_place_container_plate",
+      "new_source_seeds": [100071, 100046, 100031, 100348, 100058, 100306],
+      "new_source_hdf5_pattern": "trajectories/seed_{seed}/episode0.hdf5",
+      "rehearsal": "policy/DP/data/place_container_plate-demo_clean-200.zarr"
+    },
+    "Expert-Cover-12": {
+      "rho": 0.15,
+      "Q": 12,
+      "w_traj": 2.941,
+      "source_run_dir": "experiments/capability_transport/runs/20260818T011407Z_t2_probe_place_container_plate",
+      "new_source_seeds": [100071, 100046, 100031, 100348, 100058, 100306, 100044, 100099, 100329, 100321, 100302, 100352],
+      "new_source_hdf5_pattern": "trajectories/seed_{seed}/episode0.hdf5",
+      "rehearsal": "policy/DP/data/place_container_plate-demo_clean-200.zarr"
+    },
+    "Expert-Cover-20": {
+      "rho": 0.15,
+      "Q": 20,
+      "w_traj": 1.76,
+      "source_run_dir": "experiments/capability_transport/runs/20260818T011407Z_t2_probe_place_container_plate",
+      "new_source_seeds": [100071, 100046, 100031, 100348, 100058, 100306, 100044, 100099, 100329, 100321, 100302, 100352, 100356, 100362, 100379, 100398, 100431, 100090, 100360, 100378],
+      "new_source_hdf5_pattern": "trajectories/seed_{seed}/episode0.hdf5",
+      "rehearsal": "policy/DP/data/place_container_plate-demo_clean-200.zarr",
+      "note": "Does NOT include T1c D_H 41 self trajectories. Acquisition-stage n_eff=12.04 is not the trained mixture."
+    }
+  },
+  "evaluation": {
+    "repeats": 8,
+    "policy_seed_offset": 8000,
+    "panels_file": "experiments/capability_transport/t2_eval_panels.place_container_plate.v1.json",
+    "primary_panels": ["easy", "medium", "hard"],
+    "hard_splits": ["within_cell_hard", "cross_cell_hard", "right_bowl_y1_y2_hard"],
+    "memorization_diagnostic": "difficulty_groups.place_container_plate.v1.json groups.hard (50 seeds); excluded from primary Delta_H / Gamma",
+    "gpu_packing_eval": "3 simulator workers per GPU after training jobs on that GPU have finished"
+  },
+  "launch_gate": {
+    "identifiability": "pass",
+    "training_code": "NOT YET IMPLEMENTED — freeze of numbers only; do not start the 72 jobs until a T2 trainer exists that consumes this file",
+    "first_job_forbidden_until": "a trainer writes per-job metadata citing this launch_config sha256"
+  }
+}

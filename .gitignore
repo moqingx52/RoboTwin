@@ -92,6 +92,7 @@ experiments/brace/sync/.cache/
 # Freeze products (protocol JSON, difficulty_groups.v1.json, t0_audit.json)
 # live beside the scripts and stay tracked.
 experiments/capability_transport/runs/
+experiments/capability_transport/mixtures/
 experiments/capability_transport/**/*.log
 experiments/capability_transport/**/*.pid
 

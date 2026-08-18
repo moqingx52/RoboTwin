@@ -1,12 +1,12 @@
 {
-  "protocol_revision": "capability_transport.t2_training.v1.DRAFT",
+  "protocol_revision": "capability_transport.t2_training.v1",
   "schema_version": 1,
   "created": "2026-08-18",
-  "status": "DRAFT — NOT FROZEN. Per protocol.t2_expert_audit.v1 freeze_ordering step 4, this protocol is frozen (renamed to protocol.t2_training.v1.json, sha256 companion written, DRAFT markers removed, remaining TBD_* fields resolved) only AFTER (a) expert_source_feasibility.place_container_plate.v1.json exists, (b) protocol.t2_eval_census.v1.json is frozen and its 200×8 census completes, and (c) t2_eval_panels.place_container_plate.v1.json passes identifiability OR the unidentifiability certificate blocks launch. Everything in binding_commitments marked preregistered is committed here and may not be weakened before freeze; census-dependent fields remain TBD until the census panels exist.",
+  "status": "FROZEN. Written after (a) expert_source_feasibility.place_container_plate.v1.json, (b) protocol.t2_eval_census.v1.json and its 200×8 census, and (c) t2_eval_panels.place_container_plate.v1.json identifiability PASS. Pre-freeze draft remains protocol.t2_training.v1.DRAFT.json as a historical snapshot and must not be used as the training protocol. Binding numbers below may not be weakened after this freeze.",
   "depends_on": {
     "protocol.t2_expert_audit.v1.json": {
       "sha256": "2438e0788e432f2c9836e7f0fac38f1093c40829ea80c1e3eaf43ee10c28a7d9",
-      "role": "audit protocol; its t2_design_commitments are inherited verbatim for Q=12 primary contrasts"
+      "role": "audit protocol; its t2_design_commitments are inherited for Q=12 primary contrasts"
     },
     "protocol.t2_eval_census.v1.json": {
       "sha256": "e0edc7eadf562d830fe9f5c741ffe915a8c16beb87f379fc70d1f373e37b4086",
@@ -14,7 +14,7 @@
     },
     "capability_cells.place_container_plate.v1.json": {
       "sha256": "d28b0bb6ce5c801162fb1f9c2aaabae12f81d2583f2d3ae3fae0adc6be7caf28",
-      "role": "frozen cell_rule and Cover-12 occupied-source-cell definition; eval seed→cell for memorization diagnostic uses this file; main eval cells come from t2_eval_panels"
+      "role": "frozen cell_rule; memorization-diagnostic seed→cell mapping"
     },
     "expert_source_feasibility.place_container_plate.v1.json": {
       "sha256": "c38a8788ccb243fbd1503b120bb3e6c4d8922f3eef5435a2daf4a1652161730c",
@@ -29,8 +29,8 @@
       "role": "matched-training rules inherited: S_star rule, dose semantics, per-sample overuse bound, frozen Base200 600.ckpt initialization"
     },
     "t2_eval_panels.place_container_plate.v1.json": {
-      "sha256": "TBD_AFTER_CENSUS — must exist and pass identifiability before this protocol freezes",
-      "role": "frozen independent E/M/H and within/cross-cell hard panels"
+      "sha256": "8ebc5868f894ce89ff578c3067780049ae6d5c489476862c07f7c0757d501f31",
+      "role": "frozen independent E/M/H and within/cross-cell hard panels; identifiable=true"
     }
   },
   "frozen_probe_facts": {
@@ -45,6 +45,20 @@
       "12": { "n_eff_realized": 9.3322, "ess_rescue": false },
       "20": { "n_eff_realized": 12.0421, "ess_rescue": true, "scope": "acquisition_stage_only" }
     }
+  },
+  "identifiability_outcome": {
+    "status": "pass",
+    "panels_file": "experiments/capability_transport/t2_eval_panels.place_container_plate.v1.json",
+    "panel_sizes": {
+      "easy": 119,
+      "medium": 32,
+      "hard": 48,
+      "within_cell_hard": 28,
+      "cross_cell_hard": 20,
+      "right_bowl_y1_y2_hard": 9,
+      "memorization_diagnostic_hard": 50
+    },
+    "excluded_insufficient_repeats": [100507]
   },
   "binding_commitments": {
     "training_points": {
@@ -93,7 +107,7 @@
         "Expert-Cover-12 vs Self-Diverse-12"
       ],
       "primary_q12_inference": {
-        "estimand": "paired per-seed difference D_k on the independent hard panel from t2_eval_panels",
+        "estimand": "paired per-training-seed difference D_k on the independent hard panel from t2_eval_panels",
         "test": "paired sign-flip permutation on D_k",
         "sensitivity": "Wilcoxon signed-rank on D_k",
         "multiplicity": "Holm correction across the two primary Q=12 contrasts",
@@ -128,6 +142,7 @@
       "q_points": [6, 12, 20],
       "q6_rule": "first 6 slots of Expert-Cover-12 in frozen cell order; exploratory exposure-capped point only",
       "q20_rule": "Cover-12 + next 8 feasible seeds from the frozen global ranking; status ACTIVE (25 feasible >= 20)",
+      "q20_status": "ACTIVE",
       "rho_at_each_q": {
         "6": "rho_q6 = 3*6/(200+3*6) = 0.0826 chosen so w_traj = 3 (exposure-capped exploratory point; total dose lower than Q=12/Q=20)",
         "12": "rho = 0.15, w_traj = 2.941",
@@ -141,14 +156,21 @@
       }
     },
     "paired_training": {
-      "rule": "all six training points share IDENTICAL K env training seeds; inference on per-seed differences D_k = J_arm(k) - J_ref(k)",
+      "rule": "all six training points share IDENTICAL K training RNG seeds; inference on per-seed differences D_k = J_arm(k) - J_ref(k)",
       "seed_floor": 6,
       "seed_count_K": 12,
+      "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "seed_kind": "dp_training_rng_seeds (Hydra training.seed); NOT environment seeds and NOT the 100500–100699 census pool",
       "K_rationale": "Frozen directly without T1d variance estimation: place never entered T1d (no t1d_launch_config.json); legacy BRACE training-seed evidence is motivation-only per t0_audit.json and must not enter the T1+ chain."
     },
     "matched_training": {
       "inherit": "protocol.t1d.v1.1 matched_training_rule verbatim: same S_star, batch size, LR schedule, optimizer, initialization (frozen Base200 600.ckpt) for every point including Zero",
-      "dose_semantics": "rho is a sampling proportion at fixed S_star; remainder of each batch is the frozen Base200 rehearsal set; never dataset-size or step-count changes"
+      "dose_semantics": "rho is a sampling proportion at fixed S_star; remainder of each batch is the frozen Base200 rehearsal set; never dataset-size or step-count changes",
+      "s_star": 22140,
+      "s_base200": 147599,
+      "s_star_rule": "S_star = round(0.15 * S_base200)",
+      "s_base200_source": "No Base200 logs.json.txt exists on disk. S_base200 is the materialized optimizer step count stored in 600.ckpt pickles.global_step (epoch 599 of num_epochs 600).",
+      "initialization": "training.resume_from_ckpt = policy/DP/checkpoints/place_container_plate-demo_clean-200-0/600.ckpt; load weights only (exclude optimizer); reset global_step=0 and epoch=0 before the S_star budget"
     },
     "evaluation": {
       "primary_panels_source": "t2_eval_panels.place_container_plate.v1.json from the independent 200×8 census (100500–100699)",
@@ -163,7 +185,12 @@
         "broad": "comparable within- and cross-cell gain: transport is GLOBAL; coverage design was sufficient but not necessary at this Q",
         "train_seed_only": "gain only on memorization-diagnostic seeds or training-adjacent overlap: MEMORIZATION, not capability transport"
       },
-      "eval_protocol": "TBD_AT_FREEZE: post-training eval repeats per seed (likely R=8 to match census); exact seed lists copied from t2_eval_panels at training-protocol freeze"
+      "eval_protocol": {
+        "repeats": 8,
+        "policy_seed_rule": "policy_seed = 8000 + repeat (repeat in 0..7); disjoint from T1b 5000, T1c 6000, and census 7000",
+        "success_criterion": "unchanged from T1 / eval_per_seed.py",
+        "seed_lists": "copied from t2_eval_panels.place_container_plate.v1.json panels.easy / medium / hard (and within_cell_hard / cross_cell_hard splits). Memorization diagnostic uses groups.hard from difficulty_groups.place_container_plate.v1.json."
+      }
     },
     "language": {
       "zero_success_seeds": "'empirically unsupported' / 'not harvestable under the frozen budget' with one-sided p_upper = 1 - 0.05^(1/n); never 'impossible'",
@@ -171,15 +198,7 @@
       "claims_scope": "no semantic-skill claims; cells are geometry strata, transport claims are stratum-scoped"
     }
   },
-  "tbd_at_freeze": {
-    "t2_eval_panels_sha256": "from t2_eval_panels.place_container_plate.v1.json after census + identifiability pass",
-    "identifiability_outcome": "pass or certificate path from make_t2_eval_panels.py",
-    "paired_training_seed_list": "12 env seeds chosen at training freeze (disjoint from census pool and trajectory sources where possible; rule frozen at launch_config time)",
-    "s_star": "S_star = round(0.15 * S_base200) from Base200 training log (T1d launch config never existed for place)",
-    "launch_config": "t2_launch_config.json + sha256 BEFORE the first arm trains",
-    "post_training_eval_repeats": "resolved at launch_config freeze",
-    "q20_status": "ACTIVE — 25 feasible >= 20; dose curve runs {6, 12, 20}"
-  },
+  "launch_config": "experiments/capability_transport/t2_launch_config.json — frozen before the first arm trains",
   "explicit_rejections": {
     "no_reordering": "cells, rankings, fallback orders, and arm compositions may not change after the probe output exists; any edit voids the T2 preregistration",
     "no_cap_rescue": "if Cover-12 is infeasible, T2 does not launch under this design; no attempt-cap increases or re-probes",
