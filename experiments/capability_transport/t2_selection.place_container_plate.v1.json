@@ -1,0 +1,335 @@
+{
+  "arms": {
+    "Expert-Cover-12": {
+      "seeds": [
+        100071,
+        100046,
+        100031,
+        100348,
+        100058,
+        100306,
+        100044,
+        100099,
+        100329,
+        100321,
+        100302,
+        100352
+      ],
+      "slots": [
+        {
+          "seed": 100071,
+          "slot_cell": "left|002_bowl|y0",
+          "taken_from_cell": "left|021_cup|y2",
+          "via_fallback": true
+        },
+        {
+          "seed": 100046,
+          "slot_cell": "left|002_bowl|y1",
+          "taken_from_cell": "right|002_bowl|y1",
+          "via_fallback": true
+        },
+        {
+          "seed": 100031,
+          "slot_cell": "left|002_bowl|y2",
+          "taken_from_cell": "right|002_bowl|y2",
+          "via_fallback": true
+        },
+        {
+          "seed": 100348,
+          "slot_cell": "left|021_cup|y0",
+          "taken_from_cell": "right|021_cup|y1",
+          "via_fallback": true
+        },
+        {
+          "seed": 100058,
+          "slot_cell": "left|021_cup|y1",
+          "taken_from_cell": "right|021_cup|y1",
+          "via_fallback": true
+        },
+        {
+          "seed": 100306,
+          "slot_cell": "left|021_cup|y2",
+          "taken_from_cell": "right|002_bowl|y2",
+          "via_fallback": true
+        },
+        {
+          "seed": 100044,
+          "slot_cell": "right|002_bowl|y0",
+          "taken_from_cell": "right|002_bowl|y0",
+          "via_fallback": false
+        },
+        {
+          "seed": 100099,
+          "slot_cell": "right|002_bowl|y1",
+          "taken_from_cell": "right|002_bowl|y1",
+          "via_fallback": false
+        },
+        {
+          "seed": 100329,
+          "slot_cell": "right|002_bowl|y2",
+          "taken_from_cell": "right|002_bowl|y2",
+          "via_fallback": false
+        },
+        {
+          "seed": 100321,
+          "slot_cell": "right|021_cup|y0",
+          "taken_from_cell": "right|002_bowl|y0",
+          "via_fallback": true
+        },
+        {
+          "seed": 100302,
+          "slot_cell": "right|021_cup|y1",
+          "taken_from_cell": "right|002_bowl|y1",
+          "via_fallback": true
+        },
+        {
+          "seed": 100352,
+          "slot_cell": "right|021_cup|y2",
+          "taken_from_cell": "right|002_bowl|y2",
+          "via_fallback": true
+        }
+      ],
+      "trajectories": {
+        "100031": "trajectories/seed_100031/episode0.hdf5",
+        "100044": "trajectories/seed_100044/episode0.hdf5",
+        "100046": "trajectories/seed_100046/episode0.hdf5",
+        "100058": "trajectories/seed_100058/episode0.hdf5",
+        "100071": "trajectories/seed_100071/episode0.hdf5",
+        "100099": "trajectories/seed_100099/episode0.hdf5",
+        "100302": "trajectories/seed_100302/episode0.hdf5",
+        "100306": "trajectories/seed_100306/episode0.hdf5",
+        "100321": "trajectories/seed_100321/episode0.hdf5",
+        "100329": "trajectories/seed_100329/episode0.hdf5",
+        "100348": "trajectories/seed_100348/episode0.hdf5",
+        "100352": "trajectories/seed_100352/episode0.hdf5"
+      }
+    },
+    "Expert-Random-12": {
+      "seeds": [
+        100058,
+        100075,
+        100090,
+        100099,
+        100302,
+        100306,
+        100321,
+        100346,
+        100348,
+        100352,
+        100356,
+        100362
+      ],
+      "trajectories": {
+        "100058": "trajectories/seed_100058/episode0.hdf5",
+        "100075": "trajectories/seed_100075/episode0.hdf5",
+        "100090": "trajectories/seed_100090/episode0.hdf5",
+        "100099": "trajectories/seed_100099/episode0.hdf5",
+        "100302": "trajectories/seed_100302/episode0.hdf5",
+        "100306": "trajectories/seed_100306/episode0.hdf5",
+        "100321": "trajectories/seed_100321/episode0.hdf5",
+        "100346": "trajectories/seed_100346/episode0.hdf5",
+        "100348": "trajectories/seed_100348/episode0.hdf5",
+        "100352": "trajectories/seed_100352/episode0.hdf5",
+        "100356": "trajectories/seed_100356/episode0.hdf5",
+        "100362": "trajectories/seed_100362/episode0.hdf5"
+      }
+    },
+    "Self-Diverse-12": {
+      "picks": [
+        {
+          "attempt_index": 23,
+          "env_seed": 100002,
+          "hdf5_path": "successes/D_H/episode_100002_a23.hdf5"
+        },
+        {
+          "attempt_index": 15,
+          "env_seed": 100022,
+          "hdf5_path": "successes/D_H/episode_100022_a15.hdf5"
+        },
+        {
+          "attempt_index": 0,
+          "env_seed": 100058,
+          "hdf5_path": "successes/D_H/episode_100058_a0.hdf5"
+        },
+        {
+          "attempt_index": 2,
+          "env_seed": 100063,
+          "hdf5_path": "successes/D_H/episode_100063_a2.hdf5"
+        },
+        {
+          "attempt_index": 1,
+          "env_seed": 100075,
+          "hdf5_path": "successes/D_H/episode_100075_a1.hdf5"
+        },
+        {
+          "attempt_index": 3,
+          "env_seed": 100092,
+          "hdf5_path": "successes/D_H/episode_100092_a3.hdf5"
+        },
+        {
+          "attempt_index": 3,
+          "env_seed": 100346,
+          "hdf5_path": "successes/D_H/episode_100346_a3.hdf5"
+        },
+        {
+          "attempt_index": 1,
+          "env_seed": 100348,
+          "hdf5_path": "successes/D_H/episode_100348_a1.hdf5"
+        },
+        {
+          "attempt_index": 2,
+          "env_seed": 100399,
+          "hdf5_path": "successes/D_H/episode_100399_a2.hdf5"
+        },
+        {
+          "attempt_index": 3,
+          "env_seed": 100408,
+          "hdf5_path": "successes/D_H/episode_100408_a3.hdf5"
+        },
+        {
+          "attempt_index": 21,
+          "env_seed": 100022,
+          "hdf5_path": "successes/D_H/episode_100022_a21.hdf5"
+        },
+        {
+          "attempt_index": 1,
+          "env_seed": 100058,
+          "hdf5_path": "successes/D_H/episode_100058_a1.hdf5"
+        }
+      ]
+    },
+    "Zero": {
+      "expert_trajectories": []
+    }
+  },
+  "cover_feasible": true,
+  "dose_points": {
+    "12": [
+      100071,
+      100046,
+      100031,
+      100348,
+      100058,
+      100306,
+      100044,
+      100099,
+      100329,
+      100321,
+      100302,
+      100352
+    ],
+    "20": [
+      100071,
+      100046,
+      100031,
+      100348,
+      100058,
+      100306,
+      100044,
+      100099,
+      100329,
+      100321,
+      100302,
+      100352,
+      100356,
+      100362,
+      100379,
+      100398,
+      100431,
+      100090,
+      100360,
+      100378
+    ],
+    "6": [
+      100071,
+      100046,
+      100031,
+      100348,
+      100058,
+      100306
+    ]
+  },
+  "ess_at_selection": {
+    "12": {
+      "ess_rescue": false,
+      "n_eff_idealized_all_new": 10.0681,
+      "n_eff_realized": 9.3322,
+      "n_unsupported_tail_selected": 9,
+      "q": 12,
+      "selected_prior_success_counts": [
+        0,
+        0,
+        0,
+        2,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "20": {
+      "ess_rescue": true,
+      "n_eff_idealized_all_new": 12.9652,
+      "n_eff_realized": 12.0421,
+      "n_unsupported_tail_selected": 14,
+      "q": 20,
+      "selected_prior_success_counts": [
+        0,
+        0,
+        0,
+        2,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "6": {
+      "ess_rescue": false,
+      "n_eff_idealized_all_new": 8.0916,
+      "n_eff_realized": 7.4881,
+      "n_unsupported_tail_selected": 3,
+      "q": 6,
+      "selected_prior_success_counts": [
+        0,
+        0,
+        0,
+        2,
+        9,
+        0
+      ]
+    }
+  },
+  "infeasibility_certificate": null,
+  "protocol_revision": "capability_transport.t2_expert_audit.v1",
+  "provenance": {
+    "audit_file": "experiments/capability_transport/expert_source_feasibility.place_container_plate.v1.json",
+    "audit_sha256": "c38a8788ccb243fbd1503b120bb3e6c4d8922f3eef5435a2daf4a1652161730c",
+    "cells_file": "experiments/capability_transport/capability_cells.place_container_plate.v1.json",
+    "cells_sha256": "d28b0bb6ce5c801162fb1f9c2aaabae12f81d2583f2d3ae3fae0adc6be7caf28",
+    "protocol_sha256": "2438e0788e432f2c9836e7f0fac38f1093c40829ea80c1e3eaf43ee10c28a7d9",
+    "random_arm_seed": 20260818,
+    "t1c_dh_manifest": "experiments/capability_transport/runs/20260817T060821Z_t1c_collection_place_container_plate/manifest_D_H.jsonl",
+    "t1c_group_states_sha256": "e6db6bc70cce5ba4816dc86306cf007365afd1b087a847ee80528ebc07079e57"
+  },
+  "pure_function_note": "Deterministic image of (cells file, audit output, T1c D_H manifest) under the frozen selection rules; RANDOM_ARM_SEED is the only RNG and is frozen at 20260818.",
+  "record": "capability_transport.t2_selection.place_container_plate.v1",
+  "schema_version": 1,
+  "task": "place_container_plate"
+}

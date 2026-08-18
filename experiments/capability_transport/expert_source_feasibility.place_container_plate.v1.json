@@ -1,0 +1,727 @@
+{
+  "attempt_cap": 5,
+  "cells": {
+    "left|002_bowl|y0": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": []
+    },
+    "left|002_bowl|y1": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": []
+    },
+    "left|002_bowl|y2": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": []
+    },
+    "left|021_cup|y0": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": [
+        100002,
+        100029,
+        100417,
+        100425
+      ]
+    },
+    "left|021_cup|y1": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": [
+        100013,
+        100022,
+        100094,
+        100304,
+        100342
+      ]
+    },
+    "left|021_cup|y2": {
+      "expert_feasible": true,
+      "feasible_ranked": [
+        100071
+      ],
+      "members": [
+        100001,
+        100071,
+        100389,
+        100390
+      ]
+    },
+    "right|002_bowl|y0": {
+      "expert_feasible": true,
+      "feasible_ranked": [
+        100044,
+        100321,
+        100090,
+        100378
+      ],
+      "members": [
+        100044,
+        100090,
+        100321,
+        100378
+      ]
+    },
+    "right|002_bowl|y1": {
+      "expert_feasible": true,
+      "feasible_ranked": [
+        100046,
+        100099,
+        100302,
+        100356,
+        100362,
+        100431,
+        100360,
+        100092,
+        100399,
+        100075
+      ],
+      "members": [
+        100046,
+        100075,
+        100092,
+        100099,
+        100302,
+        100356,
+        100360,
+        100362,
+        100399,
+        100431
+      ]
+    },
+    "right|002_bowl|y2": {
+      "expert_feasible": true,
+      "feasible_ranked": [
+        100031,
+        100306,
+        100329,
+        100352,
+        100379,
+        100398,
+        100346,
+        100063
+      ],
+      "members": [
+        100031,
+        100063,
+        100306,
+        100329,
+        100346,
+        100352,
+        100379,
+        100398
+      ]
+    },
+    "right|021_cup|y0": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": [
+        100040,
+        100325,
+        100414
+      ]
+    },
+    "right|021_cup|y1": {
+      "expert_feasible": true,
+      "feasible_ranked": [
+        100348,
+        100058
+      ],
+      "members": [
+        100054,
+        100058,
+        100095,
+        100300,
+        100340,
+        100348,
+        100408
+      ]
+    },
+    "right|021_cup|y2": {
+      "expert_feasible": false,
+      "feasible_ranked": [],
+      "members": [
+        100052,
+        100055,
+        100093,
+        100332,
+        100349
+      ]
+    }
+  },
+  "design_feasibility": {
+    "cover_12": true,
+    "ess_at_q": {
+      "12": 10.0681,
+      "20": 12.9652,
+      "6": 8.0916
+    },
+    "ess_rule": "n_eff = (41+Q)^2/(267+Q) >= 10 using frozen T1c D_H sums (Sigma=41, Sigma_sq=267)",
+    "q_dose_points": {
+      "12": true,
+      "20": true,
+      "6": true
+    }
+  },
+  "language_note": "0-success seeds are 'not harvestable under the frozen budget' with the recorded one-sided p_upper_95; this audit never claims p = 0.",
+  "per_seed": {
+    "100001": {
+      "attempts": 5,
+      "cell": "left|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100002": {
+      "attempts": 5,
+      "cell": "left|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": false
+    },
+    "100013": {
+      "attempts": 5,
+      "cell": "left|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100022": {
+      "attempts": 5,
+      "cell": "left|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": false
+    },
+    "100029": {
+      "attempts": 5,
+      "cell": "left|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100031": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100031/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100031/episode0.mp4"
+    },
+    "100040": {
+      "attempts": 5,
+      "cell": "right|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100044": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y0",
+      "hdf5": "trajectories/seed_100044/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100044/episode0.mp4"
+    },
+    "100046": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100046/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100046/episode0.mp4"
+    },
+    "100052": {
+      "attempts": 5,
+      "cell": "right|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100054": {
+      "attempts": 5,
+      "cell": "right|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100055": {
+      "attempts": 5,
+      "cell": "right|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100058": {
+      "attempts": 1,
+      "cell": "right|021_cup|y1",
+      "hdf5": "trajectories/seed_100058/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100058/episode0.mp4"
+    },
+    "100063": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100063/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100063/episode0.mp4"
+    },
+    "100071": {
+      "attempts": 1,
+      "cell": "left|021_cup|y2",
+      "hdf5": "trajectories/seed_100071/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100071/episode0.mp4"
+    },
+    "100075": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100075/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100075/episode0.mp4"
+    },
+    "100090": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y0",
+      "hdf5": "trajectories/seed_100090/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100090/episode0.mp4"
+    },
+    "100092": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100092/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100092/episode0.mp4"
+    },
+    "100093": {
+      "attempts": 5,
+      "cell": "right|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100094": {
+      "attempts": 5,
+      "cell": "left|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100095": {
+      "attempts": 5,
+      "cell": "right|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100099": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100099/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100099/episode0.mp4"
+    },
+    "100300": {
+      "attempts": 5,
+      "cell": "right|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100302": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100302/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100302/episode0.mp4"
+    },
+    "100304": {
+      "attempts": 5,
+      "cell": "left|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100306": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100306/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100306/episode0.mp4"
+    },
+    "100321": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y0",
+      "hdf5": "trajectories/seed_100321/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100321/episode0.mp4"
+    },
+    "100325": {
+      "attempts": 5,
+      "cell": "right|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100329": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100329/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100329/episode0.mp4"
+    },
+    "100332": {
+      "attempts": 5,
+      "cell": "right|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100340": {
+      "attempts": 5,
+      "cell": "right|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100342": {
+      "attempts": 5,
+      "cell": "left|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100346": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100346/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100346/episode0.mp4"
+    },
+    "100348": {
+      "attempts": 1,
+      "cell": "right|021_cup|y1",
+      "hdf5": "trajectories/seed_100348/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100348/episode0.mp4"
+    },
+    "100349": {
+      "attempts": 5,
+      "cell": "right|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100352": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100352/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100352/episode0.mp4"
+    },
+    "100356": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100356/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100356/episode0.mp4"
+    },
+    "100360": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100360/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100360/episode0.mp4"
+    },
+    "100362": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100362/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100362/episode0.mp4"
+    },
+    "100378": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y0",
+      "hdf5": "trajectories/seed_100378/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100378/episode0.mp4"
+    },
+    "100379": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100379/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100379/episode0.mp4"
+    },
+    "100389": {
+      "attempts": 5,
+      "cell": "left|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100390": {
+      "attempts": 5,
+      "cell": "left|021_cup|y2",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100398": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y2",
+      "hdf5": "trajectories/seed_100398/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100398/episode0.mp4"
+    },
+    "100399": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100399/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": false,
+      "video": "trajectories/seed_100399/episode0.mp4"
+    },
+    "100408": {
+      "attempts": 5,
+      "cell": "right|021_cup|y1",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": false
+    },
+    "100414": {
+      "attempts": 5,
+      "cell": "right|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100417": {
+      "attempts": 5,
+      "cell": "left|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": false
+    },
+    "100425": {
+      "attempts": 5,
+      "cell": "left|021_cup|y0",
+      "p_upper_95": 0.45072,
+      "status": "not_harvestable_under_frozen_budget",
+      "successes": 0,
+      "unstable_errors": 0,
+      "unsupported_tail": true
+    },
+    "100431": {
+      "attempts": 1,
+      "cell": "right|002_bowl|y1",
+      "hdf5": "trajectories/seed_100431/episode0.hdf5",
+      "status": "expert_feasible",
+      "successes": 1,
+      "unstable_errors": 0,
+      "unsupported_tail": true,
+      "video": "trajectories/seed_100431/episode0.mp4"
+    }
+  },
+  "pool": "all_hard_50",
+  "protocol_revision": "capability_transport.t2_expert_audit.v1",
+  "provenance": {
+    "cells_file": "experiments/capability_transport/capability_cells.place_container_plate.v1.json",
+    "cells_sha256": "d28b0bb6ce5c801162fb1f9c2aaabae12f81d2583f2d3ae3fae0adc6be7caf28",
+    "dry_run_rows_present": false,
+    "groups_sha256": "36b9038d0d24fe39fdb05c336a011458a30504188a3bf64040384dc355f7d283",
+    "manifest": "manifest_X.jsonl",
+    "protocol_file": "experiments/capability_transport/protocol.t2_expert_audit.v1.json",
+    "protocol_sha256": "2438e0788e432f2c9836e7f0fac38f1093c40829ea80c1e3eaf43ee10c28a7d9",
+    "run_dir": "/workspace/RoboTwin/experiments/capability_transport/runs/20260818T011407Z_t2_probe_place_container_plate"
+  },
+  "record": "capability_transport.t2_expert_audit.place_container_plate.v1",
+  "schema_version": 1,
+  "success_cap": 1,
+  "summary": {
+    "feasible_seeds": [
+      100031,
+      100044,
+      100046,
+      100058,
+      100063,
+      100071,
+      100075,
+      100090,
+      100092,
+      100099,
+      100302,
+      100306,
+      100321,
+      100329,
+      100346,
+      100348,
+      100352,
+      100356,
+      100360,
+      100362,
+      100378,
+      100379,
+      100398,
+      100399,
+      100431
+    ],
+    "feasible_supported_seeds": [
+      100058,
+      100063,
+      100071,
+      100075,
+      100090,
+      100092,
+      100346,
+      100348,
+      100360,
+      100378,
+      100399
+    ],
+    "feasible_tail_seeds": [
+      100031,
+      100044,
+      100046,
+      100099,
+      100302,
+      100306,
+      100321,
+      100329,
+      100352,
+      100356,
+      100362,
+      100379,
+      100398,
+      100431
+    ],
+    "n_cells_total": 12,
+    "n_cells_with_feasible_member": 5,
+    "n_env_unstable": 0,
+    "n_expert_feasible": 25,
+    "n_not_harvestable": 25,
+    "n_probed": 50
+  },
+  "task": "place_container_plate",
+  "task_config": "demo_clean"
+}
