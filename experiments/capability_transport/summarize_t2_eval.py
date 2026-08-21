@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aggregate per-checkpoint T2 eval JSONs into per-point summaries."""
+"""Aggregate T2 eval JSONs; derive hard-subset metrics from hard rows."""
 
 from __future__ import annotations
 
@@ -26,7 +26,6 @@ def write_json(path: Path, data):
 
 
 def parse_variant_name(name: str) -> tuple[str, int]:
-    # t2_eval_<Point>_seedNN
     if not name.startswith("t2_eval_") or "_seed" not in name:
         raise ValueError(f"unexpected variant name: {name}")
     raw = name[len("t2_eval_") :]
@@ -34,9 +33,25 @@ def parse_variant_name(name: str) -> tuple[str, int]:
     return point, int(seed_s)
 
 
-def metric_from_split(split_payload: dict, key: str):
-    value = split_payload.get(key)
-    return None if value is None else float(value)
+def mean_sr(rows, split: str | None = None, seed_set: set[int] | None = None):
+    xs = rows
+    if split is not None:
+        xs = [r for r in xs if r.get("split") == split]
+    if seed_set is not None:
+        xs = [r for r in xs if int(r["env_seed"]) in seed_set]
+    xs = [r for r in xs if r.get("evaluated", True)]
+    if not xs:
+        return None, 0, 0
+    miss = 0
+    if split is not None:
+        miss = sum(
+            1
+            for r in rows
+            if r.get("split") == split
+            and (seed_set is None or int(r["env_seed"]) in seed_set)
+            and not r.get("evaluated", True)
+        )
+    return sum(bool(r["success"]) for r in xs) / len(xs), len(xs), miss
 
 
 def mean_or_none(values):
@@ -58,52 +73,95 @@ def std_or_none(values):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--eval-dir", type=Path, default=EVAL_DIR)
-    parser.add_argument("--output", type=Path, default=EVAL_DIR / "t2_eval_summary.json")
+    parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument(
+        "--include-partial-shards",
+        action="store_true",
+        help="Also aggregate unfinished shard JSONs (for in-progress waves).",
+    )
     args = parser.parse_args()
+    if args.output is None:
+        args.output = args.eval_dir / "t2_eval_summary.json"
+
+    derived_path = args.eval_dir / "t2_eval_derived_hard_splits.json"
+    panels_path = CT_DIR / "t2_eval_panels.place_container_plate.v1.json"
+    if derived_path.is_file():
+        derived = load_json(derived_path)
+    else:
+        panels = load_json(panels_path)["panels"]
+        derived = {
+            "within_cell_hard": panels["within_cell_hard"],
+            "cross_cell_hard": panels["cross_cell_hard"],
+            "right_bowl_y1_y2_hard": panels["right_bowl_y1_y2_hard"],
+        }
+    within = set(int(x) for x in derived["within_cell_hard"])
+    cross = set(int(x) for x in derived["cross_cell_hard"])
+    right = set(int(x) for x in derived["right_bowl_y1_y2_hard"])
 
     task_dir = args.eval_dir / "place_container_plate"
-    files = sorted(task_dir.glob("t2_eval_*.json"))
-    if not files:
-        raise SystemExit(f"no eval files under {task_dir}")
-
+    files = sorted(p for p in task_dir.glob("t2_eval_*.json") if "_shard_" not in p.name)
     per_point: dict[str, list[dict]] = defaultdict(list)
-    missing = []
+    sources = {"merged": len(files), "partial_variants": 0}
+
+    payloads_by_variant: dict[str, dict] = {}
     for path in files:
         payload = load_json(path)
-        variant = payload["variant"]
-        point, seed = parse_variant_name(variant)
-        splits = payload.get("splits", {})
-        row = {
-            "seed": seed,
-            "variant": variant,
-            "file": str(path),
-            "easy_sr": metric_from_split(splits.get("easy", {}), "mean_sr"),
-            "medium_sr": metric_from_split(splits.get("medium", {}), "mean_sr"),
-            "hard_sr": metric_from_split(splits.get("hard", {}), "mean_sr"),
-            "within_cell_hard_sr": metric_from_split(splits.get("within_cell_hard", {}), "mean_sr"),
-            "cross_cell_hard_sr": metric_from_split(splits.get("cross_cell_hard", {}), "mean_sr"),
-            "right_bowl_y1_y2_hard_sr": metric_from_split(splits.get("right_bowl_y1_y2_hard", {}), "mean_sr"),
-            "memorization_hard_sr": metric_from_split(splits.get("memorization_hard", {}), "mean_sr"),
-            "hard_coverage": metric_from_split(splits.get("hard", {}), "solved_coverage"),
-            "evaluated_episodes": int(
-                splits.get("easy", {}).get("evaluated_episodes", 0)
-                + splits.get("medium", {}).get("evaluated_episodes", 0)
-                + splits.get("hard", {}).get("evaluated_episodes", 0)
-            ),
-            "operational_missing_episodes": int(
-                splits.get("easy", {}).get("operational_missing_episodes", 0)
-                + splits.get("medium", {}).get("operational_missing_episodes", 0)
-                + splits.get("hard", {}).get("operational_missing_episodes", 0)
-            ),
-        }
-        # Ensure required splits exist for summary completeness.
-        required = ("easy", "medium", "hard", "within_cell_hard", "cross_cell_hard", "memorization_hard")
-        if any(k not in splits for k in required):
-            missing.append((variant, sorted(set(required) - set(splits.keys()))))
-        per_point[point].append(row)
+        payloads_by_variant[payload["variant"]] = payload
 
-    if missing:
-        raise SystemExit(f"incomplete eval payloads: {missing[:5]}")
+    if args.include_partial_shards:
+        by_var_rows: dict[str, list] = defaultdict(list)
+        for path in sorted(task_dir.glob("*_shard_*_of_03.json")):
+            payload = load_json(path)
+            by_var_rows[payload["variant"]].extend(payload.get("rows", []))
+        for variant, rows in by_var_rows.items():
+            if variant in payloads_by_variant:
+                continue
+            payloads_by_variant[variant] = {
+                "variant": variant,
+                "rows": rows,
+                "partial": True,
+            }
+            sources["partial_variants"] += 1
+
+    for variant, payload in sorted(payloads_by_variant.items()):
+        point, seed = parse_variant_name(variant)
+        rows = payload.get("rows", [])
+        easy_sr, easy_n, _ = mean_sr(rows, "easy")
+        med_sr, med_n, _ = mean_sr(rows, "medium")
+        hard_sr, hard_n, _ = mean_sr(rows, "hard")
+        mem_sr, mem_n, _ = mean_sr(rows, "memorization_hard")
+        within_sr, within_n, _ = mean_sr(rows, "hard", within)
+        cross_sr, cross_n, _ = mean_sr(rows, "hard", cross)
+        right_sr, right_n, _ = mean_sr(rows, "hard", right)
+        # Fall back to explicit split labels if present (legacy shards).
+        if within_n == 0:
+            within_sr, within_n, _ = mean_sr(rows, "within_cell_hard")
+        if cross_n == 0:
+            cross_sr, cross_n, _ = mean_sr(rows, "cross_cell_hard")
+        if right_n == 0:
+            right_sr, right_n, _ = mean_sr(rows, "right_bowl_y1_y2_hard")
+
+        per_point[point].append(
+            {
+                "seed": seed,
+                "variant": variant,
+                "partial": bool(payload.get("partial")),
+                "easy_sr": easy_sr,
+                "medium_sr": med_sr,
+                "hard_sr": hard_sr,
+                "within_cell_hard_sr": within_sr,
+                "cross_cell_hard_sr": cross_sr,
+                "right_bowl_y1_y2_hard_sr": right_sr,
+                "memorization_hard_sr": mem_sr,
+                "n_easy": easy_n,
+                "n_medium": med_n,
+                "n_hard": hard_n,
+                "n_within": within_n,
+                "n_cross": cross_n,
+                "n_right": right_n,
+                "n_mem": mem_n,
+            }
+        )
 
     point_summary = {}
     for point, rows in sorted(per_point.items()):
@@ -114,27 +172,28 @@ def main() -> int:
                 "easy_sr_mean": mean_or_none([r["easy_sr"] for r in rows]),
                 "easy_sr_std": std_or_none([r["easy_sr"] for r in rows]),
                 "medium_sr_mean": mean_or_none([r["medium_sr"] for r in rows]),
-                "medium_sr_std": std_or_none([r["medium_sr"] for r in rows]),
                 "hard_sr_mean": mean_or_none([r["hard_sr"] for r in rows]),
                 "hard_sr_std": std_or_none([r["hard_sr"] for r in rows]),
                 "within_cell_hard_sr_mean": mean_or_none([r["within_cell_hard_sr"] for r in rows]),
                 "cross_cell_hard_sr_mean": mean_or_none([r["cross_cell_hard_sr"] for r in rows]),
-                "right_bowl_y1_y2_hard_sr_mean": mean_or_none([r["right_bowl_y1_y2_hard_sr"] for r in rows]),
+                "right_bowl_y1_y2_hard_sr_mean": mean_or_none(
+                    [r["right_bowl_y1_y2_hard_sr"] for r in rows]
+                ),
                 "memorization_hard_sr_mean": mean_or_none([r["memorization_hard_sr"] for r in rows]),
-                "hard_coverage_mean": mean_or_none([r["hard_coverage"] for r in rows]),
-            },
-            "episodes": {
-                "evaluated_total": int(sum(r["evaluated_episodes"] for r in rows)),
-                "operational_missing_total": int(sum(r["operational_missing_episodes"] for r in rows)),
             },
             "per_seed": rows,
         }
 
     output = {
-        "record": "capability_transport.t2_eval_summary.v1",
+        "record": "capability_transport.t2_eval_summary.v2",
         "eval_dir": str(args.eval_dir),
+        "sources": sources,
+        "derivation": {
+            "within_from_hard": True,
+            "cross_from_hard": True,
+            "right_bowl_from_hard": True,
+        },
         "points": point_summary,
-        "n_eval_files": len(files),
     }
     write_json(args.output, output)
     print(f"wrote {args.output}")
@@ -143,4 +202,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
