@@ -74,7 +74,7 @@ def hydra_overrides(cfg: dict, point: str, seed: int, job_dir: Path, zarr_path: 
         "expert_data_num=200",
         "head_camera_type=D435",
         f"hydra.run.dir={job_dir}",
-        "hydra.job.chdir=true",
+        "hydra.job.chdir=false",
     ]
     if mix["expert_ratio"] is not None:
         overrides.append(f"dataloader.expert_ratio={mix['expert_ratio']}")

@@ -44,6 +44,9 @@ class BaseWorkspace:
             path = pathlib.Path(self.output_dir).joinpath("checkpoints", f"{tag}.ckpt")
         else:
             path = pathlib.Path(path)
+        if not path.is_absolute():
+            path = pathlib.Path(self.output_dir).joinpath(path)
+        path = path.resolve()
         if exclude_keys is None:
             exclude_keys = tuple(self.exclude_keys)
         if include_keys is None:
@@ -80,11 +83,18 @@ class BaseWorkspace:
                     pass
 
         if use_thread:
+            if self._saving_thread is not None:
+                self._saving_thread.join()
             self._saving_thread = threading.Thread(target=atomic_torch_save)
             self._saving_thread.start()
         else:
             atomic_torch_save()
         return str(path.absolute())
+
+    def wait_for_checkpoint_save(self):
+        if self._saving_thread is not None:
+            self._saving_thread.join()
+            self._saving_thread = None
 
     def get_checkpoint_path(self, tag="latest"):
         return pathlib.Path(self.output_dir).joinpath("checkpoints", f"{tag}.ckpt")

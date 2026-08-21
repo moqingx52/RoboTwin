@@ -770,7 +770,10 @@ class RobotWorkspace(BaseWorkspace):
                     save_name = OmegaConf.select(cfg, "training.checkpoint_name", default=None)
                     if not save_name:
                         save_name = pathlib.Path(self.cfg.task.dataset.zarr_path).stem
-                    self.save_checkpoint(f"checkpoints/{save_name}-{seed}/{self.epoch + 1}.ckpt")  # TODO
+                    ckpt_path = pathlib.Path(self.output_dir) / "checkpoints" / f"{save_name}-{seed}" / f"{self.epoch + 1}.ckpt"
+                    # Final epoch save is synchronous: Hydra restores cwd when run()
+                    # returns, which used to break the background relative-path save.
+                    self.save_checkpoint(str(ckpt_path), use_thread=False)
 
                 # ========= eval end for this epoch ==========
                 policy.train()
@@ -780,6 +783,7 @@ class RobotWorkspace(BaseWorkspace):
                 json_logger.log(step_log)
                 self.global_step += 1
                 self.epoch += 1
+            self.wait_for_checkpoint_save()
 
 
 from experiments.brace.preservation_sampler import PreservationGroupBatchSampler
