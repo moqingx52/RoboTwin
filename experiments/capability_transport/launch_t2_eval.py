@@ -161,65 +161,19 @@ def pick_python() -> str:
 
 
 def migrate_shards_for_slim_splits(task_dir: Path, split_file: Path, workers: int = 3) -> dict:
-    """Rewrite existing shard JSONs for slim unique-panel rollout.
+    """DEPRECATED: in-place rename without global re-sharding.
 
-    - Keep easy/medium/hard/memorization rows.
-    - Remap completed cross_cell_hard rows into hard when missing.
-    - Drop within/cross/right as standalone rollout labels.
+    This path caused `unexpected work item` on Cover resume because remapped
+    hard rows kept fat-worklist shard ownership. Use
+    `repair_t2_eval_shards.py` instead (global gather → normalize → dedup →
+    index%3 redistribute).
     """
-    splits = load_json(split_file)
-    keep = set(ROLLOUT_SPLITS)
-    hard_seeds = set(int(s) for s in splits["hard"])
-    stats = {"files": 0, "kept_rows": 0, "remapped_cross_to_hard": 0, "dropped_rows": 0}
-    for path in sorted(task_dir.glob("*_shard_*_of_03.json")):
-        payload = load_json(path)
-        rows = payload.get("rows", [])
-        hard_keys = {
-            (int(r["env_seed"]), int(r["repeat"]))
-            for r in rows
-            if r.get("split") == "hard"
-        }
-        new_rows = []
-        for row in rows:
-            split = str(row.get("split"))
-            if split in keep:
-                new_rows.append(row)
-                continue
-            if split == "cross_cell_hard":
-                seed = int(row["env_seed"])
-                repeat = int(row["repeat"])
-                if seed in hard_seeds and (seed, repeat) not in hard_keys:
-                    remapped = dict(row)
-                    remapped["split"] = "hard"
-                    remapped["remapped_from"] = "cross_cell_hard"
-                    new_rows.append(remapped)
-                    hard_keys.add((seed, repeat))
-                    stats["remapped_cross_to_hard"] += 1
-                else:
-                    stats["dropped_rows"] += 1
-                continue
-            stats["dropped_rows"] += 1
-        new_rows.sort(key=lambda r: (r["split"], int(r["env_seed"]), int(r["repeat"])))
-        stats["kept_rows"] += len(new_rows)
-        stats["files"] += 1
-
-        # Rebuild lightweight progress; completeness is re-checked by resume.
-        expected = 0
-        # Approximate expected for this shard: total unique episodes / workers.
-        n_total = sum(len(v) * 8 for v in splits.values())
-        # Same sharding as build_work_items index % workers.
-        # We do not recompute exact expected here; leave complete=False unless merged.
-        payload["rows"] = new_rows
-        progress = dict(payload.get("progress") or {})
-        progress["completed_episodes"] = len(new_rows)
-        progress["complete"] = False
-        progress["slim_splits_migration"] = True
-        progress["expected_unique_episodes_per_job"] = n_total
-        payload["progress"] = progress
-        # Drop stale split summaries; resume/merge will rewrite.
-        payload["splits"] = {}
-        write_json(path, payload, sort_keys=False)
-    return stats
+    raise RuntimeError(
+        "Refusing --migrate-existing-shards: it does not reassign shard "
+        "ownership and breaks resume. Use experiments/capability_transport/"
+        "repair_t2_eval_shards.py (global gather → canonicalize → dedup → "
+        f"index%{workers} redistribute). task_dir={task_dir} split_file={split_file}"
+    )
 
 
 def main() -> int:
@@ -237,7 +191,10 @@ def main() -> int:
     parser.add_argument(
         "--migrate-existing-shards",
         action="store_true",
-        help="Rewrite existing shard JSONs to slim unique-panel schema before launch.",
+        help=(
+            "DEPRECATED/REFUSED. Use repair_t2_eval_shards.py for global "
+            "gather→normalize→dedup→index%%3 redistribute before Cover resume."
+        ),
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
